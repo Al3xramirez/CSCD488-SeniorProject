@@ -1,0 +1,77 @@
+############################
+# OS / general
+############################
+.DS_Store
+Thumbs.db
+*.sw?
+
+############################
+# Logs
+############################
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+############################
+# Node / Vue (Vite)
+############################
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+############################
+# Java / Spring Boot / Maven / Gradle
+############################
+target/
+build/
+
+# Maven Wrapper (keep jar out of repo)
+.mvn/wrapper/maven-wrapper.jar
+
+# If you ever keep the starter HELP.md, ignore it (optional)
+HELP.md
+
+# Keep build output folders if they exist under src (rare, but safe)
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+############################
+# IDEs / Editors
+############################
+# VS Code (ignore settings, but allow recommended extensions file)
+.vscode/
+!.vscode/extensions.json
+
+# IntelliJ / JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse / STS
+.classpath
+.project
+.settings/
+.apt_generated
+.factorypath
+.springBeans
+.sts4-cache/
+
+# Visual Studio (sometimes appears)
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
