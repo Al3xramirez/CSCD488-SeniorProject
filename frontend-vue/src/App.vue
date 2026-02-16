@@ -7,6 +7,7 @@ onMounted(async () => {
   const res = await fetch('/api/health')
   msg.value = await res.text()
 })
+
 </script>
 
 <template>
