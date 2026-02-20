@@ -3,7 +3,7 @@ package com.cscd488seniorproject.syllabussyncproject;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication (exclude = {org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class}) // Exclude DB configuration for now 
 public class SyllabusSyncApplication {
 
 	public static void main(String[] args) {
