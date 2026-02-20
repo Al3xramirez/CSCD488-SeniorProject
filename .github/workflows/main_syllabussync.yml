@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -24,28 +24,31 @@ jobs:
           java-version: '17'
           distribution: 'microsoft'
 
+      # ✅ Run Maven where the pom.xml actually is
       - name: Build with Maven
-        run: mvn clean install
+        working-directory: backend-springboot
+        run: mvn -B clean package
 
+      # ✅ Upload the JAR from backend-springboot/target
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: java-app
-          path: '${{ github.workspace }}/target/*.jar'
+          path: backend-springboot/target/*.jar
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-  
+      id-token: write
+      contents: read
+
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: java-app
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -60,4 +63,3 @@ jobs:
           app-name: 'syllabussync'
           slot-name: 'Production'
           package: '*.jar'
-          

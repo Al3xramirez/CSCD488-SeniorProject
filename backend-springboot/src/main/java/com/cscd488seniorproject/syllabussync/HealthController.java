@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussync;
+package com.cscd488SeniorProject.SyllabusSync;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
