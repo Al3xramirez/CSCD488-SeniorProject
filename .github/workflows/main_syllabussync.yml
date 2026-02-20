@@ -15,7 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ Build Vue
+      # ------------------------
+      # Build Vue
+      # ------------------------
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,7 +35,19 @@ jobs:
           mkdir -p backend-springboot/src/main/resources/static
           cp -r frontend-vue/dist/* backend-springboot/src/main/resources/static/
 
-      # ✅ Build Spring Boot (now includes Vue files)
+      # ------------------------
+      # DEBUG 1: Verify static files exist
+      # ------------------------
+      - name: Debug - list Vue dist and Spring static
+        run: |
+          echo "=== Vue dist contents ==="
+          ls -la frontend-vue/dist || true
+          echo "=== Spring static contents ==="
+          ls -la backend-springboot/src/main/resources/static || true
+
+      # ------------------------
+      # Build Spring Boot
+      # ------------------------
       - name: Set up Java version
         uses: actions/setup-java@v4
         with:
@@ -44,7 +58,19 @@ jobs:
         working-directory: backend-springboot
         run: mvn -B clean package
 
-      # ✅ Upload the correct runnable jar (avoid sources/original jars)
+      # ------------------------
+      # DEBUG 2: Check jar contains index.html
+      # ------------------------
+      - name: Debug - inspect jar contents
+        working-directory: backend-springboot
+        run: |
+          JAR=$(ls target/*.jar | head -n 1)
+          echo "Using jar: $JAR"
+          jar tf "$JAR" | grep "static/index.html" || true
+
+      # ------------------------
+      # Upload correct jar
+      # ------------------------
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
