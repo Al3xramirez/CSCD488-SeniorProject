@@ -3,7 +3,7 @@ spring:
     name: SyllabusSync
   
   datasource: 
-    url: jdbc:mysql://localhost:3306/syllabussync?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver

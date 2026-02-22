@@ -1,0 +1,105 @@
+name: Build and deploy JAR app to Azure Web App - syllabussync
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ------------------------
+      # Build Vue
+      # ------------------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build Vue
+        working-directory: frontend-vue
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy Vue dist into Spring Boot static
+        run: |
+          rm -rf backend-springboot/src/main/resources/static/*
+          mkdir -p backend-springboot/src/main/resources/static
+          cp -r frontend-vue/dist/* backend-springboot/src/main/resources/static/
+
+      # ------------------------
+      # DEBUG 1: Verify static files exist
+      # ------------------------
+      - name: Debug - list Vue dist and Spring static
+        run: |
+          echo "=== Vue dist contents ==="
+          ls -la frontend-vue/dist || true
+          echo "=== Spring static contents ==="
+          ls -la backend-springboot/src/main/resources/static || true
+
+      # ------------------------
+      # Build Spring Boot
+      # ------------------------
+      - name: Set up Java version
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'microsoft'
+
+      - name: Build with Maven
+        working-directory: backend-springboot
+        run: mvn -B clean package
+
+      # ------------------------
+      # DEBUG 2: Check jar contains index.html
+      # ------------------------
+      - name: Debug - inspect jar contents
+        working-directory: backend-springboot
+        run: |
+          JAR=$(ls target/*.jar | head -n 1)
+          echo "Using jar: $JAR"
+          jar tf "$JAR" | grep "static/index.html" || true
+
+      # ------------------------
+      # Upload correct jar
+      # ------------------------
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-app
+          path: backend-springboot/target/*-SNAPSHOT.jar
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: java-app
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_EF2E571B217646A98C92CCD138B91672 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_446BC23E295B41A08802B992CCEBD962 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0BA6463238AF42BFAF8DA82F5559C523 }}
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'syllabussync'
+          slot-name: 'Production'
+          package: '*-SNAPSHOT.jar'

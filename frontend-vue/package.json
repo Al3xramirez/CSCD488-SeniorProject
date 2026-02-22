@@ -11,7 +11,8 @@
   "dependencies": {
     "latest": "^0.2.0",
     "npm": "^11.10.0",
-    "vue": "^3.5.25"
+    "vue": "^3.5.25",
+    "vue-router": "^5.0.3"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.2",
