@@ -8,7 +8,7 @@
       <h1>Create account</h1>
       <p class="subtitle">Basic signup for now</p>
 
-      <form class="form" @submit.prevent action="/register" method="post">
+      <form class="form" @submit.prevent action="/signup" method="post">
         <input 
           type="text" 
           placeholder="Username" 

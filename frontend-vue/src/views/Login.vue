@@ -101,7 +101,7 @@ const password = ref('')
             <p>Login or createan account to begin using syllabus </p>
         </header>
 
-        <form @submit.prevent="" action="/login" method="post">
+        <form @submit.prevent="" action="/login" method="get">
             
             <label>
                 <span>Enter your email</span>

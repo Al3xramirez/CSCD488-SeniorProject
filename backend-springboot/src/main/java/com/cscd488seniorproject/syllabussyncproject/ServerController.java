@@ -10,7 +10,7 @@ public class ServerController {
         //establish connection with server
     }
     
-    @PostMapping("/register")
+    @PostMapping("/signup")
     public String handleForm(
             @RequestParam String firstName,
             @RequestParam String lastName,
