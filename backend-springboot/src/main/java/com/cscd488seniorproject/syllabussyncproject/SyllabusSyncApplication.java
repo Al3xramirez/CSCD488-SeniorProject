@@ -1,4 +1,4 @@
-package com.cscd488SeniorProject.SyllabusSync;
+package com.cscd488seniorproject.syllabussync;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

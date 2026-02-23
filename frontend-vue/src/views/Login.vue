@@ -126,9 +126,13 @@ const password = ref('')
             <input 
                 type="submit" 
                 value="Login"/>
-        
+            
+                
         </form>
         <footer>
+            <p>
+                  to dashboard <RouterLink to = "/dashboard">dashboard</RouterLink>
+            </p>
             <p>
                 Dont have an account? <RouterLink to = "/signup">Register</RouterLink> Signup Here
             </p>
