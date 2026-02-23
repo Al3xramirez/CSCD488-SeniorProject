@@ -9,17 +9,17 @@ import { ref } from 'vue'
         <div class = "sidebar__wrapper">
             <ul class = "sidebar__list">
                 <li>
-                    <button class = "sidebar__item">
+                    <button class = "sidebar__item" @click="$router.push('/Profile')">
                         <span class="item--heading"> Profile </span>
                     </button>
                 </li>
                 <li>
-                    <button class = "sidebar__item">
-                        <span class="item--heading"> Office Hours </span>
+                    <button class = "sidebar__item" @click="$router.push('/Meetings')">
+                        <span class="item--heading"> Meetings </span>
                     </button>
                 </li>
                 <li>
-                    <button class = "sidebar__item">
+                    <button class = "sidebar__item" @click="$router.push('/Courses')">
                         <span class="item--heading"> Classes </span>
                     </button>
                 </li>
@@ -58,6 +58,10 @@ main {
     flex-flow: column;
     gap: var(--list-gap);
     overflow: hidden;
+
+    min-height: 100vh;
+    width: 100px;
+    background-color: #3b0ea4;
 }
 .sidebar__item {
     block-size: 40px;
