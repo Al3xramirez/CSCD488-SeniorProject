@@ -1,9 +1,3 @@
-
-
-<script setup>
-import { ref } from 'vue'
-</script>
-
 <template>
     <main>
         <div class = "sidebar__wrapper">
