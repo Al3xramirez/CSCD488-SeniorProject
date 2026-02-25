@@ -1,7 +1,9 @@
 <script setup>
 // This is just a backend health check to see if the API to the backend is working
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 
+const router = useRouter();
 const backendStatus = ref("Checking backend...");
 
 onMounted(async () => {
@@ -13,21 +15,26 @@ onMounted(async () => {
   }
 });
 
+function handleLogin() {
+  // Fake login for now → go straight to dashboard area
+  router.push("/app");
+}
 </script>
 
 <template>
-
   <div class="container">
     <div class="login-card">
       <h1>SyllabusSync</h1>
       <p class="subtitle">Login to your account</p>
 
-      <form class="form" @submit.prevent> 
-        <!-- submit.prevent is used to prevent the page from refreshing when the form is submitted -->
+      <form class="form" @submit.prevent="handleLogin">
         <input type="email" placeholder="Email" required />
         <input type="password" placeholder="Password" required />
         <button type="submit">Login</button>
-        <p class="bottom"> Don’t have an account? <router-link class="link" to="/signup">Sign up here</router-link> <!-- router-link is used to navigate to the signup page -->
+
+        <p class="bottom">
+          Don’t have an account?
+          <router-link class="link" to="/signup">Sign up here</router-link>
         </p>
       </form>
 
@@ -37,17 +44,15 @@ onMounted(async () => {
       </div>
     </div>
   </div>
-
 </template>
 
 <style scoped>
-
 .container {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #fdfdfd, #fbfbfc);
+  background: linear-gradient(135deg, #161a3a, #ffffff);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
@@ -126,5 +131,4 @@ h1 {
 .link:hover {
   text-decoration: underline;
 }
-
 </style>

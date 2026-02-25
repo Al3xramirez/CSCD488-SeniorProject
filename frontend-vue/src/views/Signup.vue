@@ -44,7 +44,7 @@
   justify-content: center;
   align-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, #ffffff, #f5f5f5);
+  background: linear-gradient(135deg, #171a42, #f5f5f5);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
