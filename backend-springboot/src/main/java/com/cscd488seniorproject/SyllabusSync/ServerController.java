@@ -1,4 +1,4 @@
-package com.cscd488SeniorProject.SyllabusSync;
+package com.cscd488seniorproject.syllabussync;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -6,9 +6,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 public class ServerController {
-    public static void main(String args[]){
-        //establish connection with server
-    }
+
     
     @PostMapping("/signup")
     public String handleForm(
@@ -24,8 +22,9 @@ public class ServerController {
         
         return "/login"; // Tells Spring to show success-page.html
     }
+
     @PostMapping("/login")
-    public String handleForm(
+    public String handleLoginForm(
             @RequestParam String email, 
             @RequestParam String password) {
         // Your SQL logic goes here
@@ -33,6 +32,6 @@ public class ServerController {
         //if not return login with some kind of failure notice
         System.out.println("Received: " + email);
         System.out.println("Received: " + password);
-        return "/home"; // Tells Spring to show success-page.html
+        return "/Dashboard"; // Tells Spring to show success-page.html
     }
 }

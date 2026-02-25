@@ -1,4 +1,4 @@
-package cscd488seniorproject.syllabussyncproject;
+package com.cscd488seniorproject.syllabussync;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,10 +15,10 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-class WebSecurityConfig {
+public class WebSecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) {
+	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
 		// @formatter:off
 		http
 			.authorizeHttpRequests((requests) -> requests

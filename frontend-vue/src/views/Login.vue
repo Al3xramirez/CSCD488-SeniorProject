@@ -96,43 +96,41 @@ const password = ref('')
 <template>
     <main>
         <header>
-            <h1 class = "logo">Secret App</h1>
+            <h1 class = "logo">SyllabusSync</h1>
             <h2>Login</h2>
-            <p>Login or createan account to begin using syllabus </p>
+            <p>Login or create a account to begin using syllabus </p>
         </header>
 
-        <form @submit.prevent="" action="/login" method="get">
+        <form @submit.prevent="" action="/login" method="GEt">
             
             <label>
                 <span>Enter your email</span>
                 <input 
-                    type="email" 
-                    v-model="email" 
                     placeholder="test@test.com" 
                     id="Email" 
                     name="Email"/>
             </label>
+              <!-- type="email" 
+                    v-model="email"  -->
             <br>
             <label>
                 <span>Enter your password</span>
                 <input 
-                    type="password" 
-                    v-model="password" 
                     placeholder="********" 
                     id="Password" 
                     name="Password"/>
             </label>
+            <!-- type="password" 
+                    v-model="password"  -->
             <br>
             <input 
                 type="submit" 
-                value="Login"/>
+                value="Login"
+                @click="$router.push('/Dashboard')"/>
             
                 
         </form>
         <footer>
-            <p>
-                  to dashboard <RouterLink to = "/dashboard">dashboard</RouterLink>
-            </p>
             <p>
                 Dont have an account? <RouterLink to = "/signup">Register</RouterLink> Signup Here
             </p>
