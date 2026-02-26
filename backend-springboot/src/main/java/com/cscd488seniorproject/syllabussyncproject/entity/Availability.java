@@ -1,8 +1,7 @@
 package com.cscd488seniorproject.syllabussyncproject.entity;
-
 import jakarta.persistence.*;
-import java.datetime.DayOfWeek;
 import java.time.LocalTime;
+import java.time.DayOfWeek;
 
 @Entity
 @Table(name = "availability")
