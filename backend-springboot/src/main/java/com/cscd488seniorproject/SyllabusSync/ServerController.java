@@ -22,7 +22,6 @@ public class ServerController {
     public String handleLoginForm(
             @RequestParam String email, 
             @RequestParam String password) {
-        // Your SQL logic goes here
         //if okay return home with login auth
         //if not return login with some kind of failure notice
         System.out.println("Received: " + email);

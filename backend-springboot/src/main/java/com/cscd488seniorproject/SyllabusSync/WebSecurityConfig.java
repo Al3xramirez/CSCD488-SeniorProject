@@ -23,11 +23,13 @@ public class WebSecurityConfig {
 		http
 			.authorizeHttpRequests((requests) -> requests
 				.requestMatchers("/login","/signup").permitAll()
-				.anyRequest().authenticated()
+				.requestMatchers("/**").authenticated()
 			)
 			.formLogin((form) -> form
-				.loginPage("/login")
-				.permitAll()
+				.loginPage("/login").permitAll()
+    			.loginProcessingUrl("/api/login")
+    			.successHandler((req, res, auth) -> res.setStatus(200))
+  		  		.failureHandler((req, res, ex) -> res.sendError(401))
 			)
 			.logout(LogoutConfigurer::permitAll);
 		// @formatter:on
