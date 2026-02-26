@@ -22,11 +22,16 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to, from, next) => {
-  const isAuthenticated = localStorage.getItem("token")
-
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    next("/login")
+router.beforeEach(async (to, from, next) => {
+  if (to.meta.requiresAuth) {
+    try {
+      await fetch('http://localhost:8080/api/check-auth', {   //again needs to be redirected
+        credentials: 'include'
+      })
+      next()
+    } catch {
+      next('/login')
+    }
   } else {
     next()
   }

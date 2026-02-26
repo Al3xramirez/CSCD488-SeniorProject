@@ -3,15 +3,16 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const email = ref('')
+const username = ref('')
 const password = ref('')
 
 const submitForm = async () => {
-  const res = await fetch('http://localhost:8080/login', { //this needs to be redirected to the webserver api which will 
+  const res = await fetch('http://localhost:8080/api/login', { //this needs to be redirected to the webserver api which will 
     method: 'POST',                                   //then reach out to the SQL database for authenticate login
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: email.value,
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    credentials: 'include',
+    body: new URLSearchParams({
+      username: username.value,
       password: password.value
     })
   })
@@ -37,9 +38,9 @@ const submitForm = async () => {
                 <span>Enter your email</span>
                 <input 
                     placeholder="test@test.com" 
-                    id="Email" 
-                    name="email"
-                    type="email"
+                    id="username" 
+                    name="username"
+                    type="text"
                     v-model="email"
                     required/>
             </label>

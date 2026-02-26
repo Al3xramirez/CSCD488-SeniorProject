@@ -8,8 +8,8 @@ const email = ref('')
 const password = ref('')
 
 const submitForm = async () => {
-  await fetch('http://localhost:8080/signup', {//this needs to be redirected to the webserver api which will 
-    method: 'POST',                            //then reach out to the SQL database for verify signup
+  const res = await fetch('http://localhost:8080/api/signup', {//this needs to be redirected to the webserver api which will 
+    method: 'POST',                                            //then reach out to the SQL database for verify signup
     headers: {
       'Content-Type': 'application/json'
     },
