@@ -3,7 +3,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 
-const router = useRouter();
+//const router = useRouter();
 const backendStatus = ref("Checking backend...");
 
 onMounted(async () => {
@@ -15,10 +15,7 @@ onMounted(async () => {
   }
 });
 
-function handleLogin() {
-  // Fake login for now → go straight to dashboard area
-  router.push("/app");
-}
+
 </script>
 
 <template>
@@ -27,7 +24,7 @@ function handleLogin() {
       <h1>SyllabusSync</h1>
       <p class="subtitle">Login to your account</p>
 
-      <form class="form" @submit.prevent="handleLogin">
+      <form class="form" @submit.prevent>
         <input type="email" placeholder="Email" required />
         <input type="password" placeholder="Password" required />
         <button type="submit">Login</button>

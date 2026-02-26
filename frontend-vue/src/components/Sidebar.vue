@@ -5,7 +5,7 @@ const route = useRoute();
 
 const links = [
   { to: "/app", label: "Dashboard" },
-  { to: "/app/meeting-times", label: "Meeting Times" },
+  { to: "/app/meetings", label: "Meeting Times" },
   { to: "/app/calendar", label: "Calendar" },
   { to: "/app/office-hours", label: "Office Hours Match" },
 ];

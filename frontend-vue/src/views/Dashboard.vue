@@ -45,11 +45,8 @@
       <div class="card-header">
         <div>
           <h2>Upcoming This Week</h2>
-          <p class="muted">
-            Imported from Canvas (placeholder)
-          </p>
         </div>
-        <button class="btn ghost">Connect Canvas (later)</button>
+        <button class="btn ghost">Import Canvas .ics</button>
       </div>
 
       <div class="list">

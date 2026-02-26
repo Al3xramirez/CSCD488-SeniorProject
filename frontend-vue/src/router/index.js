@@ -5,10 +5,10 @@ import Signup from "../views/Signup.vue";
 
 import DashboardLayout from "../layouts/DashboardLayout.vue";
 
-import DashboardHome from "../views/DashboardHome.vue";
-import MeetingTimes from "../views/MeetingTimes.vue";
-import CalendarView from "../views/CalendarView.vue";
-import OfficeHoursMatch from "../views/OfficeHoursMatch.vue";
+import Dashboard from "../views/Dashboard.vue";
+import Meetings from "../views/Meetings.vue";
+import Calendar from "../views/Calendar.vue";
+import OfficeHours from "../views/OfficeHours.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,10 +23,10 @@ const router = createRouter({
       path: "/app",
       component: DashboardLayout,
       children: [
-        { path: "", name: "dashboard", component: DashboardHome }, // /app
-        { path: "meeting-times", name: "meeting-times", component: MeetingTimes },
-        { path: "calendar", name: "calendar", component: CalendarView },
-        { path: "office-hours", name: "office-hours", component: OfficeHoursMatch },
+        { path: "", name: "dashboard", component: Dashboard }, // /app
+        { path: "meetings", name: "meetings", component: Meetings },
+        { path: "calendar", name: "calendar", component: Calendar },
+        { path: "office-hours", name: "office-hours", component: OfficeHours },
       ],
     },
   ],
