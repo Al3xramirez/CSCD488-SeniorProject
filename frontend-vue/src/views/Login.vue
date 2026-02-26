@@ -1,31 +1,94 @@
-<style scoped>
+<script setup>
+import { ref } from 'vue'
 
+const email = ref('')
+const password = ref('')
+
+const submitForm = async () => {
+  const res = await fetch('http://localhost:8080/', { //this needs to be redirected to the webserver api which will 
+    method: 'POST',                                 //  then reach out to the SQL database for authenticate login
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: email.value,
+      password: password.value
+    })
+  })
+
+  if(res.ok){
+    window.location.href = '/dashboard'
+  } else {
+    alert('Invalid login')
+  }
+}
+</script>
+
+<template>
+    <main>
+        <header>
+            <h1 class = "logo">SyllabusSync</h1>
+            <h2>Login</h2>
+            <p>Login or create a account to begin using syllabus </p>
+        </header>
+
+        <form @submit.prevent="submitForm">
+            <label>
+                <span>Enter your email</span>
+                <input 
+                    placeholder="test@test.com" 
+                    id="Email" 
+                    name="email"
+                    type="email"
+                    v-model="email"
+                    required/>
+            </label>
+            <br>
+            <label>
+                <span>Enter your password</span>
+                <input 
+                    placeholder="********" 
+                    id="Password" 
+                    name="password"
+                    type="password"
+                    v-model="password"
+                    required/>
+            </label>
+            <br>
+            <button type="submit">Login</button>
+        </form>
+
+        <p class="bottom">Dont have an account?<RouterLink to = "/signup">Sign Up</RouterLink>
+        </p>
+    </main>
+</template>
+
+<style scoped>
 .container {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #fdfdfd, #fbfbfc);
+  padding: 24px;
+  background: linear-gradient(135deg, #ffffff, #f5f5f5);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-.login-card {
+.card {
   background: #111827;
   padding: 40px;
   border-radius: 16px;
   width: 100%;
-  max-width: 380px;
+  max-width: 420px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   color: white;
   text-align: center;
 }
 
 h1 {
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .subtitle {
-  margin-bottom: 24px;
+  margin: 0 0 22px;
   color: #9ca3af;
   font-size: 14px;
 }
@@ -63,17 +126,10 @@ h1 {
   background: #2563eb;
 }
 
-.backend-check {
-  margin-top: 20px;
-  font-size: 12px;
-  color: #9ca3af;
-}
-
 .bottom {
   margin-top: 14px;
   font-size: 13px;
   color: #9ca3af;
-  text-align: center;
 }
 
 .link {
@@ -84,56 +140,4 @@ h1 {
 .link:hover {
   text-decoration: underline;
 }
-
 </style>
-<script setup>
-import { ref } from 'vue'
-
-const email = ref('')
-const password = ref('')
-</script>
-
-<template>
-    <main>
-        <header>
-            <h1 class = "logo">SyllabusSync</h1>
-            <h2>Login</h2>
-            <p>Login or create a account to begin using syllabus </p>
-        </header>
-
-        <form @submit.prevent="" action="/login" method="GEt">
-            
-            <label>
-                <span>Enter your email</span>
-                <input 
-                    placeholder="test@test.com" 
-                    id="Email" 
-                    name="Email"/>
-            </label>
-              <!-- type="email" 
-                    v-model="email"  -->
-            <br>
-            <label>
-                <span>Enter your password</span>
-                <input 
-                    placeholder="********" 
-                    id="Password" 
-                    name="Password"/>
-            </label>
-            <!-- type="password" 
-                    v-model="password"  -->
-            <br>
-            <input 
-                type="submit" 
-                value="Login"
-                @click="$router.push('/Dashboard')"/>
-            
-                
-        </form>
-        <footer>
-            <p>
-                Dont have an account? <RouterLink to = "/signup">Register</RouterLink> Signup Here
-            </p>
-        </footer>
-    </main>
-</template>

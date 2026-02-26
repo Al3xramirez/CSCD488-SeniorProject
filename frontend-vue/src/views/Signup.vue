@@ -1,5 +1,25 @@
 <script setup>
-// Backend Logic will go here
+import { ref } from 'vue'
+
+const username = ref('')
+const email = ref('')
+const password = ref('')
+
+const submitForm = async () => {
+  await fetch('http://localhost:8080/signup', {//this needs to be redirected to the webserver api which will 
+    method: 'POST',                            //then reach out to the SQL database for verify signup
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      username: username.value,
+      email: email.value,
+      password: password.value
+    })
+  })
+
+  window.location.href = '/login'
+}
 </script>
 
 <template>
@@ -8,21 +28,27 @@
       <h1>Create account</h1>
       <p class="subtitle">Basic signup for now</p>
 
-      <form class="form" @submit.prevent action="/signup" method="post">
+      <form class="form" @submit.prevent="submitForm">
         <input 
           type="text" 
+          v-model="username"
+          name = "username"
           placeholder="Username" 
           autocomplete="username" 
           required 
         />
         <input 
           type="email" 
+          v-model="email"
+          name = "email"
           placeholder="EWU Email (example@ewu.edu)" 
           autocomplete="email" 
           required 
         />
         <input 
           type="password" 
+          v-model="password"
+          name = "password"
           placeholder="Password" 
           autocomplete="new-password" 
           required 
@@ -31,7 +57,6 @@
       </form>
 
       <p class="bottom">Already have an account?<router-link class="link" to="/login">Log in</router-link> 
-        <!-- router-link is used to navigate to the login page -->
       </p>
     </div>
   </div>

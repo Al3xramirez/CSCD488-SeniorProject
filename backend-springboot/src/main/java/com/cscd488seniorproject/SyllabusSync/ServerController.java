@@ -8,22 +8,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class ServerController {
 
     
-    @PostMapping("/signup")
-    public String handleForm(
-            @RequestParam String firstName,
-            @RequestParam String lastName,
+
+    public String handleSignupForm(
+            @RequestParam String username,
             @RequestParam String email,
             @RequestParam String password) {
         // Your SQL logic goes here
         System.out.println("Received: " + email);
         System.out.println("Received: " + password);
-        System.out.println("Received: " + firstName);
-        System.out.println("Received: " + lastName);
+        System.out.println("Received: " + username);
         
-        return "/login"; // Tells Spring to show success-page.html
+        return "/login";
     }
 
-    @PostMapping("/login")
     public String handleLoginForm(
             @RequestParam String email, 
             @RequestParam String password) {
