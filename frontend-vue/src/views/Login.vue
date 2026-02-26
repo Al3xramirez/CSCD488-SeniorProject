@@ -1,12 +1,14 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const email = ref('')
 const password = ref('')
 
 const submitForm = async () => {
-  const res = await fetch('http://localhost:8080/', { //this needs to be redirected to the webserver api which will 
-    method: 'POST',                                 //  then reach out to the SQL database for authenticate login
+  const res = await fetch('http://localhost:8080/login', { //this needs to be redirected to the webserver api which will 
+    method: 'POST',                                   //then reach out to the SQL database for authenticate login
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email: email.value,
@@ -15,7 +17,7 @@ const submitForm = async () => {
   })
 
   if(res.ok){
-    window.location.href = '/dashboard'
+    router.push('/dashboard')
   } else {
     alert('Invalid login')
   }

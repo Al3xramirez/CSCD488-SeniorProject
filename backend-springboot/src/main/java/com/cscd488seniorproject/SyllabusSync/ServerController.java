@@ -7,13 +7,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 @Controller
 public class ServerController {
 
-    
 
     public String handleSignupForm(
             @RequestParam String username,
             @RequestParam String email,
             @RequestParam String password) {
-        // Your SQL logic goes here
         System.out.println("Received: " + email);
         System.out.println("Received: " + password);
         System.out.println("Received: " + username);

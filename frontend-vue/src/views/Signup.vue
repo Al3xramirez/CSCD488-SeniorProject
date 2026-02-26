@@ -18,7 +18,11 @@ const submitForm = async () => {
     })
   })
 
-  window.location.href = '/login'
+  if(res.ok){
+    router.push('/login')
+  } else {
+    alert('Invalid signup')
+  }
 }
 </script>
 
