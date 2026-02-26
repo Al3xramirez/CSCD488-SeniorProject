@@ -1,4 +1,10 @@
 <script setup>
+import { useRouter } from "vue-router";
+const router = useRouter();
+
+function goProfile() {
+  router.push("/app/profile");
+}
 </script>
 
 <!-- AppHeader.vue: Top header bar with title, notifications, and profile -->
@@ -14,7 +20,7 @@
         🔔
       </button>
 
-      <div class="profile">
+      <div class="profile" @click="goProfile" type="button" title="Open profile">
         <div class="avatar">👤</div>
         <div class="meta">
           <div class="name">Student</div>

@@ -1,6 +1,11 @@
 <script setup>
+import { computed } from "vue";
+import { useRoute } from "vue-router";
 import Sidebar from "../components/Sidebar.vue";
 import AppHeader from "../components/AppHeader.vue";
+
+const route = useRoute();
+const hideHeader = computed(() => route.meta?.hideHeader === true);
 </script>
 
 <template>
@@ -8,7 +13,7 @@ import AppHeader from "../components/AppHeader.vue";
     <Sidebar />
 
     <div class="main">
-      <AppHeader />
+      <AppHeader v-if="!hideHeader" />
 
       <div class="page">
         <router-view />
