@@ -7,7 +7,7 @@ const username = ref('')
 const password = ref('')
 
 const submitForm = async () => {
-  const res = await fetch('http://localhost:8080/api/login', { //this needs to be redirected to the webserver api which will 
+  const res = await fetch('/api/login', { //this needs to be redirected to the webserver api which will 
     method: 'POST',                                   //then reach out to the SQL database for authenticate login
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     credentials: 'include',

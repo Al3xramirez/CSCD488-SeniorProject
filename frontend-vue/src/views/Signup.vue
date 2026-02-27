@@ -3,20 +3,24 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const username = ref('')
+const firstName = ref('')
+const lastName = ref('')
 const email = ref('')
 const password = ref('')
+const role = ref('student')
 
 const submitForm = async () => {
-  const res = await fetch('http://localhost:8080/api/signup', {//this needs to be redirected to the webserver api which will 
+  const res = await fetch('/api/signup', {//this needs to be redirected to the webserver api which will 
     method: 'POST',                                            //then reach out to the SQL database for verify signup
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      username: username.value,
+      firstName: firstName.value,
+      lastName: lastName.value,
       email: email.value,
-      password: password.value
+      password: password.value,
+      role: role.value,
     })
   })
 
@@ -32,21 +36,28 @@ const submitForm = async () => {
   <div class="container">
     <div class="card">
       <h1>Create account</h1>
-      <p class="subtitle">Basic signup for now</p>
 
       <form class="form" @submit.prevent="submitForm">
-        <input 
-          type="text" 
-          v-model="username"
-          name = "username"
-          placeholder="Username" 
-          autocomplete="username" 
-          required 
+        <input
+          type="text"
+          v-model="firstName"
+          name="firstName"
+          placeholder="First name"
+          autocomplete="given-name"
+          required
+        />
+        <input
+          type="text"
+          v-model="lastName"
+          name="lastName"
+          placeholder="Last name"
+          autocomplete="family-name"
+          required
         />
         <input 
           type="email" 
           v-model="email"
-          name = "email"
+          name="email"
           placeholder="EWU Email (example@ewu.edu)" 
           autocomplete="email" 
           required 
@@ -54,11 +65,16 @@ const submitForm = async () => {
         <input 
           type="password" 
           v-model="password"
-          name = "password"
+          name="password"
           placeholder="Password" 
           autocomplete="new-password" 
           required 
         />
+        <select v-model="role" name="role" required>
+          <option value="student">Student</option>
+          <option value="ta">TA</option>
+          <option value="professor">Professor</option>
+        </select>
         <button type="submit">Sign Up</button>
       </form>
 
@@ -94,12 +110,6 @@ h1 {
   margin: 0 0 8px;
 }
 
-.subtitle {
-  margin: 0 0 22px;
-  color: #9ca3af;
-  font-size: 14px;
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -115,7 +125,20 @@ h1 {
   color: white;
 }
 
+.form select {
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  background: #1f2937;
+  color: white;
+}
+
 .form input:focus {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.form select:focus {
   box-shadow: 0 0 0 2px #3b82f6;
 }
 
