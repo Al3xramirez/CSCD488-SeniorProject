@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject;
+package com.cscd488seniorproject.syllabussync;
 
 import jakarta.persistence.*;
 
