@@ -7,8 +7,6 @@ import Courses from "../views/Courses.vue";
 import Profile from "../views/Profile.vue";
 import Meetings from "../views/Meetings.vue";
 
-
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -22,19 +20,25 @@ const router = createRouter({
   ],
 });
 
+/* This nav guard just checks if the route requires authentication. 
+So if someone has a session cookie and it becomes authenticated,
+then they can skip the login page and go straight to the dashboard, 
+if not they will be redirected to the login page */ 
 router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth) {
     try {
-      await fetch('http://localhost:8080/api/check-auth', {   //again needs to be redirected
+      const res = await fetch('/api/check-auth', {
         credentials: 'include'
-      })
-      next()
-    } catch {
-      next('/login')
+      });
+
+      if (res.ok) next();
+      else next('/login');
+    } catch (e) {
+      next('/login');
     }
   } else {
-    next()
+    next();
   }
-})
+});
 
 export default router;

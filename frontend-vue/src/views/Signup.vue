@@ -9,9 +9,11 @@ const email = ref('')
 const password = ref('')
 const role = ref('student')
 
+/* This function will send the signup request, and will create a new user in the database
+which will TouchEvent, if sucessful, push the user to the login page to log in*/
 const submitForm = async () => {
-  const res = await fetch('/api/signup', {//this needs to be redirected to the webserver api which will 
-    method: 'POST',                                            //then reach out to the SQL database for verify signup
+  const res = await fetch('/api/signup', {
+    method: 'POST',                                           
     headers: {
       'Content-Type': 'application/json'
     },

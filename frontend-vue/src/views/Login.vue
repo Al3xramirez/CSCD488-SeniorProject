@@ -6,9 +6,11 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 
+/*This function will send the login request to the backend, which will then verify the credentials and set a session cookie
+and will push the user to the dashboard if the login is successful, otherwise it will alert the user that the login is invalid*/
 const submitForm = async () => {
-  const res = await fetch('/api/login', { //this needs to be redirected to the webserver api which will 
-    method: 'POST',                                   //then reach out to the SQL database for authenticate login
+  const res = await fetch('/api/login', { 
+    method: 'POST',                                   
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     credentials: 'include',
     body: new URLSearchParams({
