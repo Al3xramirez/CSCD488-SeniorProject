@@ -3,6 +3,11 @@
 import { ref, onMounted } from "vue";
 
 const backendStatus = ref("Checking backend...");
+const email = ref("");
+const password = ref("");
+const isLoading = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
 
 onMounted(async () => {
   try {
@@ -13,6 +18,34 @@ onMounted(async () => {
   }
 });
 
+const submitLogin = async () => {
+  isLoading.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: email.value,
+        password: password.value,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({ message: "Login failed." }));
+    if (!response.ok) {
+      throw new Error(data.message || "Login failed.");
+    }
+
+    successMessage.value = data.message;
+  } catch (error) {
+    errorMessage.value = error.message || "Login failed.";
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 </script>
 
 <template>
@@ -22,14 +55,18 @@ onMounted(async () => {
       <h1>SyllabusSync</h1>
       <p class="subtitle">Login to your account</p>
 
-      <form class="form" @submit.prevent> 
+      <form class="form" @submit.prevent="submitLogin"> 
         <!-- submit.prevent is used to prevent the page from refreshing when the form is submitted -->
-        <input type="email" placeholder="Email" required />
-        <input type="password" placeholder="Password" required />
-        <button type="submit">Login</button>
+        <input type="email" placeholder="Email" v-model="email" :disabled="isLoading" required />
+        <input type="password" placeholder="Password" v-model="password" :disabled="isLoading" required />
+        <button type="submit" :disabled="isLoading">
+          {{ isLoading ? "Logging in..." : "Login" }}
+        </button>
         <p class="bottom"> Don’t have an account? <router-link class="link" to="/signup">Sign up here</router-link> <!-- router-link is used to navigate to the signup page -->
         </p>
       </form>
+      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
+      <p v-if="successMessage" class="success">{{ successMessage }}</p>
 
       <div class="backend-check">
         <span>Backend status:</span>
@@ -125,6 +162,18 @@ h1 {
 
 .link:hover {
   text-decoration: underline;
+}
+
+.error {
+  margin-top: 12px;
+  color: #fca5a5;
+  font-size: 13px;
+}
+
+.success {
+  margin-top: 12px;
+  color: #86efac;
+  font-size: 13px;
 }
 
 </style>

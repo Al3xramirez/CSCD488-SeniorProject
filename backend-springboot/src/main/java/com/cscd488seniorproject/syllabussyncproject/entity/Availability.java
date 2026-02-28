@@ -8,6 +8,8 @@ import java.time.DayOfWeek;
 public class Availability {
 
     
+}
+    
 
     
-}
+
