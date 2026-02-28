@@ -20,10 +20,8 @@ const router = createRouter({
   ],
 });
 
-/* This nav guard just checks if the route requires authentication. 
-So if someone has a session cookie and it becomes authenticated,
-then they can skip the login page and go straight to the dashboard, 
-if not they will be redirected to the login page */ 
+// This navigation guard checks if the route requires authentication and verifies the user's session by making a request to the backend.
+//  If the user is not authenticated, they are redirected to the login page.
 router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth) {
     try {
