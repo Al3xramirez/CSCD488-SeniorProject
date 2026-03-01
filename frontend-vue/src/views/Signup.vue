@@ -1,37 +1,86 @@
 <script setup>
-// Backend Logic will go here
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const firstName = ref('')
+const lastName = ref('')
+const email = ref('')
+const password = ref('')
+const role = ref('student')
+
+/* This function will send the signup request, and will create a new user in the database
+which will TouchEvent, if sucessful, push the user to the login page to log in*/
+const submitForm = async () => {
+  const res = await fetch('/api/signup', {
+    method: 'POST',                                           
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      firstName: firstName.value,
+      lastName: lastName.value,
+      email: email.value,
+      password: password.value,
+      role: role.value,
+    })
+  })
+
+  if(res.ok){
+    router.push('/login')
+  } else {
+    alert('Invalid signup')
+  }
+}
 </script>
 
 <template>
   <div class="container">
     <div class="card">
       <h1>Create account</h1>
-      <p class="subtitle">Basic signup for now</p>
 
-      <form class="form" @submit.prevent>
-        <input 
-          type="text" 
-          placeholder="Username" 
-          autocomplete="username" 
-          required 
+      <form class="form" @submit.prevent="submitForm">
+        <input
+          type="text"
+          v-model="firstName"
+          name="firstName"
+          placeholder="First name"
+          autocomplete="given-name"
+          required
+        />
+        <input
+          type="text"
+          v-model="lastName"
+          name="lastName"
+          placeholder="Last name"
+          autocomplete="family-name"
+          required
         />
         <input 
           type="email" 
+          v-model="email"
+          name="email"
           placeholder="EWU Email (example@ewu.edu)" 
           autocomplete="email" 
           required 
         />
         <input 
           type="password" 
+          v-model="password"
+          name="password"
           placeholder="Password" 
           autocomplete="new-password" 
           required 
         />
+        <select v-model="role" name="role" required>
+          <option value="student">Student</option>
+          <option value="ta">TA</option>
+          <option value="professor">Professor</option>
+        </select>
         <button type="submit">Sign Up</button>
       </form>
 
       <p class="bottom">Already have an account?<router-link class="link" to="/login">Log in</router-link> 
-        <!-- router-link is used to navigate to the login page -->
       </p>
     </div>
   </div>
@@ -63,12 +112,6 @@ h1 {
   margin: 0 0 8px;
 }
 
-.subtitle {
-  margin: 0 0 22px;
-  color: #9ca3af;
-  font-size: 14px;
-}
-
 .form {
   display: flex;
   flex-direction: column;
@@ -84,7 +127,20 @@ h1 {
   color: white;
 }
 
+.form select {
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  background: #1f2937;
+  color: white;
+}
+
 .form input:focus {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.form select:focus {
   box-shadow: 0 0 0 2px #3b82f6;
 }
 

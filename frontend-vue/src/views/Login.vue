@@ -1,73 +1,105 @@
 <script setup>
-// This is just a backend health check to see if the API to the backend is working
-import { ref, onMounted } from "vue";
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-const backendStatus = ref("Checking backend...");
+const router = useRouter()
+const username = ref('')
+const password = ref('')
 
-onMounted(async () => {
-  try {
-    const response = await fetch("/api/health");
-    backendStatus.value = await response.text();
-  } catch (error) {
-    backendStatus.value = "Backend not reachable";
+/*This function will send the login request to the backend, which will then verify the credentials and set a session cookie
+and will push the user to the dashboard if the login is successful, otherwise it will alert the user that the login is invalid*/
+const submitForm = async () => {
+  const res = await fetch('/api/login', { 
+    method: 'POST',                                   
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    credentials: 'include',
+    body: new URLSearchParams({
+      username: username.value,
+      password: password.value
+    })
+  })
+
+  if(res.ok){
+    router.push('/dashboard')
+  } else {
+    alert('Invalid login')
   }
-});
-
+}
 </script>
 
 <template>
-
   <div class="container">
-    <div class="login-card">
-      <h1>SyllabusSync</h1>
-      <p class="subtitle">Login to your account</p>
+    <main class="card">
+      <header>
+        <h1 class="logo">SyllabusSync</h1>
+        <h2>Login</h2>
+        <p class="subtitle">Login or create a account to begin using syllabus</p>
+      </header>
 
-      <form class="form" @submit.prevent> 
-        <!-- submit.prevent is used to prevent the page from refreshing when the form is submitted -->
-        <input type="email" placeholder="Email" required />
-        <input type="password" placeholder="Password" required />
+      <form class="form" @submit.prevent="submitForm">
+        <label>
+          <span></span>
+          <input
+            placeholder="test@test.com"
+            id="username"
+            name="username"
+            type="text"
+            v-model="username"
+            required
+          />
+        </label>
+
+        <label>
+          <span></span>
+          <input
+            placeholder="********"
+            id="password"
+            name="password"
+            type="password"
+            v-model="password"
+            required
+          />
+        </label>
+
         <button type="submit">Login</button>
-        <p class="bottom"> Don’t have an account? <router-link class="link" to="/signup">Sign up here</router-link> <!-- router-link is used to navigate to the signup page -->
-        </p>
       </form>
 
-      <div class="backend-check">
-        <span>Backend status:</span>
-        <code>{{ backendStatus }}</code>
-      </div>
-    </div>
+      <p class="bottom">
+        Dont have an account?
+        <RouterLink class="link" to="/signup">Sign Up</RouterLink>
+      </p>
+    </main>
   </div>
-
 </template>
 
 <style scoped>
-
 .container {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #fdfdfd, #fbfbfc);
+  padding: 24px;
+  background: linear-gradient(135deg, #ffffff, #f5f5f5);
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-.login-card {
+.card {
   background: #111827;
   padding: 40px;
   border-radius: 16px;
   width: 100%;
-  max-width: 380px;
+  max-width: 420px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   color: white;
   text-align: center;
 }
 
 h1 {
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .subtitle {
-  margin-bottom: 24px;
+  margin: 0 0 22px;
   color: #9ca3af;
   font-size: 14px;
 }
@@ -78,7 +110,14 @@ h1 {
   gap: 14px;
 }
 
+.form label {
+  display: block;
+  width: 100%;
+}
+
 .form input {
+  width: 100%;
+  box-sizing: border-box;
   padding: 12px;
   border-radius: 8px;
   border: none;
@@ -105,17 +144,10 @@ h1 {
   background: #2563eb;
 }
 
-.backend-check {
-  margin-top: 20px;
-  font-size: 12px;
-  color: #9ca3af;
-}
-
 .bottom {
   margin-top: 14px;
   font-size: 13px;
   color: #9ca3af;
-  text-align: center;
 }
 
 .link {
@@ -126,5 +158,4 @@ h1 {
 .link:hover {
   text-decoration: underline;
 }
-
 </style>
