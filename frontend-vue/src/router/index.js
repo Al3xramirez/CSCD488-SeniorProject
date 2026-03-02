@@ -14,12 +14,11 @@ const router = createRouter({
   routes: [
     { path: "/", redirect: "/login" },
     { path: "/login", name: "Login", component: Login},
-    { path: "/signup", name: "Signup", component: Signup },
-    { path: "/dashboard", redirect: "/app" }, // Redirect just in case our code somewhere tries to navigate to /dashboard
-    
+    { path: "/signup", name: "Signup", component: Signup },    
     {
       path: "/app",
       component: DashboardLayout,
+      meta: { requiresAuth: true }, // This route and all its children require authentication
       children: [
         { path: "", name: "dashboard", component: Dashboard }, // /app
         { path: "meetings", name: "meetings", component: Meetings },
