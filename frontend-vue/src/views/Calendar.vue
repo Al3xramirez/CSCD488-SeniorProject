@@ -1,7 +1,7 @@
 <template>
   <div class="card">
-    <h1>Meeting Times</h1>
-    <p>Placeholder — later this will show lecture/lab/discussion meeting times from the PDF.</p>
+    <h1>Calendar</h1>
+    <p>Placeholder — later this will show a combined timeline of syllabus + Canvas assignments.</p>
   </div>
 </template>
 

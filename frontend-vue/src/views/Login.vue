@@ -20,7 +20,7 @@ const submitForm = async () => {
   })
 
   if(res.ok){
-    router.push('/dashboard')
+    router.push('/app')
   } else {
     alert('Invalid login')
   }
