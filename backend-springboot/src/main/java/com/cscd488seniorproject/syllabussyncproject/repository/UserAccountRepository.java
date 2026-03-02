@@ -16,5 +16,6 @@ public interface UserAccountRepository extends JpaRepository<UserAccountEntity, 
     and to check if a user with a given email already exists in the database */
     Optional<UserAccountEntity> findByEmail(String email);
     boolean existsByEmail(String email);
+    java.util.List<UserAccountEntity> findByCanvasIcalUrlEncryptedIsNotNull();
     
 }

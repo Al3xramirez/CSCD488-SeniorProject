@@ -1,5 +1,6 @@
 package com.cscd488seniorproject.syllabussyncproject.entity;
 import jakarta.persistence.*;
+import java.time.Instant;
 
 // This class represents the UserAccount table in the database
 @Entity
@@ -25,6 +26,12 @@ public class UserAccountEntity {
     @Column(name = "Role", length = 20, nullable = false)
     private String role; // STUDENT, TA, or PROFESSOR
 
+    @Column(name = "CanvasIcalUrlEncrypted", columnDefinition = "text")
+    private String canvasIcalUrlEncrypted;
+
+    @Column(name = "CanvasLastSyncedAt")
+    private Instant canvasLastSyncedAt;
+
     // Getters and Setters
     
     public String getUserId() { return userId; }
@@ -44,4 +51,10 @@ public class UserAccountEntity {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getCanvasIcalUrlEncrypted() { return canvasIcalUrlEncrypted; }
+    public void setCanvasIcalUrlEncrypted(String canvasIcalUrlEncrypted) { this.canvasIcalUrlEncrypted = canvasIcalUrlEncrypted; }
+
+    public Instant getCanvasLastSyncedAt() { return canvasLastSyncedAt; }
+    public void setCanvasLastSyncedAt(Instant canvasLastSyncedAt) { this.canvasLastSyncedAt = canvasLastSyncedAt; }
 }

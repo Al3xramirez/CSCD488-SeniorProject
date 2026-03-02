@@ -13,3 +13,7 @@ spring:
       ddl-auto: update
     show-sql: true
 
+app:
+  canvas:
+    feed-encryption-key: ${CANVAS_FEED_ENCRYPTION_KEY:change-me-dev-key}
+    sync-interval-ms: ${CANVAS_SYNC_INTERVAL_MS:1800000}
