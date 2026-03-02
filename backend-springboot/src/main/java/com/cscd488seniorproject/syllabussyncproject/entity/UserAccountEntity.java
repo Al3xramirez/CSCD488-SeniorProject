@@ -10,10 +10,10 @@ public class UserAccountEntity {
     @Column(name = "UserID", length = 20, nullable = false, unique = true)
     private String userId;
 
-    @Column(name = "Email", length = 50, nullable = false, unique = true)
+    @Column(name = "Email", length = 100, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "PasswordHash", columnDefinition = "text", nullable = false)
+    @Column(name = "password_hash", columnDefinition = "text", nullable = false)
     private String passwordHash;
 
     @Column(name = "Fname", length = 50)
@@ -24,6 +24,9 @@ public class UserAccountEntity {
 
     @Column(name = "Role", length = 20, nullable = false)
     private String role; // STUDENT, TA, or PROFESSOR
+
+    @Column(name = "Department", length = 50)
+    private String department;
 
     // Getters and Setters
     
@@ -44,4 +47,7 @@ public class UserAccountEntity {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
 }
