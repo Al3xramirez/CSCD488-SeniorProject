@@ -9,5 +9,4 @@ public class SyllabusSyncApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(SyllabusSyncApplication.class, args);
 	}
-
 }
