@@ -31,7 +31,8 @@ public class WebSecurityConfig {
                     "/api/health")
 				.permitAll().anyRequest().authenticated()
 			)
-			.formLogin((form) -> form
+				.formLogin((form) -> form
+				.loginPage("/login")
     			.loginProcessingUrl("/api/login")
     			.successHandler((req, res, auth) -> res.setStatus(200))
   		  		.failureHandler((req, res, ex) -> res.sendError(401))

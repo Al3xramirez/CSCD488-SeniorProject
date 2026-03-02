@@ -1,7 +1,7 @@
 <template>
   <div class="card">
-    <h1>Meeting Times</h1>
-    <p>Placeholder — later this will show lecture/lab/discussion meeting times from the PDF.</p>
+    <h1>Office Hours Match</h1>
+    <p>Placeholder — later this will match your free time to professor/TAs office hours.</p>
   </div>
 </template>
 
