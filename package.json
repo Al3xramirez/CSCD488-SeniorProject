@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "vue-router": "^5.0.3"
+    "@vue/cli": "^5.0.9",
+    "vue": "^3.5.29",
+    "vue-router": "^5.0.3",
+    "vuetify": "^4.0.0"
   }
 }
