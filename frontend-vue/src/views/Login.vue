@@ -6,9 +6,11 @@ const router = useRouter()
 const username = ref('')
 const password = ref('')
 
+/*This function will send the login request to the backend, which will then verify the credentials and set a session cookie
+and will push the user to the dashboard if the login is successful, otherwise it will alert the user that the login is invalid*/
 const submitForm = async () => {
-  const res = await fetch('http://localhost:8080/api/login', { //this needs to be redirected to the webserver api which will 
-    method: 'POST',                                   //then reach out to the SQL database for authenticate login
+  const res = await fetch('/api/login', { 
+    method: 'POST',                                   
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     credentials: 'include',
     body: new URLSearchParams({
@@ -26,42 +28,48 @@ const submitForm = async () => {
 </script>
 
 <template>
-    <main>
-        <header>
-            <h1 class = "logo">SyllabusSync</h1>
-            <h2>Login</h2>
-            <p>Login or create a account to begin using syllabus </p>
-        </header>
+  <div class="container">
+    <main class="card">
+      <header>
+        <h1 class="logo">SyllabusSync</h1>
+        <h2>Login</h2>
+        <p class="subtitle">Login or create a account to begin using syllabus</p>
+      </header>
 
-        <form @submit.prevent="submitForm">
-            <label>
-                <span>Enter your email</span>
-                <input 
-                    placeholder="test@test.com" 
-                    id="username" 
-                    name="username"
-                    type="text"
-                    v-model="email"
-                    required/>
-            </label>
-            <br>
-            <label>
-                <span>Enter your password</span>
-                <input 
-                    placeholder="********" 
-                    id="Password" 
-                    name="password"
-                    type="password"
-                    v-model="password"
-                    required/>
-            </label>
-            <br>
-            <button type="submit">Login</button>
-        </form>
+      <form class="form" @submit.prevent="submitForm">
+        <label>
+          <span></span>
+          <input
+            placeholder="test@test.com"
+            id="username"
+            name="username"
+            type="text"
+            v-model="username"
+            required
+          />
+        </label>
 
-        <p class="bottom">Dont have an account?<RouterLink to = "/signup">Sign Up</RouterLink>
-        </p>
+        <label>
+          <span></span>
+          <input
+            placeholder="********"
+            id="password"
+            name="password"
+            type="password"
+            v-model="password"
+            required
+          />
+        </label>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <p class="bottom">
+        Dont have an account?
+        <RouterLink class="link" to="/signup">Sign Up</RouterLink>
+      </p>
     </main>
+  </div>
 </template>
 
 <style scoped>
@@ -102,7 +110,14 @@ h1 {
   gap: 14px;
 }
 
+.form label {
+  display: block;
+  width: 100%;
+}
+
 .form input {
+  width: 100%;
+  box-sizing: border-box;
   padding: 12px;
   border-radius: 8px;
   border: none;

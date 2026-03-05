@@ -7,8 +7,6 @@ import Courses from "../views/Courses.vue";
 import Profile from "../views/Profile.vue";
 import Meetings from "../views/Meetings.vue";
 
-
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -22,19 +20,23 @@ const router = createRouter({
   ],
 });
 
+// This navigation guard checks if the route requires authentication and verifies the user's session by making a request to the backend.
+//  If the user is not authenticated, they are redirected to the login page.
 router.beforeEach(async (to, from, next) => {
   if (to.meta.requiresAuth) {
     try {
-      await fetch('http://localhost:8080/api/check-auth', {   //again needs to be redirected
+      const res = await fetch('/api/check-auth', {
         credentials: 'include'
-      })
-      next()
-    } catch {
-      next('/login')
+      });
+
+      if (res.ok) next();
+      else next('/login');
+    } catch (e) {
+      next('/login');
     }
   } else {
-    next()
+    next();
   }
-})
+});
 
 export default router;
