@@ -1,6 +1,25 @@
 <script setup>
+import { computed } from "vue"; 
 import { useRouter } from "vue-router";
 const router = useRouter();
+
+const props = defineProps({ // props is an object containing role, firstName, and lastName
+  role: { type: String, default: null },
+  firstName: { type: String, default: null },
+  lastName: { type: String, default: null },
+});
+
+const roleLabel = computed(() => { // roleLabel is a computed property that returns a user-friendly role name based on the role prop; defaults to Student.
+  const r = (props.role || 'STUDENT').trim().toUpperCase();
+  if (r === 'PROFESSOR') return 'Professor';
+  if (r === 'TA') return 'TA';
+  return 'Student';
+});
+
+const displayName = computed(() => { // displayName is a computed property that returns the user's full name if available, otherwise falls back to the role label.
+  const parts = [props.firstName, props.lastName].filter(Boolean);
+  return parts.length ? parts.join(' ') : roleLabel.value;
+});
 
 function goProfile() {
   router.push("/app/profile");
@@ -23,7 +42,7 @@ function goProfile() {
       <div class="profile" @click="goProfile" type="button" title="Open profile">
         <div class="avatar">👤</div>
         <div class="meta">
-          <div class="name">Student</div>
+          <div class="name">{{ displayName }}</div>
           <div class="sub">Profile</div>
         </div>
       </div>
@@ -82,6 +101,11 @@ function goProfile() {
   border-radius: 16px;
   border: 1px solid rgba(255,255,255,0.08);
   background: rgba(255,255,255,0.04);
+  cursor: pointer;
+}
+
+.profile:hover {
+  background: rgba(255,255,255,0.07);
 }
 
 .avatar {
