@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject;
+package com.cscd488seniorproject.syllabussyncproject.controllers;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @Controller
 public class SpaController {
 
-    //This fowards all non "/api" requests to index.html so that the vue router can handle the routing on the frontend
+    //This forwards all non "/api" requests to index.html so that the vue router can handle the routing on the frontend
     @RequestMapping(value = { "/{path:[^\\.]*}", "/**/{path:[^\\.]*}"})
-    public String foward() {
+    public String forward() {
         return "forward:/index.html";
    }
    
