@@ -21,6 +21,8 @@ const displayName = computed(() => { // displayName is a computed property that 
   return parts.length ? parts.join(' ') : roleLabel.value;
 });
 
+const roleViewLabel = computed(() => `${roleLabel.value} View`);
+
 function goProfile() {
   router.push("/app/profile");
 }
@@ -31,7 +33,10 @@ function goProfile() {
 <template>
   <header class="header">
     <div class="left">
-      <div class="title">SyllabusSync</div>
+      <div class="title-wrap">
+        <div class="title">SyllabusSync</div>
+        <div class="role">{{ roleViewLabel }}</div>
+      </div>
     </div>
 
     <div class="right">
@@ -66,11 +71,23 @@ function goProfile() {
   align-items: center;
 }
 
+.title-wrap {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
 .title {
   font-weight: 900;
   color: #e5e7eb;
   letter-spacing: 0.2px;
   font-size: 18px;
+}
+
+.role {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 .right {
