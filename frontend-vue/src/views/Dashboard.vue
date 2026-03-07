@@ -1,7 +1,39 @@
 <script setup>
+import { computed, inject } from 'vue'; // injects the 'me' ref provided by DashboardLayout, which contains the current user's info (email, role, firstName, lastName).
+
+const me = inject('me', null);
+
+const role = computed(() => { // role is a computed property that returns the users role in uppercase, defaulting to 'STUDENT' if not available. This is used for conditional rendering of the dashboard UI based on the user's role.
+  const r = me?.value?.role;
+  return (r || 'STUDENT').toString().trim().toUpperCase();
+});
+// TODO: fetch classs codes from professor table to display real classes for professor dashboard. For now, this is hardcoded data to show how the UI will look.
+const professorClasses = [ 
+  { code: 'CSCD 350', title: 'Software Engineering' },
+  { code: 'CSCD 488', title: 'Senior Project' },
+  { code: 'CSCD 240', title: 'C and Systems Programming' },
+];
 </script>
 
 <template>
+  <div v-if="role === 'PROFESSOR'" class="prof">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2>Your Classes</h2>
+          <p class="muted">Classes you’ve created or instantiated.</p>
+        </div>
+      </div>
+
+      <div class="class-grid">
+        <div v-for="c in professorClasses" :key="c.code" class="class-box">
+          <div class="class-code">{{ c.code }}</div>
+          <div class="class-title">{{ c.title }}</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <div class="grid">
     <!-- Left: Syllabus Overview -->
     <section class="card big">
@@ -97,6 +129,35 @@
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 18px;
+}
+
+.prof {
+  display: flex;
+}
+
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.class-box {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.class-code {
+  font-weight: 900;
+  color: #e5e7eb;
+}
+
+.class-title {
+  margin-top: 6px;
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 .card {
