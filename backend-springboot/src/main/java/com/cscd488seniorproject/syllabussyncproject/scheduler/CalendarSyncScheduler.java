@@ -1,10 +1,11 @@
 package com.cscd488seniorproject.syllabussyncproject.scheduler;
 
-import com.cscd488seniorproject.syllabussyncproject.*;
+import com.cscd488seniorproject.syllabussyncproject.service.CanvasCalendarService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+
 
 @Configuration
 @EnableScheduling

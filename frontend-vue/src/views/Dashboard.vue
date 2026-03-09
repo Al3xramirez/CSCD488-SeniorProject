@@ -1,4 +1,7 @@
 <script setup>
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 </script>
 
 <template>
@@ -46,7 +49,7 @@
         <div>
           <h2>Upcoming This Week</h2>
         </div>
-        <button class="btn ghost">Import Canvas .ics</button>
+        <button class="btn ghost" @click="router.push('/app/calendar')">Import Canvas .ics</button>
       </div>
 
       <div class="list">

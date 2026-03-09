@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject.Service;
+package com.cscd488seniorproject.syllabussyncproject.service;
 
 import com.cscd488seniorproject.syllabussyncproject.controller.dto.CanvasSubscribeRequest;
 import com.cscd488seniorproject.syllabussyncproject.controller.dto.ExternalEventResponse;
@@ -10,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import net.fortuna.ical4j.data.CalendarBuilder;
 import net.fortuna.ical4j.model.Calendar;
 import net.fortuna.ical4j.model.Component;
-import net.fortuna.ical4j.model.Date;
-import net.fortuna.ical4j.model.DateTime;
 import net.fortuna.ical4j.model.Parameter;
-import net.fortuna.ical4j.model.ParameterList;
 import net.fortuna.ical4j.model.Property;
 import net.fortuna.ical4j.model.property.Description;
 import net.fortuna.ical4j.model.property.DtEnd;
@@ -37,9 +34,11 @@ import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,6 +54,10 @@ public class CanvasCalendarService {
 
     public static final String PROVIDER_CANVAS = "canvas";
     private static final int MAX_ERROR_LEN = 8000;
+    private static final DateTimeFormatter ICAL_DATE = DateTimeFormatter.BASIC_ISO_DATE;
+    private static final DateTimeFormatter ICAL_DATE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss");
+    private static final DateTimeFormatter ICAL_DATE_TIME_MIN = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmm");
+    private static final DateTimeFormatter ICAL_DATE_TIME_UTC = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmssX");
 
     private final CalendarSubscriptionRepository subscriptionRepository;
     private final ExternalEventRepository externalEventRepository;
@@ -226,11 +229,11 @@ public class CanvasCalendarService {
                     key.icalUid,
                     key.recurrenceId
                 );
-            if (existing.isEmpty() && key.recurrenceId.isEmpty()) {
+            if (existing.isEmpty() && key.recurrenceId == null) {
                 existing = externalEventRepository.findBySubscription_SubscriptionIdAndIcalUidAndRecurrenceId(
                     subscription.getSubscriptionId(),
                     key.icalUid,
-                    null
+                    ""
                 );
             }
 
@@ -263,31 +266,33 @@ public class CanvasCalendarService {
     }
 
     private ParsedEvent parseVEvent(Component component) {
-        Uid uidProp = (Uid) component.getProperty(Property.UID);
+        Uid uidProp = getProperty(component, Property.UID, Uid.class);
         if (uidProp == null || uidProp.getValue() == null || uidProp.getValue().isBlank()) {
             return null;
         }
 
         String uid = uidProp.getValue().trim();
-        String recurrenceId = "";
-        RecurrenceId rid = (RecurrenceId) component.getProperty(Property.RECURRENCE_ID);
+
+        String recurrenceId = null;
+        RecurrenceId rid = getProperty(component, Property.RECURRENCE_ID, RecurrenceId.class);
         if (rid != null && rid.getValue() != null && !rid.getValue().isBlank()) {
             recurrenceId = rid.getValue().trim();
         }
 
-        DtStart dtStart = (DtStart) component.getProperty(Property.DTSTART);
-        if (dtStart == null || dtStart.getDate() == null) {
+        DtStart dtStart = getProperty(component, Property.DTSTART, DtStart.class);
+        if (dtStart == null || dtStart.getValue() == null || dtStart.getValue().isBlank()) {
             return null;
         }
 
-        ParsedDateTime start = parseDateProperty(dtStart);
-        ParsedDateTime end = parseEnd(component, start);
+        String startTzid = getTzid(dtStart);
+        ParsedDateTime start = parseIcalDateTime(dtStart.getValue(), startTzid);
+        ParsedDateTime end = parseEnd(component, start, startTzid);
 
-        Summary summaryProp = (Summary) component.getProperty(Property.SUMMARY);
-        Location locationProp = (Location) component.getProperty(Property.LOCATION);
-        Description descriptionProp = (Description) component.getProperty(Property.DESCRIPTION);
+        Summary summaryProp = getProperty(component, Property.SUMMARY, Summary.class);
+        Location locationProp = getProperty(component, Property.LOCATION, Location.class);
+        Description descriptionProp = getProperty(component, Property.DESCRIPTION, Description.class);
 
-        Status status = (Status) component.getProperty(Property.STATUS);
+        Status status = getProperty(component, Property.STATUS, Status.class);
         boolean isCancelled = status != null && status.getValue() != null
             && status.getValue().trim().equalsIgnoreCase("CANCELLED");
 
@@ -308,60 +313,87 @@ public class CanvasCalendarService {
         );
     }
 
-    private ParsedDateTime parseEnd(Component component, ParsedDateTime start) {
-        DtEnd dtEnd = (DtEnd) component.getProperty(Property.DTEND);
-        if (dtEnd == null || dtEnd.getDate() == null) {
+    private ParsedDateTime parseEnd(Component component, ParsedDateTime start, String fallbackTzid) {
+        DtEnd dtEnd = getProperty(component, Property.DTEND, DtEnd.class);
+        if (dtEnd == null || dtEnd.getValue() == null || dtEnd.getValue().isBlank()) {
             if (start.allDay) {
                 return new ParsedDateTime(start.value.plusDays(1), true);
             }
             return new ParsedDateTime(start.value, false);
         }
-        ParsedDateTime end = parseDateProperty(dtEnd);
+        String endTzid = getTzid(dtEnd);
+        if (endTzid == null) {
+            endTzid = fallbackTzid;
+        }
+        ParsedDateTime end = parseIcalDateTime(dtEnd.getValue(), endTzid);
         if (start.allDay && end.value.isBefore(start.value.plusDays(1))) {
             return new ParsedDateTime(start.value.plusDays(1), true);
         }
         return end;
     }
 
-    private ParsedDateTime parseDateProperty(net.fortuna.ical4j.model.property.DateProperty property) {
-        Date date = property.getDate();
-        if (date instanceof DateTime dt) {
-            return new ParsedDateTime(toLocalDateTime(dt, property.getParameters()), false);
+    private ParsedDateTime parseIcalDateTime(String value, String tzid) {
+        String v = value == null ? "" : value.trim();
+        if (v.isBlank()) {
+            throw new IllegalArgumentException("Invalid iCal date");
         }
 
-        String raw = property.getValue();
-        LocalDate localDate;
-        if (raw != null && raw.length() == 8) {
-            localDate = LocalDate.parse(raw, DateTimeFormatter.BASIC_ISO_DATE);
-        } else {
-            localDate = Instant.ofEpochMilli(date.getTime()).atZone(ZoneId.systemDefault()).toLocalDate();
+        if (v.length() == 8 && !v.contains("T")) {
+            LocalDate d = LocalDate.parse(v, ICAL_DATE);
+            return new ParsedDateTime(d.atStartOfDay(), true);
         }
-        return new ParsedDateTime(localDate.atStartOfDay(), true);
+
+        if (v.endsWith("Z")) {
+            OffsetDateTime odt = OffsetDateTime.parse(v, ICAL_DATE_TIME_UTC);
+            LocalDateTime ldt = odt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+            return new ParsedDateTime(ldt, false);
+        }
+
+        LocalDateTime ldt = parseLocalDateTime(v);
+        if (tzid == null || tzid.isBlank()) {
+            return new ParsedDateTime(ldt, false);
+        }
+
+        ZoneId zoneId = safeZoneId(tzid);
+        ZonedDateTime zoned = ldt.atZone(zoneId).withZoneSameInstant(ZoneId.systemDefault());
+        return new ParsedDateTime(zoned.toLocalDateTime(), false);
     }
 
-    private LocalDateTime toLocalDateTime(DateTime dateTime, ParameterList parameters) {
-        if (dateTime.isUtc()) {
-            return Instant.ofEpochMilli(dateTime.getTime()).atZone(ZoneOffset.UTC).toLocalDateTime();
+    private LocalDateTime parseLocalDateTime(String v) {
+        try {
+            return LocalDateTime.parse(v, ICAL_DATE_TIME);
+        } catch (DateTimeParseException ignored) {
+            return LocalDateTime.parse(v, ICAL_DATE_TIME_MIN);
         }
+    }
 
-        ZoneId zoneId = null;
-        Parameter tzid = parameters == null ? null : parameters.getParameter(Parameter.TZID);
-        if (tzid != null && tzid.getValue() != null && !tzid.getValue().isBlank()) {
+    private ZoneId safeZoneId(String tzid) {
+        try {
+            return ZoneId.of(tzid.trim());
+        } catch (Exception ignored) {
+            return ZoneId.systemDefault();
+        }
+    }
+
+    private String getTzid(Property property) {
+        if (property == null || property.getParameters() == null) {
+            return null;
+        }
+        for (Parameter p : property.getParameters()) {
             try {
-                zoneId = ZoneId.of(tzid.getValue().trim());
+                if ("TZID".equalsIgnoreCase(p.getName())) {
+                    String v = p.getValue();
+                    return v == null || v.isBlank() ? null : v.trim();
+                }
             } catch (Exception ignored) {
-                zoneId = null;
+                // Parameter API differs across ical4j versions; ignore and treat as floating time.
             }
         }
+        return null;
+    }
 
-        if (zoneId == null && dateTime.getTimeZone() != null) {
-            zoneId = dateTime.getTimeZone().toZoneId();
-        }
-        if (zoneId == null) {
-            zoneId = ZoneId.systemDefault();
-        }
-
-        return Instant.ofEpochMilli(dateTime.getTime()).atZone(zoneId).toLocalDateTime();
+    private <T extends Property> T getProperty(Component component, String name, Class<T> type) {
+        return component.getProperty(name).map(type::cast).orElse(null);
     }
 
     private Optional<ZonedDateTime> parseRfc1123(String value) {
@@ -374,10 +406,10 @@ public class CanvasCalendarService {
 
     private static String normalizeRecurrenceId(String value) {
         if (value == null) {
-            return "";
+            return null;
         }
         String trimmed = value.trim();
-        return trimmed.isBlank() ? "" : trimmed;
+        return trimmed.isBlank() ? null : trimmed;
     }
 
     private static String safeMessage(String msg) {
