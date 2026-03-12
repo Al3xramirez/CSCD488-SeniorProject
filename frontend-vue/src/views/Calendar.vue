@@ -10,6 +10,32 @@
       @change="loadEvents"
     />
   </v-container>
+  
+  <form @submit.prevent="createMeeting">
+    <label>
+      <span>Class Code</span>
+      <input type="text" name="classCode" />
+      <!-- hoping we can get user info and no request year/quater from user data 
+       still need class code in case of multi enrollment-->
+    </label>
+    <label>
+      <span>Meeting Date</span>
+      <input type="date" name="meetingDate" />
+    </label>
+    <label>
+      <span>Start Time</span>
+      <input type="time" name="startTime" />
+    </label>
+    <label>
+      <span>End Time</span>
+      <input type="time" name="endTime" />
+    </label>
+    <label>
+      <span>With Who?</span>
+      <input type="text" name="recipient" />
+    </label>
+    <button type="submit">Request Meeting</button>
+  </form>
 </template>
 
 <script>
@@ -22,12 +48,11 @@ export default {
 
   methods: {
 
-    async loadEvents({ start, end }) {
+    async loadEvents({ start, end }) {//these dates are in the format of { date: 'YYYY-MM-DD' } 
       const startDate = start.date + "T00:00:00";
       const endDate = end.date + "T23:59:59";
 
       try {
-        // Replace URL with your Spring Boot endpoint
         const response = await fetch(
           `/api/meetings?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`
         );
@@ -37,7 +62,7 @@ export default {
         }
 
         const data = await response.json();
-        
+
         this.events = data.map(meeting => ({
           name: meeting.classCode + " (" + meeting.status + ")",
           start: meeting.meetingDate + "T" + meeting.startTime,
@@ -48,7 +73,34 @@ export default {
       } catch (error) {
         console.error("Error loading meetings:", error);
       }
+    },
+
+    async createMeeting = async (meetingData) => {
+    try {
+      const response = await fetch('/api/meetings/create-meeting', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            classCode: meetingData.classCode,
+            meetingDate: meetingData.meetingDate,
+            startTime: meetingData.startTime,
+            endTime: meetingData.endTime,
+            recipient: meetingData.recipient
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create meeting');
+      }
+
+      const data = await response.json();
+      console.log('Meeting created:', data);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
     }
+  }
 
   }
 }

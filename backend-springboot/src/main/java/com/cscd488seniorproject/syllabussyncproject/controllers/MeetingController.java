@@ -29,10 +29,11 @@ public List<Meeting> getMeetings(
     return repository.findByMeetingDateBetween(startDate, endDate);
 }
 
-@PostMapping
+@PostMapping("/create-meeting")
 public Meeting createMeeting(@RequestBody Meeting meeting) {
 
-    return repository.save(meeting);
+  
+  return repository.save(meeting);
 
 }
 

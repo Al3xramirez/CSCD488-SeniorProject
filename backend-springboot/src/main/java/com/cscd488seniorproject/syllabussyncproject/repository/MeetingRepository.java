@@ -11,4 +11,5 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 List<Meeting> findByMeetingDateBetween(LocalDate start, LocalDate end);
 
 
+
 }
