@@ -12,7 +12,7 @@ import OfficeHours from "../views/OfficeHours.vue";
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", redirect: "/login" },
+    { path: "/", redirect: "/login" },// set default route to dashboard?? we redirect to login as auth feature thoughts?
     { path: "/login", name: "Login", component: Login},
     { path: "/signup", name: "Signup", component: Signup },    
     {
