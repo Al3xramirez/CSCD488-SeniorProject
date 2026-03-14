@@ -1,8 +1,8 @@
-package com.cscd488seniorproject.syllabussyncproject.controllers;
+package com.cscd488seniorproject.syllabussyncproject.dto;
 
 //This class  is used as a security measure to prevent users from sending JSON objects with extra fields that we dont want
 //Not sure if this will be needed in the future though
-public class SignupRequest {
+public class SignupRequestDTO {
 
     public String firstName;
     public String lastName;
