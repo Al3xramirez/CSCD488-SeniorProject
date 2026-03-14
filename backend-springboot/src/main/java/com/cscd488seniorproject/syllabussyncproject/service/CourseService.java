@@ -12,13 +12,11 @@ import com.cscd488seniorproject.syllabussyncproject.repository.EnrollRelationRep
 import com.cscd488seniorproject.syllabussyncproject.repository.TeachesRelationRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -142,6 +140,7 @@ public class CourseService {
         // Again, return a ClassSummaryDTO with the details of the course that was joined
         return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
     }
+    
     // getRosterByJoinCode allows a professor to retrieve the roster of students enrolled in a class using the class's join code. 
     // It checks if the user is a professor for that class and then returns a list of StudentSummaryDTOs representing the enrolled students.
     public List<StudentSummaryDTO> getRosterByJoinCode(String email, String joinCodeRaw) {
@@ -171,6 +170,7 @@ public class CourseService {
         Collection<UserAccountEntity> users = userRepo.findAllById(userIds);
         return users.stream().map(u -> new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName())).toList();
     }
+
     // Helper method to retrieve a user by email and throw exception if the email is not provided or the user is not found.
     private UserAccountEntity requireUserByEmail(String emailRaw) {
         String email = emailRaw == null ? "" : emailRaw.trim().toLowerCase(Locale.ROOT);
@@ -180,10 +180,12 @@ public class CourseService {
         return userRepo.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated"));
     }
+
     // Helper method to normalize user roles and check if the user's role is in the allowed set, throwing a 403 Forbidden response if not.
     private static String normalizeRole(String role) {
         return (role == null ? "" : role.trim().toUpperCase(Locale.ROOT));
     }
+
     // Helper method to check if the user's role is in the allowed set of roles, throwing a 403 Forbidden response if not.
     private static void requireRole(UserAccountEntity user, Set<String> allowed) {
         String role = normalizeRole(user == null ? null : user.getRole());
@@ -191,6 +193,7 @@ public class CourseService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden");
         }
     }
+
     // Helper method to normalize required string inputs, ensuring they are not null or blank, and throwing a 400 Bad Request response if validation fails.
     private static String normalizeRequired(String value, String fieldName) {
         String v = value == null ? "" : value.trim();
@@ -199,6 +202,7 @@ public class CourseService {
         }
         return v;
     }
+
     // This method checks if the generated join code is unique by checking the database, and if not, 
     // it retries up to a maximum number of attempts before throwing an exception.
     private String generateUniqueJoinCode() {
