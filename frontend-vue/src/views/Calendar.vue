@@ -75,32 +75,32 @@ export default {
       }
     },
 
-    async createMeeting = async (meetingData) => {
-    try {
-      const response = await fetch('/api/meetings/create-meeting', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+    createMeeting: async (meetingData) => {
+      try {
+        const response = await fetch('/api/meetings/create-meeting', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
             classCode: meetingData.classCode,
             meetingDate: meetingData.meetingDate,
             startTime: meetingData.startTime,
             endTime: meetingData.endTime,
             recipient: meetingData.recipient
-        })
-      });
+          })
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to create meeting');
+        if (!response.ok) {
+          throw new Error('Failed to create meeting');
+        }
+
+        const data = await response.json();
+        console.log('Meeting created:', data);
+      } catch (error) {
+        console.error('Error creating meeting:', error);
       }
-
-      const data = await response.json();
-      console.log('Meeting created:', data);
-    } catch (error) {
-      console.error('Error creating meeting:', error);
     }
-  }
 
   }
 }

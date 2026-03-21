@@ -3,9 +3,9 @@ spring:
     name: SyllabusSync
   
   datasource: 
-    url: ${syllabussync.mysql.database.azure.com}
-    username: ${dbadmin}
-    password: ${SeniorProject!}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
