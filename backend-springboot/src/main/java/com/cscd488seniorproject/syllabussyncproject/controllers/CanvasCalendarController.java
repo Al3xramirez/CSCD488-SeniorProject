@@ -2,28 +2,64 @@ package com.cscd488seniorproject.syllabussyncproject.controllers;
 
 import com.cscd488seniorproject.syllabussyncproject.controller.dto.CanvasSubscribeRequest;
 import com.cscd488seniorproject.syllabussyncproject.controller.dto.ExternalEventResponse;
-import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscription;
+import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscriptionEntity;
+import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
+import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
+import com.cscd488seniorproject.syllabussyncproject.service.CanvasCalendarService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Service
+@RestController
+@RequestMapping("/api/calendar")
 @RequiredArgsConstructor
-public class CanvasCalendarController{
+public class CanvasCalendarController {
 
-    // TODO: Add dependencies (e.g., repositories, external API clients) as needed via constructor injection
+    private final CanvasCalendarService canvasCalendarService;
+    private final UserAccountRepository userAccountRepository;
 
-    public CalendarSubscription subscribe(CanvasSubscribeRequest request) {
-        // TODO: Implement subscription logic (e.g., save to database, call Canvas API)
-        // Placeholder: Return a new CalendarSubscription based on request
-        CalendarSubscription subscription = new CalendarSubscription();
-        // Populate subscription fields from request (e.g., subscription.setUserId(request.getUserId());)
-        return subscription;
+    private String resolveUserId(Authentication auth) {
+        String email = auth.getName();
+        UserAccountEntity user = userAccountRepository.findByEmail(email)
+            .orElseThrow(() -> new IllegalStateException("Authenticated user not found"));
+        return user.getUserId();
     }
 
-    public List<ExternalEventResponse> getMergedEventsForUserWindow(String userId) {
-        
-        return List.of();
+    @PostMapping("/canvas/subscribe")
+    public ResponseEntity<?> subscribe(@RequestBody CanvasSubscribeRequest request, Authentication auth) {
+        try {
+            String userId = resolveUserId(auth);
+            CalendarSubscriptionEntity subscription = canvasCalendarService.subscribe(userId, request);
+            canvasCalendarService.syncSubscription(subscription.getSubscriptionId());
+            CalendarSubscriptionEntity updated = canvasCalendarService.getSubscription(subscription.getSubscriptionId());
+            if (updated.getLastError() != null) {
+                return ResponseEntity.internalServerError().body("Subscription saved but sync failed: " + updated.getLastError());
+            }
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.internalServerError().body(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/events")
+    public ResponseEntity<?> getMergedEventsForUserWindow(Authentication auth) {
+        try {
+            String userId = resolveUserId(auth);
+            List<ExternalEventResponse> events = canvasCalendarService.getMergedEventsForUserWindow(userId);
+            return ResponseEntity.ok(events);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        } catch (Exception ex) {
+            return ResponseEntity.internalServerError().body(ex.getMessage());
+        }
     }
 }

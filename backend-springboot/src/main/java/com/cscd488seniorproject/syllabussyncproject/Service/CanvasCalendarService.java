@@ -2,8 +2,8 @@ package com.cscd488seniorproject.syllabussyncproject.service;
 
 import com.cscd488seniorproject.syllabussyncproject.controller.dto.CanvasSubscribeRequest;
 import com.cscd488seniorproject.syllabussyncproject.controller.dto.ExternalEventResponse;
-import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscription;
-import com.cscd488seniorproject.syllabussyncproject.entity.ExternalEvent;
+import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscriptionEntity;
+import com.cscd488seniorproject.syllabussyncproject.entity.ExternalEventEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.CalendarSubscriptionRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.ExternalEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -62,16 +62,15 @@ public class CanvasCalendarService {
     private final RestTemplateBuilder restTemplateBuilder;
 
     @Transactional
-    public CalendarSubscription subscribe(CanvasSubscribeRequest request) {
-        String userId = request == null || request.userId() == null ? "" : request.userId().trim();
+    public CalendarSubscriptionEntity subscribe(String userId, CanvasSubscribeRequest request) {
         String icsUrl = request == null || request.icsUrl() == null ? "" : request.icsUrl().trim();
-        if (userId.isBlank() || icsUrl.isBlank()) {
+        if (userId == null || userId.isBlank() || icsUrl.isBlank()) {
             throw new IllegalArgumentException("userId and icsUrl are required");
         }
 
-        CalendarSubscription subscription = subscriptionRepository
+        CalendarSubscriptionEntity subscription = subscriptionRepository
             .findByUserIdAndProvider(userId, PROVIDER_CANVAS)
-            .orElseGet(() -> CalendarSubscription.builder()
+            .orElseGet(() -> CalendarSubscriptionEntity.builder()
                 .userId(userId)
                 .provider(PROVIDER_CANVAS)
                 .build());
@@ -86,9 +85,13 @@ public class CanvasCalendarService {
             subscription.setLastModified(null);
         }
 
-        subscription = subscriptionRepository.save(subscription);
-        syncSubscription(subscription.getSubscriptionId());
-        return subscription;
+        return subscriptionRepository.save(subscription);
+    }
+
+    @Transactional(readOnly = true)
+    public CalendarSubscriptionEntity getSubscription(Long subscriptionId) {
+        return subscriptionRepository.findById(subscriptionId)
+            .orElseThrow(() -> new IllegalArgumentException("Subscription not found"));
     }
 
     @Transactional(readOnly = true)
@@ -103,14 +106,14 @@ public class CanvasCalendarService {
 
     @Transactional
     public void syncAllEnabled() {
-        for (CalendarSubscription subscription : subscriptionRepository.findByIsEnabledTrue()) {
+        for (CalendarSubscriptionEntity subscription : subscriptionRepository.findByIsEnabledTrue()) {
             syncSubscription(subscription.getSubscriptionId());
         }
     }
 
     @Transactional
     public void syncSubscription(Long subscriptionId) {
-        CalendarSubscription subscription = subscriptionRepository.findById(subscriptionId)
+        CalendarSubscriptionEntity subscription = subscriptionRepository.findById(subscriptionId)
             .orElseThrow(() -> new IllegalArgumentException("Subscription not found"));
 
         if (!Boolean.TRUE.equals(subscription.getIsEnabled())) {
@@ -199,7 +202,7 @@ public class CanvasCalendarService {
         }
     }
 
-    private boolean upsertFromCalendar(CalendarSubscription subscription, Calendar calendar) {
+    private boolean upsertFromCalendar(CalendarSubscriptionEntity subscription, Calendar calendar) {
         Map<EventKey, ParsedEvent> parsedByKey = new HashMap<>();
         boolean hadParseErrors = false;
 
@@ -221,7 +224,7 @@ public class CanvasCalendarService {
             EventKey key = entry.getKey();
             ParsedEvent incoming = entry.getValue();
 
-            Optional<ExternalEvent> existing = externalEventRepository
+            Optional<ExternalEventEntity> existing = externalEventRepository
                 .findBySubscription_SubscriptionIdAndIcalUidAndRecurrenceId(
                     subscription.getSubscriptionId(),
                     key.icalUid,
@@ -235,7 +238,7 @@ public class CanvasCalendarService {
                 );
             }
 
-            ExternalEvent entity = existing.orElseGet(ExternalEvent::new);
+            ExternalEventEntity entity = existing.orElseGet(ExternalEventEntity::new);
 
             entity.setSubscription(subscription);
             entity.setIcalUid(key.icalUid);
@@ -251,7 +254,7 @@ public class CanvasCalendarService {
             externalEventRepository.save(entity);
         }
 
-        for (ExternalEvent existing : externalEventRepository.findBySubscription_SubscriptionIdAndIsCancelledFalse(subscription.getSubscriptionId())) {
+        for (ExternalEventEntity existing : externalEventRepository.findBySubscription_SubscriptionIdAndIsCancelledFalse(subscription.getSubscriptionId())) {
             EventKey key = new EventKey(existing.getIcalUid(), normalizeRecurrenceId(existing.getRecurrenceId()));
             if (!keysInFeed.contains(key)) {
                 existing.setIsCancelled(true);

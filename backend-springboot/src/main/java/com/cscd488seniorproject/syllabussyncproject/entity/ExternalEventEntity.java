@@ -33,7 +33,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExternalEvent {
+public class ExternalEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,7 +42,7 @@ public class ExternalEvent {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "SubscriptionID", nullable = false)
-    private CalendarSubscription subscription;
+    private CalendarSubscriptionEntity subscription;
 
     @Column(name = "IcalUid", length = 255, nullable = false)
     private String icalUid;

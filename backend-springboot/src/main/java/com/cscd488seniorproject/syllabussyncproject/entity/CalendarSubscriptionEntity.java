@@ -14,27 +14,28 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "calendar_subscription")
+
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CalendarSubscription {
+@Entity
+@Table(name = "calendar_subscription")
+public class CalendarSubscriptionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "SubscriptionID")
     private Long subscriptionId;
 
-    @Column(name = "UserID", length = 20, nullable = false)
+    @Column(name = "UserID", nullable = false)
     private String userId;
 
-    @Column(name = "Provider", length = 20, nullable = false)
+    @Column(name = "Provider", nullable = false)
     private String provider;
 
-    @Column(name = "IcsUrl", columnDefinition = "text", nullable = false)
+    @Column(name = "IcsUrl", nullable = false)
     private String icsUrl;
 
     @Column(name = "IsEnabled", nullable = false)
@@ -43,22 +44,23 @@ public class CalendarSubscription {
     @Column(name = "LastSyncAt")
     private LocalDateTime lastSyncAt;
 
-    @Column(name = "LastStatus", length = 20)
+    @Column(name = "LastStatus")
     private String lastStatus;
 
-    @Column(name = "LastError", columnDefinition = "text")
+    @Column(name = "LastError")
     private String lastError;
 
-    @Column(name = "ETag", length = 255)
-    private String eTag;
-
-    @Column(name = "LastModified", length = 255)
-    private String lastModified;
-
-    @Column(name = "CreatedAt", insertable = false, updatable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "UpdatedAt", insertable = false, updatable = false)
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
+    @Column(name = "etag")
+    private String eTag;
+
+    @Column(name = "last_modified")
+    private String lastModified;
+
 }
 

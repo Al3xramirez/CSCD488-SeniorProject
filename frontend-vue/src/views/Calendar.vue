@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 
-const userId = ref(localStorage.getItem("syllabussync_user_id") || "");
 const icsUrl = ref(localStorage.getItem("syllabussync_canvas_ics") || "");
 
 const loading = ref(false);
@@ -38,24 +37,13 @@ const eventsByDay = computed(() => {
 
 const selectedEvents = computed(() => eventsByDay.value.get(selectedDay.value) || []);
 
-const validateUserId = () => {
-  const v = userId.value.trim();
-  if (!v) {
-    throw new Error("Enter your userId first.");
-  }
-  localStorage.setItem("syllabussync_user_id", v);
-  userId.value = v;
-};
-
 const fetchEvents = async () => {
   error.value = "";
   status.value = "";
 
-  validateUserId();
-
   loading.value = true;
   try {
-    const res = await fetch(`/api/calendar/events?userId=${encodeURIComponent(userId.value)}`, {
+    const res = await fetch("/api/calendar/events", {
       credentials: "include",
     });
 
@@ -77,8 +65,6 @@ const subscribeCanvas = async () => {
   error.value = "";
   status.value = "";
 
-  validateUserId();
-
   const url = icsUrl.value.trim();
   if (!url) {
     error.value = "Paste your Canvas iCal (.ics) URL.";
@@ -93,7 +79,7 @@ const subscribeCanvas = async () => {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: userId.value, icsUrl: url }),
+      body: JSON.stringify({ icsUrl: url }),
     });
 
     if (!res.ok) {
@@ -123,9 +109,7 @@ const goToday = () => {
 };
 
 onMounted(async () => {
-  if (userId.value.trim()) {
-    await fetchEvents();
-  }
+  await fetchEvents();
 });
 
 function startOfMonth(d) {
@@ -191,10 +175,6 @@ function fmtTime(s) {
     <div class="panel">
       <div class="subscribe">
         <div class="row">
-          <div class="field">
-            <label>User ID</label>
-            <input v-model="userId" placeholder="UserID (20 chars)" />
-          </div>
           <div class="field grow">
             <label>Canvas iCal URL</label>
             <input v-model="icsUrl" placeholder="https://.../calendar.ics" />

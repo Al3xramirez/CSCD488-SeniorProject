@@ -1,6 +1,6 @@
 package com.cscd488seniorproject.syllabussyncproject.controller.dto;
 
-import com.cscd488seniorproject.syllabussyncproject.entity.ExternalEvent;
+import com.cscd488seniorproject.syllabussyncproject.entity.ExternalEventEntity;
 
 import java.time.LocalDateTime;
 
@@ -17,7 +17,7 @@ public record ExternalEventResponse(
     boolean allDay,
     boolean isCancelled
 ) {
-    public static ExternalEventResponse fromEntity(ExternalEvent event) {
+    public static ExternalEventResponse fromEntity(ExternalEventEntity event) {
         return new ExternalEventResponse(
             event.getSubscription().getSubscriptionId(),
             event.getSubscription().getProvider(),
