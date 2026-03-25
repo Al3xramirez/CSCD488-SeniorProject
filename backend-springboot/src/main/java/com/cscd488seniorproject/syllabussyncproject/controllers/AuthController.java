@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.cscd488seniorproject.syllabussyncproject.dto.SignupRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,7 +34,7 @@ public class AuthController {
     // This endpoint is used by the frontend to create new user accounts
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequest req) {
+    public ResponseEntity<?> signup(@RequestBody SignupRequestDTO req) {
         
        // email is required and must be unique
         String email = req.email == null ? "" : req.email.trim().toLowerCase(Locale.ROOT);

@@ -19,6 +19,7 @@ const links = computed(() => {
   if (normalizedRole.value === 'PROFESSOR') {
     return [
       { to: "/app", label: "Dashboard" },
+      { to: "/app/classes", label: "My Classes" },
       { to: "/app/meetings", label: "Meeting Times" },
       { to: "/app/calendar", label: "Calendar" },
       { to: "/app/syllabus-upload", label: "Syllabus Upload" },
@@ -28,6 +29,7 @@ const links = computed(() => {
   if (normalizedRole.value === 'TA') {
     return [
       { to: "/app", label: "Dashboard" },
+      { to: "/app/classes", label: "My Classes" },
       { to: "/app/meetings", label: "Meeting Times" },
       { to: "/app/calendar", label: "Calendar" },
     ];
@@ -36,6 +38,7 @@ const links = computed(() => {
   // STUDENT (default)
   return [
     { to: "/app", label: "Dashboard" },
+    { to: "/app/classes", label: "My Classes" },
     { to: "/app/meetings", label: "Meeting Times" },
     { to: "/app/calendar", label: "Calendar" },
     { to: "/app/office-hours", label: "Office Hours Match" },

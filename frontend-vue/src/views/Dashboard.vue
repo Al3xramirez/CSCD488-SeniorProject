@@ -1,39 +1,16 @@
-<script setup>
-import { computed, inject } from 'vue'; // injects the 'me' ref provided by DashboardLayout, which contains the current user's info (email, role, firstName, lastName).
+<script>
+import {computed, inject} from "vue";
 
-const me = inject('me', null);
+const me = inject("me", null);
 
-const role = computed(() => { // role is a computed property that returns the users role in uppercase, defaulting to 'STUDENT' if not available. This is used for conditional rendering of the dashboard UI based on the user's role.
+const role = computed(() => {
   const r = me?.value?.role;
-  return (r || 'STUDENT').toString().trim().toUpperCase();
+  return (r || "STUDENT").toString().trim().toUpperCase();
 });
-// TODO: fetch classs codes from professor table to display real classes for professor dashboard. For now, this is hardcoded data to show how the UI will look.
-const professorClasses = [ 
-  { code: 'CSCD 350', title: 'Software Engineering' },
-  { code: 'CSCD 488', title: 'Senior Project' },
-  { code: 'CSCD 240', title: 'C and Systems Programming' },
-];
+
+
 </script>
-
 <template>
-  <div v-if="role === 'PROFESSOR'" class="prof">
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <h2>Your Classes</h2>
-          <p class="muted">Classes you’ve created or instantiated.</p>
-        </div>
-      </div>
-
-      <div class="class-grid">
-        <div v-for="c in professorClasses" :key="c.code" class="class-box">
-          <div class="class-code">{{ c.code }}</div>
-          <div class="class-title">{{ c.title }}</div>
-        </div>
-      </div>
-    </section>
-  </div>
-
   <div class="grid">
     <!-- Left: Syllabus Overview -->
     <section class="card big">
@@ -110,17 +87,6 @@ const professorClasses = [
       </div>
     </section>
 
-    <!-- Bottom row: Join Class -->
-    <section class="card small">
-      <h3>Join a Class</h3>
-      <p class="muted">
-        Enter a class code provided by your professor.
-      </p>
-      <div class="row">
-        <input class="input" placeholder="Class code (ex: ABC123)" />
-        <button class="btn">Join</button>
-      </div>
-    </section>
   </div>
 </template>
 
