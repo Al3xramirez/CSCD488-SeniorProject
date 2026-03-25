@@ -53,4 +53,13 @@ public class ClassesController {
         String email = auth == null ? null : auth.getName();
         return ResponseEntity.ok(courseService.getRosterByJoinCode(email, joinCode));
     }
+
+    // Delete a class by its join code (professors only)
+    @PostMapping("/delete")
+    public ResponseEntity<ClassSummaryDTO> delete(Authentication auth, @RequestBody JoinClassRequestDTO req) {
+
+        String email = auth == null ? null : auth.getName();
+        String joinCode = req == null ? null : req.joinCode;
+        return ResponseEntity.ok(courseService.deleteClassByJoinCode(email, joinCode));
+    }
 }

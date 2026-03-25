@@ -15,4 +15,7 @@ public interface EnrollRelationRepository extends JpaRepository<EnrollRelationEn
 
     // Custom query to find all enrollment relations for a specific course
     List<EnrollRelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+
+    // Delete all enrollment relations for a specific course
+    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
 }

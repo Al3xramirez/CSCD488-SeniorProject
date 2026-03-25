@@ -147,6 +147,41 @@ async function safeErrorMessage(res) {
   }
 }
 
+// Function to delete class, when class does delete, it filters out the deleted class from list
+async function submitDelete(joinCode) {
+  if (!isProfessor.value) return;
+
+  try {
+    const payload = { joinCode };
+    const res = await fetch("/api/classes/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const msg = await safeErrorMessage(res);
+      throw new Error(msg || `Failed to delete class (${res.status})`);
+    }
+
+    const deleted = await res.json();
+    classes.value = classes.value.filter(c => !(c.classCode === deleted.classCode && c.quarter === deleted.quarter && c.year === deleted.year));
+  } catch (e) {
+    error.value = e?.message || "Failed to delete class";
+  }
+}
+
+function confirmAndDelete(c) {
+  if (!isProfessor.value) return;
+  const classLabel = `${c?.classCode || ""} ${c?.quarter || ""} ${c?.year || ""}`.trim();
+  const ok = window.confirm(
+    `Are you sure you want to delete this class${classLabel ? ` (${classLabel})` : ""}?`
+  );
+  if (!ok) return;
+  submitDelete(c.joinCode);
+}
+
 /* onMounted is used to call the LoadMyclasses function when the component is first mounted. 
 just to make sure users classes are loaded when they open up the page */
 onMounted(loadMyClasses);
@@ -189,7 +224,17 @@ onMounted(loadMyClasses);
     <!-- If not loading and no error, show the classes or an empty state message -->
     <div v-else class="class-grid">
       <div v-for="c in classes" :key="`${c.classCode}-${c.quarter}-${c.year}`" class="class-box">
-        <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
+        <div class="class-top">
+          <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
+          <button
+            v-if="isProfessor"
+            class="btn ghost btn-sm delete-btn"
+            type="button"
+            @click="confirmAndDelete(c)"
+          >
+            Delete
+          </button>
+        </div>
         <div class="class-title">{{ c.title }}</div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
       </div>
@@ -335,6 +380,23 @@ h3 {
   border-radius: 18px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
+}
+
+.class-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btn.btn-sm {
+  padding: 6px 10px;
+  border-radius: 12px;
+  min-width: auto;
+}
+
+.delete-btn {
+  white-space: nowrap;
 }
 
 .class-code {

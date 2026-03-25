@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -169,6 +170,38 @@ public class CourseService {
 
         Collection<UserAccountEntity> users = userRepo.findAllById(userIds);
         return users.stream().map(u -> new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName())).toList();
+    }
+    
+    /*Transactional ensures that all databases operations
+    within a method are executed, cuz if not, we might end up in a state where the course is
+    deleted but the relations are not, or vice versa*/
+    @Transactional
+    public ClassSummaryDTO deleteClassByJoinCode(String email, String joinCodeRaw) {
+
+        UserAccountEntity me = requireUserByEmail(email);
+        requireRole(me, Set.of("PROFESSOR"));
+        String joinCode = normalizeRequired(joinCodeRaw, "joinCode");
+
+        CourseEntity course = courseRepo.findByJoinCode(joinCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
+        
+        boolean teaches = teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+                me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!teaches) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to delete this class");
+        }
+        
+        // Delete dependent rows first 
+        //NOTE: Once we add other entities and repositories that depend on CourseEntity, we will need to delete them here
+        String classCode = course.getClassCode();
+        String quarter = course.getQuarter();
+        String year = course.getYear();
+
+        teachesRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
+        enrollRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
+        courseRepo.delete(course);
+
+        return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
     }
 
     // Helper method to retrieve a user by email and throw exception if the email is not provided or the user is not found.

@@ -12,4 +12,7 @@ public interface TeachesRelationRepository extends JpaRepository<TeachesRelation
 
     // Custom query to find all teaching relations for a specific user
     List<TeachesRelationEntity> findAllByUserId(String userId);
+
+    // Delete all teaching relations for a specific course
+    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
 }
