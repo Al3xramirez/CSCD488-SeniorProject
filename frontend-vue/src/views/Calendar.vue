@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 
-const icsUrl = ref(localStorage.getItem("syllabussync_canvas_ics") || "");
+const icsUrl = ref("");
 
 const loading = ref(false);
 const syncing = ref(false);
@@ -70,9 +70,7 @@ const subscribeCanvas = async () => {
     error.value = "Paste your Canvas iCal (.ics) URL.";
     return;
   }
-  localStorage.setItem("syllabussync_canvas_ics", url);
-  icsUrl.value = url;
-
+  icsUrl.value = "";
   syncing.value = true;
   try {
     const res = await fetch("/api/calendar/canvas/subscribe", {
@@ -109,6 +107,7 @@ const goToday = () => {
 };
 
 onMounted(async () => {
+  localStorage.removeItem("syllabussync_canvas_ics");
   await fetchEvents();
 });
 
