@@ -1,96 +1,15 @@
-<script setup>
-import { computed, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+<script>
+import {computed, inject} from "vue";
 
-const router = useRouter();
+const me = inject("me", null);
 
-const events = ref([]);
-const loadingEvents = ref(false);
-
-const DOW_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function toYmd(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function parseLocalDateTime(s) {
-  if (!s) return new Date(NaN);
-  const [datePart = "", timePart = "00:00:00"] = String(s).split("T");
-  const [y, m, d] = datePart.split("-").map(Number);
-  const [hh, mm, ssRaw = "0"] = timePart.split(":");
-  const ss = ssRaw.split(".")[0];
-  return new Date(y, (m || 1) - 1, d || 1, Number(hh), Number(mm), Number(ss));
-}
-
-function fmtTime(s) {
-  const d = parseLocalDateTime(s);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
-// Days Mon–Sun of the current week
-const weekDays = computed(() => {
-  const today = new Date();
-  const dow = today.getDay(); // 0=Sun
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((dow + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    return d;
-  });
+const role = computed(() => {
+  const r = me?.value?.role;
+  return (r || "STUDENT").toString().trim().toUpperCase();
 });
 
-const upcomingItems = computed(() => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  // Build a map: ymd -> sorted events
-  const map = new Map();
-  for (const e of events.value) {
-    if (e.isCancelled) continue;
-    const key = toYmd(parseLocalDateTime(e.startAt));
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(e);
-  }
-  for (const list of map.values()) {
-    list.sort((a, b) => parseLocalDateTime(a.startAt) - parseLocalDateTime(b.startAt));
-  }
-
-  // For each day this week (today onwards), emit up to 1 event per day, max 5 rows
-  const rows = [];
-  for (const day of weekDays.value) {
-    if (day < today) continue;
-    const key = toYmd(day);
-    const dayEvents = map.get(key) || [];
-    if (dayEvents.length === 0) continue;
-    for (const e of dayEvents) {
-      rows.push({
-        label: DOW_SHORT[day.getDay()],
-        title: e.summary || "(no title)",
-        sub: e.allDay ? "All day" : fmtTime(e.startAt),
-        date: day,
-      });
-      if (rows.length >= 5) return rows;
-    }
-  }
-  return rows;
-});
-
-const hasEvents = computed(() => events.value.length > 0);
-
-onMounted(async () => {
-  loadingEvents.value = true;
-  try {
-    const res = await fetch("/api/calendar/events", { credentials: "include" });
-    if (res.ok) events.value = await res.json();
-  } finally {
-    loadingEvents.value = false;
-  }
-});
 </script>
-
 <template>
   <div class="grid">
     <!-- Left: Syllabus Overview -->
@@ -153,26 +72,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="list" v-else-if="hasEvents">
-        <div class="empty-note">No events remaining this week.</div>
-      </div>
-
-      <div class="list" v-else>
-        <div class="empty-note muted">Connect Canvas on the Calendar page to populate.</div>
+      <div class="footer-note">
+        Once backend is ready, this becomes a real list with due dates and course tags.
       </div>
     </section>
 
-    <!-- Bottom row: Join Class -->
-    <section class="card small">
-      <h3>Join a Class</h3>
-      <p class="muted">
-        Enter a class code provided by your professor.
-      </p>
-      <div class="row">
-        <input class="input" placeholder="Class code (ex: ABC123)" />
-        <button class="btn">Join</button>
-      </div>
-    </section>
   </div>
 </template>
 
@@ -181,6 +85,35 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 18px;
+}
+
+.prof {
+  display: flex;
+}
+
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.class-box {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.class-code {
+  font-weight: 900;
+  color: #e5e7eb;
+}
+
+.class-title {
+  margin-top: 6px;
+  color: #9ca3af;
+  font-size: 13px;
 }
 
 .card {

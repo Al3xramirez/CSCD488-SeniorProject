@@ -1,14 +1,49 @@
 <script setup>
+import { computed } from "vue"; // computed is used to create reactive computed properties that automatically update when their dependencies change.
 import { useRoute } from "vue-router";
+
+/* props is an object containing role, firstName, and lastName, 
+which have been passed down from the parent component (DashboardLayout) */
+const props = defineProps({ 
+  role: { type: String, default: null },
+});
 
 const route = useRoute();
 
-const links = [
-  { to: "/app", label: "Dashboard" },
-  { to: "/app/meetings", label: "Meeting Times" },
-  { to: "/app/calendar", label: "Calendar" },
-  { to: "/app/office-hours", label: "Office Hours Match" },
-];
+/* normalizedRole is a computed property that returns the user's role in uppercase, defaulting to "STUDENT" if not provided.
+This is basically a local variable that based on the user's role, will render the UI based off of that role
+*/
+const normalizedRole = computed(() => (props.role || "STUDENT").trim().toUpperCase()); 
+
+const links = computed(() => {
+  if (normalizedRole.value === 'PROFESSOR') {
+    return [
+      { to: "/app", label: "Dashboard" },
+      { to: "/app/classes", label: "My Classes" },
+      { to: "/app/meetings", label: "Meeting Times" },
+      { to: "/app/calendar", label: "Calendar" },
+      { to: "/app/syllabus-upload", label: "Syllabus Upload" },
+    ];
+  }
+
+  if (normalizedRole.value === 'TA') {
+    return [
+      { to: "/app", label: "Dashboard" },
+      { to: "/app/classes", label: "My Classes" },
+      { to: "/app/meetings", label: "Meeting Times" },
+      { to: "/app/calendar", label: "Calendar" },
+    ];
+  }
+
+  // STUDENT (default)
+  return [
+    { to: "/app", label: "Dashboard" },
+    { to: "/app/classes", label: "My Classes" },
+    { to: "/app/meetings", label: "Meeting Times" },
+    { to: "/app/calendar", label: "Calendar" },
+    { to: "/app/office-hours", label: "Office Hours Match" },
+  ];
+});
 
 const isActive = (to) => route.path === to;
 </script>
