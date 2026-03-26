@@ -37,41 +37,41 @@ public class ExternalEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ExternalEventID")
+    @Column(name = "external_eventid")
     private Long externalEventId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "SubscriptionID", nullable = false)
+    @JoinColumn(name = "subscriptionid", nullable = false)
     private CalendarSubscriptionEntity subscription;
 
-    @Column(name = "IcalUid", length = 255, nullable = false)
+    @Column(name = "ical_uid", length = 255, nullable = false)
     private String icalUid;
 
-    @Column(name = "RecurrenceId", length = 255)
+    @Column(name = "recurrence_id", length = 255)
     private String recurrenceId;
 
-    @Column(name = "Summary", length = 255)
+    @Column(name = "summary", length = 255)
     private String summary;
 
-    @Column(name = "Location", length = 255)
+    @Column(name = "location", length = 255)
     private String location;
 
-    @Column(name = "Description", columnDefinition = "text")
+    @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "StartAt", nullable = false)
+    @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
 
-    @Column(name = "EndAt", nullable = false)
+    @Column(name = "end_at", nullable = false)
     private LocalDateTime endAt;
 
-    @Column(name = "AllDay", nullable = false)
+    @Column(name = "all_day", nullable = false)
     private Boolean allDay;
 
-    @Column(name = "IsCancelled", nullable = false)
+    @Column(name = "is_cancelled", nullable = false)
     private Boolean isCancelled;
 
-    @Column(name = "UpdatedFromFeedAt", nullable = false)
+    @Column(name = "updated_from_feed_at", nullable = false)
     private LocalDateTime updatedFromFeedAt;
 }
 

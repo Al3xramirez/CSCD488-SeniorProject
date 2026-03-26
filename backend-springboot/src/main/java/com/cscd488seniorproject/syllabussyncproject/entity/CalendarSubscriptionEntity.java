@@ -26,28 +26,28 @@ public class CalendarSubscriptionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "SubscriptionID")
+    @Column(name = "subscriptionID")
     private Long subscriptionId;
 
     @Column(name = "UserID", nullable = false)
     private String userId;
 
-    @Column(name = "Provider", nullable = false)
+    @Column(name = "provider", nullable = false)
     private String provider;
 
-    @Column(name = "IcsUrl", nullable = false)
+    @Column(name = "ics_url", nullable = false)
     private String icsUrl;
 
-    @Column(name = "IsEnabled", nullable = false)
+    @Column(name = "is_enabled", nullable = false)
     private Boolean isEnabled;
 
-    @Column(name = "LastSyncAt")
+    @Column(name = "last_sync_at")
     private LocalDateTime lastSyncAt;
 
-    @Column(name = "LastStatus")
+    @Column(name = "last_status")
     private String lastStatus;
 
-    @Column(name = "LastError")
+    @Column(name = "last_error")
     private String lastError;
 
     @Column(name = "created_at")
