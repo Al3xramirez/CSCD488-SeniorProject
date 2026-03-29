@@ -1,14 +1,71 @@
-<script>
-import {computed, inject} from "vue";
+<script setup>
+import { computed, inject, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 
 const me = inject("me", null);
+const router = useRouter();
 
 const role = computed(() => {
   const r = me?.value?.role;
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
 
+// ── Calendar events ────────────────────────────────────────────────
+const loadingEvents = ref(false);
+const events = ref([]);
 
+const hasEvents = computed(() => events.value.length > 0);
+
+const upcomingItems = computed(() => {
+  const now = new Date();
+  // End of current week Sunday 23:59:59
+  const endOfWeek = new Date(now);
+  endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  return events.value
+    .filter(e => {
+      if (e.isCancelled) return false;
+      const start = parseLocalDateTime(e.startAt);
+      return start >= now && start <= endOfWeek;
+    })
+    .sort((a, b) => parseLocalDateTime(a.startAt) - parseLocalDateTime(b.startAt))
+    .slice(0, 5)
+    .map(e => {
+      const start = parseLocalDateTime(e.startAt);
+      const dayAbbr = start.toLocaleDateString(undefined, { weekday: "short" });
+      const dateStr = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const timeStr = e.allDay
+        ? "All day"
+        : start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+      return {
+        label: dayAbbr,
+        title: e.summary || "(No title)",
+        sub: `${dateStr} · ${timeStr}`,
+      };
+    });
+});
+
+async function fetchEvents() {
+  loadingEvents.value = true;
+  try {
+    const res = await fetch("/api/calendar/events", { credentials: "include" });
+    if (res.ok) events.value = await res.json();
+  } finally {
+    loadingEvents.value = false;
+  }
+}
+
+function parseLocalDateTime(s) {
+  if (!s) return new Date(NaN);
+  const [datePart, timePart = "00:00:00"] = String(s).split("T");
+  const [y, m, d] = datePart.split("-").map(Number);
+  const [hh, mm, ssRaw] = timePart.split(":");
+  const ss = (ssRaw || "0").split(".")[0];
+  return new Date(y, m - 1, d, Number(hh || 0), Number(mm || 0), Number(ss || 0));
+}
+
+onMounted(fetchEvents);
 </script>
 <template>
   <div class="grid">
@@ -55,35 +112,27 @@ const role = computed(() => {
         <div>
           <h2>Upcoming This Week</h2>
         </div>
-        <button class="btn ghost">Import Canvas .ics</button>
+        <button class="btn ghost" @click="router.push('/app/calendar')">Import Canvas .ics</button>
       </div>
 
-      <div class="list">
-        <div class="item">
-          <div class="badge">Mon</div>
+      <div class="list" v-if="loadingEvents">
+        <div class="empty-note">Loading…</div>
+      </div>
+
+      <div class="list" v-else-if="upcomingItems.length">
+        <div class="item" v-for="(row, i) in upcomingItems" :key="i">
+          <div class="badge">{{ row.label }}</div>
           <div class="info">
-            <div class="title">—</div>
-            <div class="sub">No assignments loaded yet</div>
-          </div>
-        </div>
-        <div class="item">
-          <div class="badge">Wed</div>
-          <div class="info">
-            <div class="title">—</div>
-            <div class="sub">Connect Canvas to populate</div>
-          </div>
-        </div>
-        <div class="item">
-          <div class="badge">Fri</div>
-          <div class="info">
-            <div class="title">—</div>
-            <div class="sub">Deadlines will show here</div>
+            <div class="title">{{ row.title }}</div>
+            <div class="sub">{{ row.sub }}</div>
           </div>
         </div>
       </div>
 
-      <div class="footer-note">
-        Once backend is ready, this becomes a real list with due dates and course tags.
+      <div class="list" v-else>
+        <div class="empty-note">
+          {{ hasEvents ? "Nothing due this week." : "No Canvas feed connected yet." }}
+        </div>
       </div>
     </section>
 
@@ -279,10 +328,14 @@ h3 {
   color: #9ca3af;
 }
 
-.footer-note {
-  margin-top: 12px;
-  font-size: 12px;
+.empty-note {
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.10);
+  font-size: 13px;
   color: #9ca3af;
+  font-weight: 800;
 }
 
 .row {
