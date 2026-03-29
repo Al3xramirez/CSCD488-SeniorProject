@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject.controller.dto;
+package com.cscd488seniorproject.syllabussyncproject.dto;
 
 import com.cscd488seniorproject.syllabussyncproject.entity.ExternalEventEntity;
 

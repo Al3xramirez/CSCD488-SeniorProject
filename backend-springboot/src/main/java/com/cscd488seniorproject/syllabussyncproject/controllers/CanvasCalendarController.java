@@ -1,7 +1,7 @@
 package com.cscd488seniorproject.syllabussyncproject.controllers;
 
-import com.cscd488seniorproject.syllabussyncproject.controller.dto.CanvasSubscribeRequest;
-import com.cscd488seniorproject.syllabussyncproject.controller.dto.ExternalEventResponse;
+import com.cscd488seniorproject.syllabussyncproject.dto.CanvasSubscribeRequest;
+import com.cscd488seniorproject.syllabussyncproject.dto.ExternalEventResponse;
 import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscriptionEntity;
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
