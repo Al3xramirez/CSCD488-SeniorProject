@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
     uniqueConstraints = {
         @UniqueConstraint(
             name = "uk_external_event_subscription_uid_recur",
-            columnNames = {"SubscriptionID", "IcalUid", "RecurrenceId"}
+            columnNames = {"subscriptionid", "ical_uid", "recurrence_id"}
         )
     }
 )
