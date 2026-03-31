@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue"; // computed is used to create reactive computed properties that automatically update when their dependencies change.
 import { useRoute } from "vue-router";
+import pureLogoUrl from '../assets/SyllabusSyncPureLogo.png'
 
 /* props is an object containing role, firstName, and lastName, 
 which have been passed down from the parent component (DashboardLayout) */
@@ -53,7 +54,7 @@ const isActive = (to) => route.path === to;
   <aside class="sidebar">
     <div class="top">
       <div class="logo" title="SyllabusSync">
-        <span class="logo-inner">SS</span>
+        <img class="logo-inner" :src="pureLogoUrl" alt="SyllabusSync Pure Logo" />
       </div>
     </div>
 
@@ -100,15 +101,21 @@ const isActive = (to) => route.path === to;
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  background: linear-gradient(135deg, #ffffff, #fdfdfd);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
 }
 
 .logo-inner {
-  font-weight: 900;
-  letter-spacing: 0.6px;
-  color: white;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 8px;
+  display: block;
+  border-radius: inherit;
 }
 
 /* nav */
