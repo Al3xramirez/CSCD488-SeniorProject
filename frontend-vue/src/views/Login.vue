@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import logoUrl from '../assets/SyllabusSync Logo.png'
 
 const router = useRouter()
 const username = ref('')
@@ -29,11 +30,12 @@ const submitForm = async () => {
 
 <template>
   <div class="container">
+
+    <img class="brand-logo" :src="logoUrl" alt="SyllabusSync Logo" />
     <main class="card">
       <header>
-        <h1 class="logo">SyllabusSync</h1>
         <h2>Login</h2>
-        <p class="subtitle">Login or create a account to begin using syllabus</p>
+        <p class="subtitle">Login or create a account</p>
       </header>
 
       <form class="form" @submit.prevent="submitForm">
@@ -76,13 +78,13 @@ const submitForm = async () => {
 .container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 24px;
   background: linear-gradient(135deg, #ffffff, #f5f5f5);
   font-family: system-ui, -apple-system, sans-serif;
 }
-
 .card {
   background: #111827;
   padding: 40px;
@@ -94,12 +96,16 @@ const submitForm = async () => {
   text-align: center;
 }
 
+header h2 {
+  margin: 0 0 6px;
+}
+
 h1 {
   margin: 0 0 8px;
 }
 
 .subtitle {
-  margin: 0 0 22px;
+  margin: 0 0 18px;
   color: #9ca3af;
   font-size: 14px;
 }
@@ -157,5 +163,11 @@ h1 {
 
 .link:hover {
   text-decoration: underline;
+}
+
+.brand-logo {
+  width: min(320px, 80vw);   
+  height: auto;
+  margin-bottom: 20px; /* space above the login box */
 }
 </style>
