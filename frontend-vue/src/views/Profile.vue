@@ -1,6 +1,14 @@
 <script setup>
 import { useRouter } from "vue-router";
+import { computed, inject } from "vue";
 const router = useRouter();
+
+// --------- Student profile retrieval ----------
+const me = inject("me", null);
+const firstName = computed(() => me?.value?.firstName || "—");
+const lastName = computed(() => me?.value?.lastName || "—");
+const email = computed(() => me?.value?.email || "—");
+
 </script>
 
 <template>
@@ -14,16 +22,16 @@ const router = useRouter();
       <section class="card">
         <h2>Account</h2>
         <div class="field">
-          <div class="label">Name</div>
-          <div class="value">—</div>
+          <div class="label">First name</div>
+          <div class="value">{{ firstName }}</div>
+        </div>
+        <div class="field">
+          <div class="label">Last name</div>
+          <div class="value">{{ lastName }}</div>
         </div>
         <div class="field">
           <div class="label">Email</div>
-          <div class="value">—</div>
-        </div>
-        <div class="field">
-          <div class="label">Major</div>
-          <div class="value">—</div>
+          <div class="value">{{ email }}</div>
         </div>
       </section>
 
