@@ -34,9 +34,15 @@ function goProfile() {
   <header class="header">
     <div class="left">
       <div class="title-wrap">
-        <div class="title">SyllabusSync</div>
         <div class="role">{{ roleViewLabel }}</div>
       </div>
+    </div>
+
+    <div class="center" aria-hidden="true">
+        <div class="brand-text">
+          <span class="brand-syllabus">Syllabus</span>
+          <span class="brand-sync">Sync</span>
+        </div>
     </div>
 
     <div class="right">
@@ -58,6 +64,7 @@ function goProfile() {
 <style scoped>
 .header {
   height: 68px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -77,17 +84,39 @@ function goProfile() {
   line-height: 1.1;
 }
 
-.title {
-  font-weight: 900;
-  color: #e5e7eb;
-  letter-spacing: 0.2px;
-  font-size: 18px;
-}
-
 .role {
   margin-top: 4px;
   font-size: 12px;
   color: #9ca3af;
+}
+
+.center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.brand {
+  display: grid;
+  place-items: center;
+}
+
+.brand-text {
+  font-weight: 900;
+  font-size: 35px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.brand-syllabus {
+  color: #e5e7eb;
+}
+
+.brand-sync {
+  color: #3b82f6;
 }
 
 .right {
