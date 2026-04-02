@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
+import { useMeetingReminders } from "../composables/useMeetingReminders";
 
 const icsUrl = ref("");
 
@@ -106,6 +107,8 @@ const goToday = () => {
   selectedDay.value = toYmd(now);
 };
 
+const { reminderLabel } = useMeetingReminders(events);
+
 onMounted(async () => {
   localStorage.removeItem("syllabussync_canvas_ics");
   await fetchEvents();
@@ -152,7 +155,8 @@ function buildMonthGrid(monthStart) {
 function fmtTime(s) {
   const d = parseLocalDateTime(s);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const tz = localStorage.getItem("syllabussync_timezone") || undefined;
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: tz });
 }
 </script>
 
@@ -240,6 +244,9 @@ function fmtTime(s) {
                 <div class="title">{{ e.summary || "(no title)" }}</div>
                 <div class="sub muted" v-if="e.location">{{ e.location }}</div>
                 <div class="sub muted" v-if="e.isCancelled">Cancelled</div>
+              </div>
+              <div v-if="!e.allDay && reminderLabel(e.startAt)" class="cal-countdown">
+                {{ reminderLabel(e.startAt) }}
               </div>
             </div>
           </div>
@@ -530,6 +537,20 @@ input:focus {
 .sub {
   margin-top: 4px;
   font-size: 12px;
+}
+
+.cal-countdown {
+  margin-left: auto;
+  align-self: center;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(234, 179, 8, 0.14);
+  border: 1px solid rgba(234, 179, 8, 0.28);
+  color: #fde68a;
+  white-space: nowrap;
 }
 
 @media (max-width: 1100px) {

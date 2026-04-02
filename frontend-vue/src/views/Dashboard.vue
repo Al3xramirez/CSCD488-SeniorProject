@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useMeetingReminders } from "../composables/useMeetingReminders";
 
 const me = inject("me", null);
 const router = useRouter();
@@ -16,18 +17,19 @@ const events = ref([]);
 
 const hasEvents = computed(() => events.value.length > 0);
 
+const { now, reminderLabel, upcomingReminder } = useMeetingReminders(events);
+
 const upcomingItems = computed(() => {
-  const now = new Date();
-  // End of current week Sunday 23:59:59
-  const endOfWeek = new Date(now);
-  endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+  // End of current week Sunday 23:59:59 — uses reactive `now` so list updates live
+  const endOfWeek = new Date(now.value);
+  endOfWeek.setDate(now.value.getDate() + (7 - now.value.getDay()));
   endOfWeek.setHours(23, 59, 59, 999);
 
   return events.value
     .filter(e => {
       if (e.isCancelled) return false;
       const start = parseLocalDateTime(e.startAt);
-      return start >= now && start <= endOfWeek;
+      return start >= now.value && start <= endOfWeek;
     })
     .sort((a, b) => parseLocalDateTime(a.startAt) - parseLocalDateTime(b.startAt))
     .slice(0, 5)
@@ -35,13 +37,16 @@ const upcomingItems = computed(() => {
       const start = parseLocalDateTime(e.startAt);
       const dayAbbr = start.toLocaleDateString(undefined, { weekday: "short" });
       const dateStr = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const tz = localStorage.getItem("syllabussync_timezone") || undefined;
       const timeStr = e.allDay
         ? "All day"
-        : start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+        : start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: tz });
       return {
         label: dayAbbr,
         title: e.summary || "(No title)",
         sub: `${dateStr} · ${timeStr}`,
+        startAt: e.startAt,
+        allDay: e.allDay,
       };
     });
 });
@@ -115,6 +120,13 @@ onMounted(fetchEvents);
         <button class="btn ghost" @click="router.push('/app/calendar')">Import Canvas .ics</button>
       </div>
 
+      <div v-if="upcomingReminder" class="reminder-banner">
+        <span class="reminder-dot" />
+        <span class="reminder-text">
+          <strong>{{ upcomingReminder.event.summary }}</strong> — {{ upcomingReminder.label }}
+        </span>
+      </div>
+
       <div class="list" v-if="loadingEvents">
         <div class="empty-note">Loading…</div>
       </div>
@@ -125,6 +137,9 @@ onMounted(fetchEvents);
           <div class="info">
             <div class="title">{{ row.title }}</div>
             <div class="sub">{{ row.sub }}</div>
+          </div>
+          <div v-if="!row.allDay && reminderLabel(row.startAt)" class="countdown-chip">
+            {{ reminderLabel(row.startAt) }}
           </div>
         </div>
       </div>
@@ -326,6 +341,50 @@ h3 {
   margin-top: 4px;
   font-size: 12px;
   color: #9ca3af;
+}
+
+.reminder-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.28);
+}
+
+.reminder-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #eab308;
+  box-shadow: 0 0 6px rgba(234, 179, 8, 0.7);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.reminder-text {
+  font-size: 13px;
+  color: #fde68a;
+}
+
+.countdown-chip {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(234, 179, 8, 0.14);
+  border: 1px solid rgba(234, 179, 8, 0.28);
+  color: #fde68a;
+  white-space: nowrap;
 }
 
 .empty-note {

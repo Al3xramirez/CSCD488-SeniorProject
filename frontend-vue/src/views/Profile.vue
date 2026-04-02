@@ -1,6 +1,6 @@
 <script setup>
 import { useRouter } from "vue-router";
-import { computed, inject } from "vue";
+import { computed, inject, ref, watch } from "vue";
 const router = useRouter();
 
 // --------- Student profile retrieval ----------
@@ -8,6 +8,24 @@ const me = inject("me", null);
 const firstName = computed(() => me?.value?.firstName || "—");
 const lastName = computed(() => me?.value?.lastName || "—");
 const email = computed(() => me?.value?.email || "—");
+
+// --------- Preferences (persisted to localStorage) ----------
+const TZ_KEY = "syllabussync_timezone";
+const NOTIF_KEY = "syllabussync_notifications";
+
+const allTimezones = [
+  { label: "Eastern (ET)",  value: "America/New_York" },
+  { label: "Central (CT)",  value: "America/Chicago" },
+  { label: "Mountain (MT)", value: "America/Denver" },
+  { label: "Pacific (PT)",  value: "America/Los_Angeles" },
+];
+const timezone = ref(
+  localStorage.getItem(TZ_KEY) || Intl.DateTimeFormat().resolvedOptions().timeZone
+);
+const notificationsOn = ref(localStorage.getItem(NOTIF_KEY) !== "false");
+
+watch(timezone, (v) => localStorage.setItem(TZ_KEY, v));
+watch(notificationsOn, (v) => localStorage.setItem(NOTIF_KEY, String(v)));
 
 </script>
 
@@ -39,11 +57,16 @@ const email = computed(() => me?.value?.email || "—");
         <h2>Preferences</h2>
         <div class="field">
           <div class="label">Time zone</div>
-          <div class="value">—</div>
+          <select class="pref-select" v-model="timezone">
+            <option v-for="tz in allTimezones" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
+          </select>
         </div>
         <div class="field">
-          <div class="label">Notifications</div>
-          <div class="value">—</div>
+          <div class="label">Meeting reminders</div>
+          <button class="toggle" :class="{ on: notificationsOn }" @click="notificationsOn = !notificationsOn">
+            <span class="toggle-thumb" />
+            <span class="toggle-label">{{ notificationsOn ? "On" : "Off" }}</span>
+          </button>
         </div>
       </section>
 
@@ -159,6 +182,52 @@ h2 {
   border: 1px solid rgba(255,255,255,0.10);
 }
 .btn.ghost:hover { background: rgba(255,255,255,0.09); }
+
+.pref-select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  max-width: 220px;
+}
+.pref-select:focus {
+  border-color: rgba(96,165,250,0.6);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 5px 12px 5px 6px;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 800;
+  transition: background 0.2s, border-color 0.2s;
+}
+.toggle.on {
+  background: rgba(37,99,235,0.22);
+  border-color: rgba(37,99,235,0.45);
+  color: #bfdbfe;
+}
+.toggle-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4b5563;
+  transition: background 0.2s;
+}
+.toggle.on .toggle-thumb {
+  background: #60a5fa;
+}
 
 @media (max-width: 980px) {
   .grid { grid-template-columns: 1fr; }
