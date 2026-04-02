@@ -19,20 +19,16 @@ public class SyllabusEntity {
 	@Column(name = "Year")
 	private String year;
 
-	@Lob
-	@Column(name = "GradingScale")
+	@Column(name = "GradingScale", columnDefinition = "TEXT")
 	private String gradingScale;
 
-	@Lob
-	@Column(name = "AttendancePolicy")
+	@Column(name = "AttendancePolicy", columnDefinition = "TEXT")
 	private String attendancePolicy;
 
-	@Lob
-	@Column(name = "LatePolicy")
+	@Column(name = "LatePolicy", columnDefinition = "TEXT")
 	private String latePolicy;
 
-	@Lob
-	@Column(name = "ExamInfo")
+	@Column(name = "ExamInfo", columnDefinition = "TEXT")
 	private String examInfo;
 
 	public SyllabusEntity() {
