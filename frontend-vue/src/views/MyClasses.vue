@@ -274,10 +274,8 @@ onMounted(loadMyClasses);
       </div>
 
       <div v-if="isProfessor" class="header-actions">
-        <button class="btn ghost" type="button" @click="openSyllabusFilePicker">
-          Import Syllabus PDF
-        </button>
-        <button class="btn" type="button" @click="openCreate">+
+        <button class="btn import-syllabus-btn" type="button" @click="openSyllabusFilePicker">
+          Import Syllabus
         </button>
       </div>
     </div>
@@ -335,6 +333,17 @@ onMounted(loadMyClasses);
     <div v-if="loading" class="muted">Loading…</div>
     <!-- If not loading and no error, show the classes or an empty state message -->
     <div v-else class="class-grid">
+      <button
+        v-if="isProfessor"
+        class="class-box create-tile"
+        type="button"
+        aria-label="Create class"
+        @click="openCreate"
+      >
+        <div class="create-plus">+</div>
+        <div class="create-label">Create class</div>
+      </button>
+
       <div v-for="c in classes" :key="`${c.classCode}-${c.quarter}-${c.year}`" class="class-box">
         <div class="class-top">
           <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
@@ -488,6 +497,19 @@ h3 {
   background: #1d4ed8;
 }
 
+.btn.import-syllabus-btn {
+  background: #2563eb;
+  border: none;
+  padding: 12px 16px;
+  font-size: 14px;
+  border-radius: 0;
+  min-width: auto;
+}
+
+.btn.import-syllabus-btn:hover {
+  background: #1d4ed8;
+}
+
 .btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -514,6 +536,35 @@ h3 {
   border-radius: 18px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
+}
+
+.create-tile {
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 120px;
+  background: rgba(37,99,235,0.14);
+  border: 1px dashed rgba(37,99,235,0.45);
+}
+
+.create-tile:hover {
+  background: rgba(37,99,235,0.20);
+}
+
+.create-plus {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: #bfdbfe;
+}
+
+.create-label {
+  font-weight: 900;
+  color: #e5e7eb;
 }
 
 .class-top {

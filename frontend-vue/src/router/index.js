@@ -8,7 +8,6 @@ import Meetings from "../views/Meetings.vue";
 import DashboardLayout from "../layout/DashboardLayout.vue";
 import Calendar from "../views/Calendar.vue";
 import OfficeHours from "../views/OfficeHours.vue";
-import SyllabusUpload from "../views/SyllabusUpload.vue";
 import MyClasses from "../views/MyClasses.vue";
 
 const router = createRouter({
@@ -27,7 +26,6 @@ const router = createRouter({
         { path: "meetings", name: "meetings", component: Meetings },
         { path: "calendar", name: "calendar", component: Calendar },
         { path: "office-hours", name: "office-hours", component: OfficeHours },
-        { path: "syllabus-upload", name: "syllabus-upload", component: SyllabusUpload },
         { path: "profile", name: "profile", component: Profile, meta: { hideHeader: true } },
       ],
     },
