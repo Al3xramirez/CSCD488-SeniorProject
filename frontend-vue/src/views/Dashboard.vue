@@ -1,29 +1,32 @@
 <script setup>
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
+// ------------- Setup & Context --------------------------
 const me = inject("me", null);
 const router = useRouter();
 
+// ------------- User Info --------------------------
 const role = computed(() => {
   const r = me?.value?.role;
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
 
-// ------------- Classes + syllabus --------------------------
+// ------------- Classes + Syllabus UI --------------------------
+
 const classes = ref([]);
 const loadingSyllabus = ref(false);
 const syllabusError = ref("");
 const syllabusByKey = ref({});
 const selectedClassKey = ref("");
+const classMenuOpen = ref(false);
+const classSelectEl = ref(null);
 
 function classKey(c) {
   return `${c?.classCode || ""}-${c?.quarter || ""}-${c?.year || ""}`;
 }
 
-const selectedClass = computed(() =>
-  classes.value.find(c => classKey(c) === selectedClassKey.value) || null
-);
+const selectedClass = computed(() => classes.value.find(c => classKey(c) === selectedClassKey.value) || null);
 
 const selectedSyllabus = computed(() => {
   const key = selectedClassKey.value;
@@ -31,6 +34,7 @@ const selectedSyllabus = computed(() => {
 });
 
 async function safeErrorMessage(res) {
+
   try {
     const text = await res.text();
     return text || "";
@@ -39,9 +43,14 @@ async function safeErrorMessage(res) {
   }
 }
 
+// Fetch user's classes and their syllabi, then determine which syllabus to show based on selected class
+
 async function fetchClassesAndSyllabi() {
+
   loadingSyllabus.value = true;
   syllabusError.value = "";
+
+  classMenuOpen.value = false;
 
   try {
     const res = await fetch("/api/classes/mine", { credentials: "include" });
@@ -78,9 +87,7 @@ async function fetchClassesAndSyllabi() {
     syllabusByKey.value = results;
 
     if (classes.value.length) {
-      const firstWithSyllabus = classes.value
-        .map(c => classKey(c))
-        .find(k => results[k]);
+      const firstWithSyllabus = classes.value.map(c => classKey(c)).find(k => results[k]);
       if (firstWithSyllabus && !results[selectedClassKey.value]) {
         selectedClassKey.value = firstWithSyllabus;
       }
@@ -151,6 +158,31 @@ onMounted(() => {
   fetchEvents();
   fetchClassesAndSyllabi();
 });
+
+function onDocumentPointerDown(e) {
+  const el = classSelectEl.value;
+  if (!el) return;
+  if (el.contains(e.target)) return;
+  classMenuOpen.value = false;
+}
+
+onMounted(() => {
+  document.addEventListener("pointerdown", onDocumentPointerDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", onDocumentPointerDown);
+});
+
+function toggleClassMenu() {
+  if (!classes.value.length) return;
+  classMenuOpen.value = !classMenuOpen.value;
+}
+
+function selectClass(c) {
+  selectedClassKey.value = classKey(c);
+  classMenuOpen.value = false;
+}
 </script>
 <template>
   <div class="grid">
@@ -163,6 +195,39 @@ onMounted(() => {
             Content organized from professor-uploaded syllabus PDF.
           </p>
         </div>
+
+        <div v-if="classes.length" class="header-actions">
+          <div
+            ref="classSelectEl"
+            class="class-select"
+            @keydown.esc.prevent="classMenuOpen = false"
+          >
+            <button
+              type="button"
+              class="btn ghost class-toggle class-toggle-lg"
+              :aria-expanded="classMenuOpen ? 'true' : 'false'"
+              aria-haspopup="listbox"
+              @click="toggleClassMenu"
+            >
+              <span class="class-toggle-label">{{ selectedClass ? selectedClass.classCode : "Select class" }}</span>
+              <span class="class-toggle-caret" aria-hidden="true">▾</span>
+            </button>
+
+            <div v-if="classMenuOpen" class="class-menu" role="listbox">
+              <button
+                v-for="c in classes.filter(x => classKey(x) !== selectedClassKey)"
+                :key="classKey(c)"
+                type="button"
+                class="btn ghost btn-sm class-menu-item"
+                @click="selectClass(c)"
+              >
+                {{ c.classCode }}
+              </button>
+
+              <div v-if="classes.length <= 1" class="class-menu-empty">No other classes</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="content">
@@ -173,18 +238,6 @@ onMounted(() => {
         </div>
 
         <div v-else class="syllabus-wrap">
-          <div class="toggle-row">
-            <button
-              v-for="c in classes"
-              :key="classKey(c)"
-              type="button"
-              class="btn ghost btn-sm"
-              :class="{ active: selectedClassKey === classKey(c) }"
-              @click="selectedClassKey = classKey(c)"
-            >
-              {{ c.classCode }}
-            </button>
-          </div>
 
           <div class="mini-grid">
             <div class="mini">
@@ -327,6 +380,11 @@ onMounted(() => {
   margin-bottom: 14px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
 h2 {
   margin: 0;
   font-size: 18px;
@@ -391,6 +449,61 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.class-select {
+  position: relative;
+  width: fit-content;
+}
+
+.class-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.class-toggle-lg {
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.class-toggle-label {
+  font-weight: 900;
+}
+
+.class-toggle-caret {
+  opacity: 0.85;
+}
+
+.class-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 10;
+  min-width: 180px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(15,23,42,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.class-menu-item {
+  width: 100%;
+  text-align: left;
+}
+
+.class-menu-empty {
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.10);
+  font-size: 13px;
+  color: #9ca3af;
+  font-weight: 800;
 }
 
 .syllabus-sections {
