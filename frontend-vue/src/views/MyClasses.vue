@@ -9,13 +9,21 @@ const role = computed(() => {
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
 
-//------ Setting variables and functions for class management per user role -------
+// --------- Setting variables and functions for class management per user role -------
 const isProfessor = computed(() => role.value === "PROFESSOR");
 const isStudentOrTa = computed(() => role.value === "STUDENT" || role.value === "TA");
 
 const classes = ref([]);
 const loading = ref(false);
 const error = ref("");
+
+// ---------- Syllabus import (professor) ----------
+const importFileInput = ref(null);
+const pendingSyllabusFile = ref(null);
+const importClassKey = ref("");
+const importingSyllabus = ref(false);
+const importError = ref("");
+const importSuccess = ref("");
 
 const joinCode = ref("");
 const joining = ref(false);
@@ -46,6 +54,70 @@ async function loadMyClasses() {
     error.value = e?.message || "Failed to load classes";
   } finally {
     loading.value = false;
+  }
+}
+
+function classKey(c) {
+  return `${c?.classCode || ""}-${c?.quarter || ""}-${c?.year || ""}`;
+}
+
+function openSyllabusFilePicker() {
+  if (!isProfessor.value) return;
+  importError.value = "";
+  importSuccess.value = "";
+  pendingSyllabusFile.value = null;
+  importClassKey.value = "";
+  importFileInput.value?.click?.();
+}
+
+function onSyllabusFileSelected(e) {
+  importError.value = "";
+  importSuccess.value = "";
+  const file = e?.target?.files?.[0] || null;
+  pendingSyllabusFile.value = file;
+  importClassKey.value = "";
+}
+
+async function uploadPendingSyllabus() {
+  if (!isProfessor.value) return;
+  if (!pendingSyllabusFile.value) return;
+  if (!importClassKey.value) return;
+
+  importingSyllabus.value = true;
+  importError.value = "";
+  importSuccess.value = "";
+
+  try {
+    const selected = classes.value.find(c => classKey(c) === importClassKey.value);
+    if (!selected) throw new Error("Please select a class");
+
+    const fd = new FormData();
+    fd.append("classCode", selected.classCode);
+    fd.append("quarter", selected.quarter);
+    fd.append("year", selected.year);
+    fd.append("file", pendingSyllabusFile.value);
+
+    const res = await fetch("/api/syllabus/import", {
+      method: "POST",
+      credentials: "include",
+      body: fd,
+    });
+
+    if (!res.ok) {
+      const msg = await safeErrorMessage(res);
+      throw new Error(msg || `Failed to import syllabus (${res.status})`);
+    }
+
+    await res.json();
+    importSuccess.value = "Syllabus imported. Students will see it on their Dashboard.";
+
+    pendingSyllabusFile.value = null;
+    importClassKey.value = "";
+    if (importFileInput.value) importFileInput.value.value = "";
+  } catch (e) {
+    importError.value = e?.message || "Failed to import syllabus";
+  } finally {
+    importingSyllabus.value = false;
   }
 }
 // Function to open the create class modal
@@ -201,9 +273,49 @@ onMounted(loadMyClasses);
         </p>
       </div>
 
-      <button v-if="isProfessor" class="btn" type="button" @click="openCreate">
-        +
-      </button>
+      <div v-if="isProfessor" class="header-actions">
+        <button class="btn ghost" type="button" @click="openSyllabusFilePicker">
+          Import Syllabus PDF
+        </button>
+        <button class="btn" type="button" @click="openCreate">+
+        </button>
+      </div>
+    </div>
+
+    <input
+      v-if="isProfessor"
+      ref="importFileInput"
+      type="file"
+      accept="application/pdf"
+      class="hidden-file"
+      @change="onSyllabusFileSelected"
+    />
+
+    <div v-if="isProfessor && pendingSyllabusFile" class="import-box">
+      <div class="muted">
+        Selected file: <span class="file-name">{{ pendingSyllabusFile.name }}</span>
+      </div>
+
+      <div v-if="importError" class="alert">{{ importError }}</div>
+      <div v-if="importSuccess" class="alert">{{ importSuccess }}</div>
+
+      <div class="row">
+        <select v-model="importClassKey" class="input" :disabled="importingSyllabus">
+          <option value="">Select class…</option>
+          <option v-for="c in classes" :key="classKey(c)" :value="classKey(c)">
+            {{ c.classCode }} · {{ c.quarter }} {{ c.year }}
+          </option>
+        </select>
+
+        <button
+          class="btn"
+          type="button"
+          :disabled="importingSyllabus || !importClassKey"
+          @click="uploadPendingSyllabus"
+        >
+          {{ importingSyllabus ? "Importing…" : "Upload" }}
+        </button>
+      </div>
     </div>
 
     <div v-if="error" class="alert">
@@ -327,6 +439,28 @@ h3 {
   margin-top: 12px;
   display: flex;
   gap: 10px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.hidden-file {
+  display: none;
+}
+
+.import-box {
+  margin-bottom: 14px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.10);
+}
+
+.file-name {
+  color: #e5e7eb;
+  font-weight: 900;
 }
 
 .alert {

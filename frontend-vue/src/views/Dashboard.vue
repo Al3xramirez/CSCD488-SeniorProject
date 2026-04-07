@@ -10,7 +10,89 @@ const role = computed(() => {
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
 
-// ── Calendar events ────────────────────────────────────────────────
+// ------------- Classes + syllabus --------------------------
+const classes = ref([]);
+const loadingSyllabus = ref(false);
+const syllabusError = ref("");
+const syllabusByKey = ref({});
+const selectedClassKey = ref("");
+
+function classKey(c) {
+  return `${c?.classCode || ""}-${c?.quarter || ""}-${c?.year || ""}`;
+}
+
+const selectedClass = computed(() =>
+  classes.value.find(c => classKey(c) === selectedClassKey.value) || null
+);
+
+const selectedSyllabus = computed(() => {
+  const key = selectedClassKey.value;
+  return key ? syllabusByKey.value?.[key] ?? null : null;
+});
+
+async function safeErrorMessage(res) {
+  try {
+    const text = await res.text();
+    return text || "";
+  } catch {
+    return "";
+  }
+}
+
+async function fetchClassesAndSyllabi() {
+  loadingSyllabus.value = true;
+  syllabusError.value = "";
+
+  try {
+    const res = await fetch("/api/classes/mine", { credentials: "include" });
+    if (!res.ok) {
+      const msg = await safeErrorMessage(res);
+      throw new Error(msg || `Failed to load classes (${res.status})`);
+    }
+
+    const data = await res.json();
+    classes.value = Array.isArray(data) ? data : [];
+
+    if (!selectedClassKey.value && classes.value.length) {
+      selectedClassKey.value = classKey(classes.value[0]);
+    }
+
+    const results = {};
+    await Promise.all(
+      classes.value.map(async c => {
+        const params = new URLSearchParams({
+          classCode: c.classCode,
+          quarter: c.quarter,
+          year: c.year,
+        });
+
+        const r = await fetch(`/api/syllabus?${params.toString()}`, { credentials: "include" });
+        if (r.ok) {
+          results[classKey(c)] = await r.json();
+        } else {
+          results[classKey(c)] = null;
+        }
+      })
+    );
+
+    syllabusByKey.value = results;
+
+    if (classes.value.length) {
+      const firstWithSyllabus = classes.value
+        .map(c => classKey(c))
+        .find(k => results[k]);
+      if (firstWithSyllabus && !results[selectedClassKey.value]) {
+        selectedClassKey.value = firstWithSyllabus;
+      }
+    }
+  } catch (e) {
+    syllabusError.value = e?.message || "Failed to load syllabus";
+  } finally {
+    loadingSyllabus.value = false;
+  }
+}
+
+// ------------- Calendar events --------------------------
 const loadingEvents = ref(false);
 const events = ref([]);
 
@@ -65,7 +147,10 @@ function parseLocalDateTime(s) {
   return new Date(y, m - 1, d, Number(hh || 0), Number(mm || 0), Number(ss || 0));
 }
 
-onMounted(fetchEvents);
+onMounted(() => {
+  fetchEvents();
+  fetchClassesAndSyllabi();
+});
 </script>
 <template>
   <div class="grid">
@@ -81,26 +166,64 @@ onMounted(fetchEvents);
       </div>
 
       <div class="content">
-        <div class="placeholder">
-          <div class="line w60" />
-          <div class="line w85" />
-          <div class="line w70" />
-          <div class="line w90" />
-          <div class="line w55" />
+        <div v-if="syllabusError" class="placeholder">{{ syllabusError }}</div>
+        <div v-else-if="loadingSyllabus" class="placeholder">Loading syllabus…</div>
+        <div v-else-if="!classes.length" class="placeholder">
+          No classes yet — join or create a class first.
         </div>
 
-        <div class="mini-grid">
-          <div class="mini">
-            <div class="mini-title">Course</div>
-            <div class="mini-value">—</div>
+        <div v-else class="syllabus-wrap">
+          <div class="toggle-row">
+            <button
+              v-for="c in classes"
+              :key="classKey(c)"
+              type="button"
+              class="btn ghost btn-sm"
+              :class="{ active: selectedClassKey === classKey(c) }"
+              @click="selectedClassKey = classKey(c)"
+            >
+              {{ c.classCode }}
+            </button>
           </div>
-          <div class="mini">
-            <div class="mini-title">Professor</div>
-            <div class="mini-value">—</div>
+
+          <div class="mini-grid">
+            <div class="mini">
+              <div class="mini-title">Class</div>
+              <div class="mini-value">
+                {{ selectedClass ? `${selectedClass.classCode} · ${selectedClass.quarter} ${selectedClass.year}` : "—" }}
+              </div>
+            </div>
+            <div class="mini">
+              <div class="mini-title">Role</div>
+              <div class="mini-value">{{ role }}</div>
+            </div>
+            <div class="mini">
+              <div class="mini-title">Syllabus</div>
+              <div class="mini-value">{{ selectedSyllabus ? "Available" : "Not uploaded" }}</div>
+            </div>
           </div>
-          <div class="mini">
-            <div class="mini-title">Key Policies</div>
-            <div class="mini-value">—</div>
+
+          <div v-if="selectedSyllabus" class="syllabus-sections">
+            <div class="syllabus-section">
+              <h3>Grading Scale</h3>
+              <div class="syllabus-text">{{ selectedSyllabus.gradingScale || "—" }}</div>
+            </div>
+            <div class="syllabus-section">
+              <h3>Attendance Policy</h3>
+              <div class="syllabus-text">{{ selectedSyllabus.attendancePolicy || "—" }}</div>
+            </div>
+            <div class="syllabus-section">
+              <h3>Late Policy</h3>
+              <div class="syllabus-text">{{ selectedSyllabus.latePolicy || "—" }}</div>
+            </div>
+            <div class="syllabus-section">
+              <h3>Exam Info</h3>
+              <div class="syllabus-text">{{ selectedSyllabus.examInfo || "—" }}</div>
+            </div>
+          </div>
+
+          <div v-else class="placeholder">
+            No syllabus uploaded for this class yet.
           </div>
         </div>
       </div>
@@ -242,10 +365,52 @@ h3 {
   background: rgba(255,255,255,0.09);
 }
 
+.btn.btn-sm {
+  padding: 6px 10px;
+  border-radius: 12px;
+}
+
+.btn.active {
+  border-color: rgba(37,99,235,0.7);
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.25);
+}
+
 .content {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.syllabus-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.toggle-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.syllabus-sections {
+  display: grid;
+  gap: 12px;
+}
+
+.syllabus-section {
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.syllabus-text {
+  margin-top: 8px;
+  color: #9ca3af;
+  font-size: 13px;
+  white-space: pre-wrap;
+  line-height: 1.4;
 }
 
 .placeholder {
