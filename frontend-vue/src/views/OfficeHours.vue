@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const name = ref('')
 const email = ref('')
@@ -117,20 +117,71 @@ async function createMeeting(meetingData) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(meetingData)
-    });
+    })
     if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Failed to create meeting');
+      const text = await res.text()
+      throw new Error(text || 'Failed to create meeting')
     }
-    return await res.json();
+    return await res.json()
   } catch (err) {
-    throw err;
+    throw err
   }
 }
 
+// --- server-side overlap helpers moved to module scope ---
+const blockedMeetings = ref([])
+
+async function loadMeetingsForDate(dateStr) {
+  if (!dateStr) {
+    blockedMeetings.value = []
+    return
+  }
+  const startDate = dateStr + 'T00:00:00'
+  const endDate = dateStr + 'T23:59:59'
+  try {
+    const res = await fetch(
+      `/api/meetings?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`
+    )
+    if (!res.ok) {
+      blockedMeetings.value = []
+      return
+    }
+    const data = await res.json()
+    blockedMeetings.value = data.map(m => ({
+      start: new Date(m.meetingDate + 'T' + m.startTime),
+      end: new Date(m.meetingDate + 'T' + m.endTime),
+      raw: m
+    }))
+  } catch (e) {
+    console.error('Error loading meetings:', e)
+    blockedMeetings.value = []
+  }
+}
+
+function timeRangeOverlaps(startTime, endTime, dateStr) {
+  if (!startTime || !endTime || !dateStr) return false
+  const s = new Date(dateStr + 'T' + startTime)
+  const e = new Date(dateStr + 'T' + endTime)
+  return blockedMeetings.value.some(b => !(e <= b.start || s >= b.end))
+}
+
+// keep blockedMeetings up to date
+onMounted(() => loadMeetingsForDate(date.value))
+watch(date, (nv) => loadMeetingsForDate(nv))
+
+// single onSubmit that runs sync validation + server overlap check + create
 async function onSubmit() {
   success.value = false
+  errors.value = []
+
   if (!validate()) return
+
+  // load meetings for selected date and check overlap
+  await loadMeetingsForDate(date.value)
+  if (timeRangeOverlaps(start.value, end.value, date.value)) {
+    errors.value = ['The selected time overlaps an existing meeting. Please choose a different time.']
+    return
+  }
 
   const payload = {
     requester: name.value,
@@ -148,6 +199,9 @@ async function onSubmit() {
     success.value = true
     errors.value = []
 
+    // refresh blocked meetings for that date (optional)
+    await loadMeetingsForDate(date.value)
+
     // clear form
     name.value = ''
     email.value = ''
@@ -162,108 +216,6 @@ async function onSubmit() {
     success.value = false
     console.error('Error creating meeting:', err)
   }
-
-  // blocked meetings for selected date
-  const blockedMeetings = ref([])
-
-  async function loadMeetingsForDate(dateStr) {
-    if (!dateStr) {
-      blockedMeetings.value = []
-      return
-    }
-    const startDate = dateStr + 'T00:00:00'
-    const endDate = dateStr + 'T23:59:59'
-    try {
-      const res = await fetch(
-        `/api/meetings?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`
-      )
-      if (!res.ok) {
-        blockedMeetings.value = []
-        return
-      }
-      const data = await res.json()
-      blockedMeetings.value = data.map(m => ({
-        start: new Date(m.meetingDate + 'T' + m.startTime),
-        end: new Date(m.meetingDate + 'T' + m.endTime),
-        raw: m
-      }))
-    } catch (e) {
-      console.error('Error loading meetings:', e)
-      blockedMeetings.value = []
-    }
-  }
-
-  function timeRangeOverlaps(startTime, endTime, dateStr) {
-    if (!startTime || !endTime || !dateStr) return false
-    const s = new Date(dateStr + 'T' + startTime)
-    const e = new Date(dateStr + 'T' + endTime)
-    return blockedMeetings.value.some(b => !(e <= b.start || s >= b.end))
-  }
-
-  // replace onSubmit to check server-side meetings before creating
-  onSubmit = async () => {
-    success.value = false
-    errors.value = []
-
-    // run existing sync validation first
-    if (!name.value.trim()) errors.value.push('Name is required.')
-    if (!email.value.trim()) errors.value.push('Email is required.')
-    else if (!/^\S+@\S+\.\S+$/.test(email.value)) errors.value.push('Email is invalid.')
-    if (!date.value) errors.value.push('Date is required.')
-    if (!start.value) errors.value.push('Start time is required.')
-    if (!end.value) errors.value.push('End time is required.')
-    if (start.value && end.value && start.value >= end.value) errors.value.push('End time must be after start time.')
-    if (meetingWith.value === 'Other' && !otherPerson.value.trim()) errors.value.push('Please provide the other person\'s name.')
-    if (errors.value.length) return
-
-    // load meetings for the selected date and check overlap
-    await loadMeetingsForDate(date.value)
-    if (timeRangeOverlaps(start.value, end.value, date.value)) {
-      errors.value = ['The selected time overlaps an existing meeting. Please choose a different time.']
-      return
-    }
-
-    const payload = {
-      requester: name.value,
-      email: email.value,
-      meetingWith: meetingWith.value === 'Other' ? otherPerson.value : meetingWith.value,
-      date: date.value,
-      start: start.value,
-      end: end.value,
-      notes: notes.value
-    }
-
-    try {
-      const data = await createMeeting(payload)
-      console.log('Meeting created:', data)
-      success.value = true
-      errors.value = []
-
-      // clear form
-      name.value = ''
-      email.value = ''
-      meetingWith.value = 'Professor'
-      otherPerson.value = ''
-      date.value = ''
-      start.value = ''
-      end.value = ''
-      notes.value = ''
-
-      // refresh blocked meetings (optional)
-      await loadMeetingsForDate(date.value)
-    } catch (err) {
-      errors.value = [err.message || 'Failed to create meeting.']
-      success.value = false
-      console.error('Error creating meeting:', err)
-    }
-  }
-
-  // dynamically watch date changes to keep blockedMeetings up to date
-  (async () => {
-    const { watch, onMounted } = await import('vue')
-    onMounted(() => loadMeetingsForDate(date.value))
-    watch(date, (nv) => loadMeetingsForDate(nv))
-  })()
 }
 </script>
 
