@@ -32,7 +32,7 @@ public class SyllabusImportService {
 
     /*
      * Imports a PDF syllabus and pulls out the 4 syllabus sections.
-     * TODO: We will probably add more fields Later as this is a small extraction of data truly
+     * TODO: We will probably add more fields Later as this is a small extraction of data, just testing rn
      * 
      * @param classCodeRaw The raw class code
      * @param quarterRaw The raw quarter
