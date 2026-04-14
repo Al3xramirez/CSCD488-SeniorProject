@@ -9,13 +9,26 @@ const firstName = computed(() => me?.value?.firstName || "—");
 const lastName = computed(() => me?.value?.lastName || "—");
 const email = computed(() => me?.value?.email || "—");
 
+async function logout() {
+  try {
+    await fetch("/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } finally {
+    router.push("/login");
+  }
+}
+
 </script>
 
 <template>
   <div class="wrap">
     <div class="title-row">
       <h1>Student Profile</h1>
-      <button class="btn ghost" @click="router.push('/app')">Back to Dashboard</button>
+      <div class="actions">
+        <button class="btn ghost" @click="router.push('/app')">Back to Dashboard</button>
+      </div>
     </div>
 
     <div class="grid">
@@ -57,12 +70,19 @@ const email = computed(() => me?.value?.email || "—");
         </div>
       </section>
     </div>
+
+    <div class="bottom-actions">
+      <button class="btn" @click="logout">Logout</button>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .wrap {
   color: #e5e7eb;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .title-row {
@@ -71,6 +91,19 @@ const email = computed(() => me?.value?.email || "—");
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.bottom-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
 }
 
 h1 {
