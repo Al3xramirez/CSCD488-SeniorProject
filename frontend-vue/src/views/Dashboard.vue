@@ -113,7 +113,7 @@ onMounted(fetchEvents);
           <div>
             <h2>Upcoming This Week</h2>
           </div>
-          <button class="btn ghost" @click="router.push('/app/calendar')">Import Canvas .ics</button>
+          <button class="btn" @click="router.push('/app/calendar')">Import Canvas .ics</button>
         </div>
 
         <div class="list" v-if="loadingEvents">
@@ -326,7 +326,7 @@ h3 {
 }
 
 .btn.ghost {
-  background: rgba(255,255,255,0.06);
+  background: hsla(0, 0%, 100%, 0.06);
   border: 1px solid rgba(255,255,255,0.10);
 }
 
