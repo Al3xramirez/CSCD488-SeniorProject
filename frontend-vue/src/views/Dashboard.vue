@@ -106,35 +106,60 @@ onMounted(fetchEvents);
       </div>
     </section>
 
-    <!-- Right: Upcoming This Week -->
-    <section class="card side">
-      <div class="card-header">
-        <div>
-          <h2>Upcoming This Week</h2>
+    <div class="right-col">
+      <!-- Right: Upcoming This Week -->
+      <section class="card side">
+        <div class="card-header">
+          <div>
+            <h2>Upcoming This Week</h2>
+          </div>
+          <button class="btn ghost" @click="router.push('/app/calendar')">Import Canvas .ics</button>
         </div>
-        <button class="btn ghost" @click="router.push('/app/calendar')">Import Canvas .ics</button>
-      </div>
 
-      <div class="list" v-if="loadingEvents">
-        <div class="empty-note">Loading…</div>
-      </div>
+        <div class="list" v-if="loadingEvents">
+          <div class="empty-note">Loading…</div>
+        </div>
 
-      <div class="list" v-else-if="upcomingItems.length">
-        <div class="item" v-for="(row, i) in upcomingItems" :key="i">
-          <div class="badge">{{ row.label }}</div>
-          <div class="info">
-            <div class="title">{{ row.title }}</div>
-            <div class="sub">{{ row.sub }}</div>
+        <div class="list" v-else-if="upcomingItems.length">
+          <div class="item" v-for="(row, i) in upcomingItems" :key="i">
+            <div class="badge">{{ row.label }}</div>
+            <div class="info">
+              <div class="title">{{ row.title }}</div>
+              <div class="sub">{{ row.sub }}</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="list" v-else>
-        <div class="empty-note">
-          {{ hasEvents ? "Nothing due this week." : "No Canvas feed connected yet." }}
+        <div class="list" v-else>
+          <div class="empty-note">
+            {{ hasEvents ? "Nothing due this week." : "No Canvas feed connected yet." }}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <!-- Workload This Week (placeholder) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>Workload This Week</h2>
+          </div>
+        </div>
+
+        <div class="workload-scale">
+          <span class="pill heavy">Heavy</span>
+          <span class="pill moderate">Moderate</span>
+          <span class="pill light">Light</span>
+        </div>
+
+        <div class="workload-meter" aria-hidden="true">
+          <div class="workload-meter-fill heavy" style="width: 70%"></div>
+        </div>
+
+        <div class="empty-note">
+          Placeholder for a workload summary (e.g., readings, assignments, quizzes).
+        </div>
+      </section>
+    </div>
 
   </div>
 </template>
@@ -144,6 +169,73 @@ onMounted(fetchEvents);
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 18px;
+}
+
+.right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.workload-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  color: #e5e7eb;
+}
+
+.pill.heavy {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: rgba(254, 202, 202, 0.95);
+}
+
+.pill.moderate {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.32);
+  color: rgba(253, 230, 138, 0.95);
+}
+
+.pill.light {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(34, 197, 94, 0.30);
+  color: rgba(187, 247, 208, 0.95);
+}
+
+.workload-meter {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.workload-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+}
+
+.workload-meter-fill.heavy {
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.65),
+    rgba(239, 68, 68, 0.25)
+  );
 }
 
 .prof {
@@ -337,6 +429,7 @@ h3 {
   color: #9ca3af;
   font-weight: 800;
 }
+
 
 .row {
   margin-top: 12px;
