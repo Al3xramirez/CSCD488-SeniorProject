@@ -1,6 +1,7 @@
 <script setup>
 // ------- Imports and retrieving user info -------
 import { computed, inject, onMounted, ref } from "vue";
+import SyllabusUpload from "./SyllabusUpload.vue";
 
 const me = inject("me", null);
 
@@ -182,7 +183,18 @@ function confirmAndDelete(c) {
   submitDelete(c.joinCode);
 }
 
-/* onMounted is used to call the LoadMyclasses function when the component is first mounted. 
+// Syllabus upload modal state
+const syllabusClass = ref(null); // the class whose syllabus we're uploading
+
+function openSyllabusUpload(c) {
+  syllabusClass.value = c;
+}
+
+function closeSyllabusUpload() {
+  syllabusClass.value = null;
+}
+
+/* onMounted is used to call the LoadMyclasses function when the component is first mounted.
 just to make sure users classes are loaded when they open up the page */
 onMounted(loadMyClasses);
 </script>
@@ -237,6 +249,14 @@ onMounted(loadMyClasses);
         </div>
         <div class="class-title">{{ c.title }}</div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
+        <button
+          v-if="isProfessor"
+          class="btn ghost btn-sm syllabus-btn"
+          type="button"
+          @click="openSyllabusUpload(c)"
+        >
+          Upload Syllabus
+        </button>
       </div>
 
       <div v-if="!classes.length" class="empty">
@@ -285,6 +305,21 @@ onMounted(loadMyClasses);
           {{ creating ? "Creating…" : "Create" }}
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Syllabus upload modal -->
+  <div v-if="syllabusClass" class="overlay" @click.self="closeSyllabusUpload">
+    <div class="modal modal--wide" role="dialog" aria-modal="true" aria-label="Upload syllabus">
+      <div class="modal-header">
+        <h3>{{ syllabusClass.classCode }} · {{ syllabusClass.quarter }} {{ syllabusClass.year }}</h3>
+        <button class="btn ghost" type="button" @click="closeSyllabusUpload">Close</button>
+      </div>
+      <SyllabusUpload
+        userRole="professor"
+        :courseId="syllabusClass.joinCode"
+        @saved="closeSyllabusUpload"
+      />
     </div>
   </div>
 </template>
@@ -397,6 +432,18 @@ h3 {
 
 .delete-btn {
   white-space: nowrap;
+}
+
+.syllabus-btn {
+  margin-top: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.modal--wide {
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .class-code {
