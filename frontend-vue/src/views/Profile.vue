@@ -1,6 +1,6 @@
 <script setup>
 import { useRouter } from "vue-router";
-import { computed, inject } from "vue";
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 const router = useRouter();
 
 // --------- Student profile retrieval ----------
@@ -8,6 +8,97 @@ const me = inject("me", null);
 const firstName = computed(() => me?.value?.firstName || "—");
 const lastName = computed(() => me?.value?.lastName || "—");
 const email = computed(() => me?.value?.email || "—");
+
+// --------- Profile photo upload ----------
+const initials = computed(() => {
+  const f = (me?.value?.firstName || "").trim();
+  const l = (me?.value?.lastName || "").trim();
+  const first = f ? f[0].toUpperCase() : "";
+  const last = l ? l[0].toUpperCase() : "";
+  return (first + last) || "?";
+});
+
+const photoUrl = ref(null);
+const uploading = ref(false);
+const uploadError = ref("");
+const uploadStatus = ref("");
+const selectedFile = ref(null);
+const fileInput = ref(null);
+
+// Fetches the current profile photo from the backend and updates the photoUrl
+async function refreshPhoto() {
+  uploadError.value = "";
+  uploadStatus.value = "";
+
+  const prev = photoUrl.value;
+  photoUrl.value = null;
+  if (prev) URL.revokeObjectURL(prev);
+
+  try {
+    const res = await fetch("/api/me/photo", { credentials: "include" });
+    if (res.status === 204) return;
+    if (!res.ok) return;
+    const blob = await res.blob();
+    photoUrl.value = URL.createObjectURL(blob);
+  } catch (e) {
+    // ignore
+  }
+}
+
+function openFilePicker() {
+  if (uploading.value) return;
+  fileInput.value?.click?.();
+}
+
+// Handles the file input change event and uploads immediately
+async function onPickFile(e) {
+  const file = e?.target?.files?.[0] || null;
+  selectedFile.value = file;
+  if (file) await uploadPhoto();
+}
+
+// Uploads the selected profile photo to the backend and refreshes the displayed photo
+async function uploadPhoto() {
+  uploadError.value = "";
+  uploadStatus.value = "";
+
+  if (!selectedFile.value) {
+    uploadError.value = "Choose a photo first.";
+    return;
+  }
+
+  uploading.value = true;
+  try {
+    const fd = new FormData();
+    fd.append("photo", selectedFile.value);
+
+    const res = await fetch("/api/me/photo", {
+      method: "POST",
+      body: fd,
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      uploadError.value = msg || `Upload failed (${res.status})`;
+      return;
+    }
+
+    uploadStatus.value = "Photo uploaded.";
+    selectedFile.value = null;
+    if (fileInput.value) fileInput.value.value = "";
+    await refreshPhoto();
+  } catch (e) {
+    uploadError.value = "Upload failed.";
+  } finally {
+    uploading.value = false;
+  }
+}
+
+onMounted(refreshPhoto);
+onBeforeUnmount(() => {
+  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
+});
 
 async function logout() {
   try {
@@ -34,6 +125,24 @@ async function logout() {
     <div class="grid">
       <section class="card">
         <h2>Account</h2>
+
+        <div class="avatar-row">
+          <div class="avatar" aria-label="Profile photo">
+            <img v-if="photoUrl" class="avatar-img" :src="photoUrl" alt="Profile photo" />
+            <div v-else class="avatar-fallback">{{ initials }}</div>
+          </div>
+
+          <div class="avatar-actions">
+            <input ref="fileInput" class="file" type="file" accept="image/png,image/jpeg" @change="onPickFile" />
+            <button class="btn" :disabled="uploading" @click="openFilePicker">
+              {{ uploading ? "Uploading..." : "Upload photo" }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="uploadError" class="note err">{{ uploadError }}</div>
+        <div v-else-if="uploadStatus" class="note ok">{{ uploadStatus }}</div>
+
         <div class="field">
           <div class="label">First name</div>
           <div class="value">{{ firstName }}</div>
@@ -125,6 +234,69 @@ h1 {
   box-shadow: 0 18px 40px rgba(0,0,0,0.25);
 }
 
+.avatar-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0 14px;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  display: grid;
+  place-items: center;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-fallback {
+  font-weight: 900;
+  color: #e5e7eb;
+}
+
+.avatar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.file {
+  display: none;
+}
+
+.note {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+}
+
+.note.ok {
+  border-color: rgba(34, 197, 94, 0.30);
+  background: rgba(34, 197, 94, 0.10);
+  color: rgba(187, 247, 208, 0.95);
+}
+
+.note.err {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.10);
+  color: rgba(254, 202, 202, 0.95);
+}
+
 .wide {
   grid-column: span 2;
 }
@@ -186,6 +358,11 @@ h2 {
   cursor: pointer;
 }
 .btn:hover { background: #1d4ed8; }
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .btn.ghost {
   background: rgba(255,255,255,0.06);
