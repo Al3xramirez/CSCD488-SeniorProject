@@ -79,8 +79,9 @@ async function uploadPhoto() {
     });
 
     if (!res.ok) {
-      const msg = await res.text().catch(() => "");
-      uploadError.value = msg || `Upload failed (${res.status})`;
+      uploadError.value = res.status === 413
+        ? "Photo too large. Maximum size is 2MB."
+        : `Upload failed (${res.status})`;
       return;
     }
 
