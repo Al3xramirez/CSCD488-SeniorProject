@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue"; 
+import { computed, onBeforeUnmount, onMounted, ref } from "vue"; 
 import { useRouter } from "vue-router";
 const router = useRouter();
 
@@ -21,11 +21,42 @@ const displayName = computed(() => { // displayName is a computed property that 
   return parts.length ? parts.join(' ') : roleLabel.value;
 });
 
+const initials = computed(() => {
+  const f = (props.firstName || "").trim();
+  const l = (props.lastName || "").trim();
+  const first = f ? f[0].toUpperCase() : "";
+  const last = l ? l[0].toUpperCase() : "";
+  return (first + last) || "?";
+});
+
+const photoUrl = ref(null);
+
+async function refreshPhoto() {
+  const prev = photoUrl.value;
+  photoUrl.value = null;
+  if (prev) URL.revokeObjectURL(prev);
+
+  try {
+    const res = await fetch("/api/me/photo", { credentials: "include" });
+    if (res.status === 204) return;
+    if (!res.ok) return;
+    const blob = await res.blob();
+    photoUrl.value = URL.createObjectURL(blob);
+  } catch (e) {
+    // ignore
+  }
+}
+
 const roleViewLabel = computed(() => `${roleLabel.value} View`);
 
 function goProfile() {
   router.push("/app/profile");
 }
+
+onMounted(refreshPhoto);
+onBeforeUnmount(() => {
+  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
+});
 </script>
 
 <!-- AppHeader.vue: Top header bar with title, notifications, and profile -->
@@ -51,7 +82,10 @@ function goProfile() {
       </button>
 
       <div class="profile" @click="goProfile" type="button" title="Open profile">
-        <div class="avatar">👤</div>
+        <div class="avatar" aria-label="Profile photo">
+          <img v-if="photoUrl" class="avatar-img" :src="photoUrl" alt="Profile photo" />
+          <div v-else class="avatar-fallback">{{ initials }}</div>
+        </div>
         <div class="meta">
           <div class="name">{{ displayName }}</div>
           <div class="sub">Profile</div>
@@ -161,6 +195,20 @@ function goProfile() {
   display: grid;
   place-items: center;
   background: rgba(255,255,255,0.07);
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-fallback {
+  font-weight: 900;
+  color: #e5e7eb;
+  font-size: 12px;
 }
 
 .name {
