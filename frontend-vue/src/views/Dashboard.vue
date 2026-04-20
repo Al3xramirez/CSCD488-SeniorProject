@@ -70,6 +70,11 @@ const gradeScale = computed(() => {
 
 const attendance = computed(() => syllabus.value?.attendance ?? null);
 
+const passConditions = computed(() => {
+  const pc = syllabus.value?.passConditions;
+  return Array.isArray(pc) ? pc : [];
+});
+
 // ── Calendar events ────────────────────────────────────────────────
 const loadingEvents = ref(false);
 const events = ref([]);
@@ -183,6 +188,23 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- Office Hours -->
+        <div v-if="syllabus.officeHours" class="syllabus-section">
+          <div class="syllabus-section__title">Office Hours</div>
+          <p class="syllabus-text">{{ syllabus.officeHours }}</p>
+        </div>
+
+        <!-- Grade Scale -->
+        <div v-if="gradeScale.length" class="syllabus-section">
+          <div class="syllabus-section__title">Grade Scale</div>
+          <div class="grade-scale-list">
+            <div class="grade-scale-row" v-for="(item, i) in gradeScale" :key="i">
+              <span class="grade-range">{{ item.range }}</span>
+              <span class="grade-letter">{{ item.letter }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- Grade Breakdown -->
         <div v-if="gradeBreakdown.length" class="syllabus-section">
           <div class="syllabus-section__title">Grade Breakdown</div>
@@ -192,10 +214,18 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Office Hours -->
-        <div v-if="syllabus.officeHours" class="syllabus-section">
-          <div class="syllabus-section__title">Office Hours</div>
-          <p class="syllabus-text">{{ syllabus.officeHours }}</p>
+        <!-- Pass / Fail Conditions -->
+        <div v-if="passConditions.length" class="syllabus-section">
+          <div class="syllabus-section__title">Pass / Fail Conditions</div>
+          <ul class="pass-conditions-list">
+            <li v-for="(cond, i) in passConditions" :key="i">{{ cond }}</li>
+          </ul>
+        </div>
+
+        <!-- AI Policy -->
+        <div v-if="syllabus.aiPolicy" class="syllabus-section">
+          <div class="syllabus-section__title">AI Policy</div>
+          <p class="syllabus-text">{{ syllabus.aiPolicy }}</p>
         </div>
 
         <!-- Late Work Policy -->
@@ -378,6 +408,8 @@ onMounted(async () => {
 
 .big {
   min-height: 360px;
+  background: rgba(255, 255, 255, 0);
+  border-color: rgba(255, 255, 255, 0.13);
 }
 
 .side {
@@ -604,6 +636,48 @@ h3 {
 .breakdown-weight {
   color: #9ca3af;
   font-weight: 600;
+}
+
+.grade-scale-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grade-scale-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.grade-scale-row:last-child {
+  border-bottom: none;
+}
+
+.grade-letter {
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.grade-range {
+  color: #9ca3af;
+}
+
+.pass-conditions-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pass-conditions-list li {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.5;
 }
 
 .syllabus-text {
