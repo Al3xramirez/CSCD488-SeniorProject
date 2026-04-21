@@ -14,8 +14,48 @@
         <span class="role-badge">Professor</span>
       </div>
 
+      <!-- Step 0: Select class (standalone mode — no courseId prop) -->
+      <div v-if="step === 'select'" class="select-step">
+        <p class="select-sub">Choose which class to attach the syllabus to.</p>
+
+        <div v-if="loadingClasses" class="muted-center">Loading classes…</div>
+
+        <template v-else>
+          <div v-if="myClasses.length" class="class-list">
+            <button
+              v-for="c in myClasses"
+              :key="c.joinCode"
+              class="class-option"
+              @click="pickClass(c)"
+            >
+              <span class="class-option__code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</span>
+              <span class="class-option__title">{{ c.title }}</span>
+            </button>
+          </div>
+
+          <p v-else class="no-classes-msg">You haven't created any classes yet.</p>
+
+          <button class="btn-create-class" @click="showCreateClass = true">+ Create a new class</button>
+        </template>
+      </div>
+
       <!-- Step 1: Upload -->
       <div v-if="step === 'upload'">
+        <!-- Loading existing syllabus -->
+        <div v-if="fetchingExisting" class="fetching-state">
+          <span class="spinner" />
+          <span>Loading existing syllabus…</span>
+        </div>
+
+        <!-- Selected class banner (standalone mode) -->
+        <div v-if="standaloneMode && selectedClass" class="selected-class-banner">
+          <span class="selected-class-label">
+            {{ selectedClass.classCode }} · {{ selectedClass.quarter }} {{ selectedClass.year }}
+            <span class="selected-class-title">— {{ selectedClass.title }}</span>
+          </span>
+          <button class="btn-change-class" @click="step = 'select'">Change</button>
+        </div>
+
         <div
           class="drop-zone"
           :class="{ 'drop-zone--active': isDragging, 'drop-zone--has-file': !!fileName }"
@@ -49,8 +89,8 @@
       <div v-if="step === 'review'" class="review-panel">
         <div class="review-header">
           <div>
-            <h2 class="review-title">Review extracted info</h2>
-            <p class="review-sub">Edit any field before saving. Flagged fields had lower confidence — please verify.</p>
+            <h2 class="review-title">{{ isEditing ? 'Edit syllabus' : 'Review extracted info' }}</h2>
+            <p class="review-sub">{{ isEditing ? 'Update any field and save.' : 'Edit any field before saving. Flagged fields had lower confidence — please verify.' }}</p>
           </div>
           <button class="btn-ghost" @click="resetToUpload">← Re-upload</button>
         </div>
@@ -234,11 +274,49 @@
       </div>
 
     </template>
+
+    <!-- Create class popup (standalone mode) -->
+    <div v-if="showCreateClass" class="overlay" @click.self="showCreateClass = false">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="Create class">
+        <div class="modal-header">
+          <h3>Create a Class</h3>
+          <button class="btn-ghost" type="button" @click="showCreateClass = false">Close</button>
+        </div>
+
+        <p v-if="createClassError" class="error-msg" style="margin: 8px 0 0;">{{ createClassError }}</p>
+
+        <div class="create-form">
+          <label class="create-field">
+            <span class="create-label">Class Code</span>
+            <input v-model="createForm.classCode" class="create-input" placeholder="CSCD 488" />
+          </label>
+          <label class="create-field">
+            <span class="create-label">Quarter</span>
+            <input v-model="createForm.quarter" class="create-input" placeholder="Fall" />
+          </label>
+          <label class="create-field">
+            <span class="create-label">Year</span>
+            <input v-model="createForm.year" class="create-input" placeholder="2026" />
+          </label>
+          <label class="create-field">
+            <span class="create-label">Title</span>
+            <input v-model="createForm.title" class="create-input" placeholder="Senior Project" />
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-primary" :disabled="creating" @click="submitCreateClass">
+            <span v-if="creating" class="spinner" />
+            <span v-else>Create &amp; select</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
   userRole: { type: String, default: 'professor' },
@@ -249,25 +327,125 @@ const emit = defineEmits(['saved'])
 
 const isProfessor = computed(() => props.userRole === 'professor')
 
-const ALL_DAYS    = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-const ALL_FIELDS  = [
+// When no courseId prop is provided, we're in standalone (route) mode and need class selection
+const standaloneMode = computed(() => !props.courseId)
+const effectiveCourseId = computed(() => props.courseId || selectedClassId.value)
+
+// Class selection state (standalone mode only)
+const myClasses       = ref([])
+const loadingClasses  = ref(false)
+const selectedClassId = ref(null)
+const selectedClass   = computed(() => myClasses.value.find(c => c.joinCode === selectedClassId.value) ?? null)
+
+// Create class modal state
+const showCreateClass  = ref(false)
+const createForm       = ref({ classCode: '', quarter: '', year: '', title: '' })
+const creating         = ref(false)
+const createClassError = ref('')
+
+const ALL_DAYS   = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+const ALL_FIELDS = [
   'classMeetingTimes', 'officeHours', 'gradeScale', 'gradeBreakdown',
   'passConditions', 'attendance', 'dueDates', 'lateWorkPolicy', 'aiPolicy'
 ]
 
-const step       = ref('upload')
-const pdfFile    = ref(null)
-const fileName   = ref('')
-const isDragging = ref(false)
-const loading    = ref(false)
-const saving     = ref(false)
-const error      = ref('')
-const draft      = ref(null)
+const step             = ref(props.courseId ? 'upload' : 'select')
+const pdfFile          = ref(null)
+const fileName         = ref('')
+const isDragging       = ref(false)
+const loading          = ref(false)
+const saving           = ref(false)
+const error            = ref('')
+const draft            = ref(null)
+const fetchingExisting = ref(false)
+const isEditing        = ref(false)
 
 const lowConfidenceCount = computed(() => {
   if (!draft.value) return 0
   return ALL_FIELDS.filter(f => draft.value[f]?.confidence !== 'high').length
 })
+
+onMounted(() => {
+  if (standaloneMode.value && isProfessor.value) fetchMyClasses()
+  else if (props.courseId) loadExistingSyllabus()
+})
+
+async function loadExistingSyllabus() {
+  fetchingExisting.value = true
+  try {
+    const res = await fetch(`/api/courses/${props.courseId}/syllabus`, { credentials: 'include' })
+    if (!res.ok) return // no syllabus yet — stay on upload step
+    const saved = await res.json()
+    if (saved && typeof saved === 'object' && Object.keys(saved).length > 1) {
+      draft.value = wrapSavedData(saved)
+      isEditing.value = true
+      step.value = 'review'
+    }
+  } catch {
+    // non-fatal — stay on upload step
+  } finally {
+    fetchingExisting.value = false
+  }
+}
+
+function wrapSavedData(saved) {
+  return ensureDefaults({
+    classMeetingTimes: { value: saved.classMeetingTimes, confidence: 'high' },
+    officeHours:       { value: saved.officeHours,       confidence: 'high' },
+    gradeScale:        { value: saved.gradeScale,        confidence: 'high' },
+    gradeBreakdown:    { value: saved.gradeBreakdown,    confidence: 'high' },
+    passConditions:    { value: saved.passConditions,    confidence: 'high' },
+    attendance:        { value: saved.attendance,        confidence: 'high' },
+    dueDates:          { value: saved.dueDates,          confidence: 'high' },
+    lateWorkPolicy:    { value: saved.lateWorkPolicy,    confidence: 'high' },
+    aiPolicy:          { value: saved.aiPolicy ?? '',    confidence: 'high' },
+  })
+}
+
+async function fetchMyClasses() {
+  loadingClasses.value = true
+  try {
+    const res = await fetch('/api/classes/mine', { credentials: 'include' })
+    if (!res.ok) throw new Error()
+    const data = await res.json()
+    myClasses.value = Array.isArray(data) ? data : []
+  } catch {
+    // Non-fatal — list stays empty, user can still create
+  } finally {
+    loadingClasses.value = false
+  }
+}
+
+function pickClass(c) {
+  selectedClassId.value = c.joinCode
+  step.value = 'upload'
+}
+
+async function submitCreateClass() {
+  creating.value = true
+  createClassError.value = ''
+  try {
+    const res = await fetch('/api/classes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(createForm.value)
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => `HTTP ${res.status}`)
+      throw new Error(msg || `Server error ${res.status}`)
+    }
+    const created = await res.json()
+    myClasses.value = [created, ...myClasses.value]
+    showCreateClass.value = false
+    createForm.value = { classCode: '', quarter: '', year: '', title: '' }
+    pickClass(created)
+  } catch (e) {
+    createClassError.value = e.message || 'Failed to create class.'
+  } finally {
+    creating.value = false
+  }
+}
 
 function onFileChange(e) {
   const file = e.target.files?.[0]
@@ -302,7 +480,6 @@ function resetToUpload() {
 }
 
 function ensureDefaults(parsed) {
-  // classMeetingTimes.value must be an object with array + strings
   if (!parsed.classMeetingTimes) {
     parsed.classMeetingTimes = { value: { days: [], startTime: '', endTime: '', location: '' }, confidence: 'low' }
   } else if (!parsed.classMeetingTimes.value || typeof parsed.classMeetingTimes.value !== 'object') {
@@ -314,7 +491,6 @@ function ensureDefaults(parsed) {
     parsed.classMeetingTimes.value.location  ??= ''
   }
 
-  // attendance.value must be an object
   if (!parsed.attendance) {
     parsed.attendance = { value: { tracked: 'no', affectsGrade: 'no', details: '' }, confidence: 'low' }
   } else if (!parsed.attendance.value || typeof parsed.attendance.value !== 'object') {
@@ -325,13 +501,11 @@ function ensureDefaults(parsed) {
     parsed.attendance.value.details      ??= ''
   }
 
-  // Array fields must be arrays
   for (const f of ['gradeScale', 'gradeBreakdown', 'passConditions', 'dueDates']) {
     if (!parsed[f]) parsed[f] = { value: [], confidence: 'low' }
     else if (!Array.isArray(parsed[f].value)) parsed[f].value = []
   }
 
-  // String fields
   for (const f of ['officeHours', 'lateWorkPolicy', 'aiPolicy']) {
     if (!parsed[f]) parsed[f] = { value: '', confidence: 'low' }
     else parsed[f].value ??= ''
@@ -349,7 +523,7 @@ async function parseSyllabus() {
     const formData = new FormData()
     formData.append('file', pdfFile.value)
 
-    const res = await fetch(`/api/courses/${props.courseId}/syllabus/parse`, {
+    const res = await fetch(`/api/courses/${effectiveCourseId.value}/syllabus/parse`, {
       method: 'POST',
       body: formData,
       credentials: 'include'
@@ -375,7 +549,7 @@ async function confirmSave() {
   error.value  = ''
   try {
     const payload = {
-      courseId:          String(props.courseId),
+      courseId:          String(effectiveCourseId.value),
       classMeetingTimes: draft.value.classMeetingTimes.value,
       officeHours:       draft.value.officeHours.value,
       gradeScale:        draft.value.gradeScale.value,
@@ -387,7 +561,7 @@ async function confirmSave() {
       aiPolicy:          draft.value.aiPolicy.value ?? null
     }
 
-    const res = await fetch(`/api/courses/${props.courseId}/syllabus`, {
+    const res = await fetch(`/api/courses/${effectiveCourseId.value}/syllabus`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -433,6 +607,60 @@ h1 { font-size: 18px; font-weight: 500; margin: 0; color: #f3f4f6; }
 .role-gate__icon { font-size: 28px; margin-bottom: 10px; }
 .role-gate__msg  { font-size: 14px; font-weight: 500; margin: 0 0 6px; color: #f3f4f6; }
 .role-gate__sub  { font-size: 13px; margin: 0; color: #9ca3af; }
+
+/* ── select step ── */
+.select-step { display: flex; flex-direction: column; gap: 10px; }
+.select-sub  { font-size: 13px; color: #9ca3af; margin: 0 0 4px; }
+
+.class-list { display: flex; flex-direction: column; gap: 6px; }
+
+.class-option {
+  display: flex; flex-direction: column; gap: 3px;
+  text-align: left; padding: 11px 14px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+  color: #e5e7eb; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.class-option:hover { background: rgba(96,165,250,0.08); border-color: rgba(96,165,250,0.3); }
+.class-option__code  { font-size: 13px; font-weight: 600; color: #f3f4f6; }
+.class-option__title { font-size: 12px; color: #9ca3af; }
+
+.no-classes-msg {
+  font-size: 13px; color: #6b7280; margin: 0;
+  padding: 14px; border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 10px; text-align: center;
+}
+
+.muted-center { font-size: 13px; color: #6b7280; text-align: center; padding: 16px 0; }
+
+.btn-create-class {
+  font-size: 13px; padding: 8px 14px; border-radius: 8px;
+  border: 1px dashed rgba(255,255,255,0.12); background: transparent;
+  color: #9ca3af; cursor: pointer; align-self: flex-start; transition: all 0.15s;
+}
+.btn-create-class:hover { background: rgba(255,255,255,0.04); color: #e5e7eb; }
+
+/* ── fetching state ── */
+.fetching-state {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: #9ca3af; padding: 12px 0;
+}
+
+/* ── selected class banner ── */
+.selected-class-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; margin-bottom: 12px;
+  background: rgba(96,165,250,0.07); border: 1px solid rgba(96,165,250,0.2);
+  border-radius: 8px; font-size: 13px;
+}
+.selected-class-label { color: #93c5fd; font-weight: 500; }
+.selected-class-title { color: #6b7280; font-weight: 400; }
+.btn-change-class {
+  font-size: 12px; padding: 3px 9px; border-radius: 6px;
+  border: 1px solid rgba(96,165,250,0.25); background: transparent;
+  color: #60a5fa; cursor: pointer; white-space: nowrap; transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-change-class:hover { background: rgba(96,165,250,0.1); }
 
 /* ── drop zone ── */
 .drop-zone {
@@ -604,6 +832,34 @@ h1 { font-size: 18px; font-weight: 500; margin: 0; color: #f3f4f6; }
 }
 .saved-state__title { font-size: 15px; font-weight: 500; margin: 0 0 5px; color: #f3f4f6; }
 .saved-state__sub   { font-size: 13px; color: #9ca3af; margin: 0 0 18px; }
+
+/* ── create class modal ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  display: grid; place-items: center; padding: 18px; z-index: 50;
+}
+.modal {
+  width: 100%; max-width: 420px;
+  background: rgba(15,23,42,0.97); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px; padding: 18px; color: #e5e7eb;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.4);
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px;
+}
+.modal-header h3 { margin: 0; font-size: 15px; font-weight: 500; color: #f3f4f6; }
+.modal-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.modal-actions .btn-primary { width: auto; }
+
+.create-form { display: grid; gap: 10px; }
+.create-field { display: grid; gap: 5px; }
+.create-label { font-size: 12px; color: #9ca3af; }
+.create-input {
+  padding: 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04);
+  color: #e5e7eb; outline: none; font-size: 13px; font-family: inherit;
+}
+.create-input:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,0.15); }
 
 @media (max-width: 480px) {
   .row { flex-wrap: wrap; }
