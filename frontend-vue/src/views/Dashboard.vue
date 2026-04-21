@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, inject, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const me = inject("me", null);
@@ -8,6 +8,71 @@ const router = useRouter();
 const role = computed(() => {
   const r = me?.value?.role;
   return (r || "STUDENT").toString().trim().toUpperCase();
+});
+
+// ── Syllabus Overview ──────────────────────────────────────────────
+const myClasses = ref([]);
+const selectedJoinCode = ref(null);
+const syllabus = ref(null);
+const loadingSyllabus = ref(false);
+const syllabusError = ref("");
+
+async function fetchMyClasses() {
+  try {
+    const res = await fetch("/api/classes/mine", { credentials: "include" });
+    if (res.ok) {
+      myClasses.value = await res.json();
+      if (myClasses.value.length > 0) {
+        selectedJoinCode.value = myClasses.value[0].joinCode;
+      }
+    }
+  } catch {
+    // silently ignore — calendar/syllabus are secondary
+  }
+}
+
+async function fetchSyllabus(joinCode) {
+  if (!joinCode) return;
+  loadingSyllabus.value = true;
+  syllabusError.value = "";
+  syllabus.value = null;
+  try {
+    const res = await fetch(`/api/courses/${joinCode}/syllabus`, { credentials: "include" });
+    if (res.ok) {
+      syllabus.value = await res.json();
+    } else if (res.status === 404) {
+      syllabusError.value = "No syllabus uploaded yet for this course.";
+    } else {
+      syllabusError.value = "Could not load syllabus.";
+    }
+  } catch {
+    syllabusError.value = "Could not load syllabus.";
+  } finally {
+    loadingSyllabus.value = false;
+  }
+}
+
+watch(selectedJoinCode, (val) => fetchSyllabus(val));
+
+const selectedClass = computed(() =>
+  myClasses.value.find(c => c.joinCode === selectedJoinCode.value) ?? null
+);
+
+const gradeBreakdown = computed(() => {
+  const gb = syllabus.value?.gradeBreakdown;
+  return Array.isArray(gb) ? gb : [];
+});
+
+const gradeScale = computed(() => {
+  const gs = syllabus.value?.gradeScale;
+  return Array.isArray(gs) ? gs : [];
+});
+
+const attendance = computed(() => syllabus.value?.attendance ?? null);
+
+const passConditions = computed(() => {
+  const pc = syllabus.value?.passConditions;
+  return Array.isArray(pc) ? pc : [];
 });
 
 // ── Calendar events ────────────────────────────────────────────────
@@ -65,7 +130,10 @@ function parseLocalDateTime(s) {
   return new Date(y, m - 1, d, Number(hh || 0), Number(mm || 0), Number(ss || 0));
 }
 
-onMounted(fetchEvents);
+onMounted(async () => {
+  await fetchMyClasses();
+  fetchEvents();
+});
 </script>
 <template>
   <div class="grid">
@@ -74,34 +142,96 @@ onMounted(fetchEvents);
       <div class="card-header">
         <div>
           <h2>Syllabus Overview</h2>
-          <p class="muted">
-            Content organized from professor-uploaded syllabus PDF.
-          </p>
+          <p class="muted">Content organized from professor-uploaded syllabus PDF.</p>
         </div>
+        <!-- Class selector when enrolled in multiple courses -->
+        <select
+          v-if="myClasses.length > 1"
+          class="class-select"
+          v-model="selectedJoinCode"
+        >
+          <option v-for="c in myClasses" :key="c.joinCode" :value="c.joinCode">
+            {{ c.classCode }} · {{ c.quarter }} {{ c.year }}
+          </option>
+        </select>
       </div>
 
-      <div class="content">
-        <div class="placeholder">
-          <div class="line w60" />
-          <div class="line w85" />
-          <div class="line w70" />
-          <div class="line w90" />
-          <div class="line w55" />
-        </div>
+      <!-- No classes enrolled -->
+      <div v-if="myClasses.length === 0" class="placeholder">
+        <p class="muted" style="margin:0">You are not enrolled in any classes yet.</p>
+      </div>
 
+      <!-- Loading -->
+      <div v-else-if="loadingSyllabus" class="placeholder">
+        <p class="muted" style="margin:0">Loading syllabus…</p>
+      </div>
+
+      <!-- Error / not uploaded yet -->
+      <div v-else-if="syllabusError" class="placeholder">
+        <p class="muted" style="margin:0">{{ syllabusError }}</p>
+      </div>
+
+      <!-- Real syllabus data -->
+      <div v-else-if="syllabus" class="content">
         <div class="mini-grid">
           <div class="mini">
             <div class="mini-title">Course</div>
-            <div class="mini-value">—</div>
+            <div class="mini-value">{{ selectedClass?.classCode ?? '—' }}</div>
           </div>
           <div class="mini">
-            <div class="mini-title">Professor</div>
-            <div class="mini-value">—</div>
+            <div class="mini-title">Quarter / Year</div>
+            <div class="mini-value">{{ selectedClass ? `${selectedClass.quarter} ${selectedClass.year}` : '—' }}</div>
           </div>
           <div class="mini">
-            <div class="mini-title">Key Policies</div>
-            <div class="mini-value">—</div>
+            <div class="mini-title">Attendance</div>
+            <div class="mini-value">{{ attendance ? (attendance.tracked === 'yes' ? 'Tracked' : attendance.tracked === 'partial' ? 'Partial' : 'Not tracked') : '—' }}</div>
           </div>
+        </div>
+
+        <!-- Office Hours -->
+        <div v-if="syllabus.officeHours" class="syllabus-section">
+          <div class="syllabus-section__title">Office Hours</div>
+          <p class="syllabus-text">{{ syllabus.officeHours }}</p>
+        </div>
+
+        <!-- Grade Scale -->
+        <div v-if="gradeScale.length" class="syllabus-section">
+          <div class="syllabus-section__title">Grade Scale</div>
+          <div class="grade-scale-list">
+            <div class="grade-scale-row" v-for="(item, i) in gradeScale" :key="i">
+              <span class="grade-range">{{ item.range }}</span>
+              <span class="grade-letter">{{ item.letter }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grade Breakdown -->
+        <div v-if="gradeBreakdown.length" class="syllabus-section">
+          <div class="syllabus-section__title">Grade Breakdown</div>
+          <div class="breakdown-row" v-for="(item, i) in gradeBreakdown" :key="i">
+            <span class="breakdown-name">{{ item.component }}</span>
+            <span class="breakdown-weight">{{ item.weight }}</span>
+          </div>
+        </div>
+
+        <!-- Pass / Fail Conditions -->
+        <div v-if="passConditions.length" class="syllabus-section">
+          <div class="syllabus-section__title">Pass / Fail Conditions</div>
+          <ul class="pass-conditions-list">
+            <li v-for="(cond, i) in passConditions" :key="i">{{ cond }}</li>
+          </ul>
+        </div>
+
+        <!-- AI Policy -->
+        <div v-if="syllabus.aiPolicy" class="syllabus-section">
+          <div class="syllabus-section__title">AI Policy</div>
+          <p class="syllabus-text">{{ syllabus.aiPolicy }}</p>
+        </div>
+
+        <!-- Late Work Policy -->
+        <div v-if="syllabus.lateWorkPolicy" class="syllabus-section">
+          <div class="syllabus-section__title">Late Work Policy</div>
+          <p class="syllabus-text">{{ syllabus.lateWorkPolicy }}</p>
         </div>
       </div>
     </section>
@@ -278,6 +408,8 @@ onMounted(fetchEvents);
 
 .big {
   min-height: 360px;
+  background: rgba(255, 255, 255, 0);
+  border-color: rgba(255, 255, 255, 0.13);
 }
 
 .side {
@@ -450,6 +582,110 @@ h3 {
 .input:focus {
   box-shadow: 0 0 0 2px rgba(37,99,235,0.5);
   border-color: rgba(37,99,235,0.6);
+}
+
+.class-select {
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  color: #e5e7eb;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.class-select:focus {
+  border-color: #2563eb;
+}
+
+.syllabus-section {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.syllabus-section__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.breakdown-row:last-child {
+  border-bottom: none;
+}
+
+.breakdown-name {
+  color: #e5e7eb;
+}
+
+.breakdown-weight {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.grade-scale-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grade-scale-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.grade-scale-row:last-child {
+  border-bottom: none;
+}
+
+.grade-letter {
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.grade-range {
+  color: #9ca3af;
+}
+
+.pass-conditions-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pass-conditions-list li {
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 1.5;
+}
+
+.syllabus-text {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 980px) {

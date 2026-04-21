@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "anthropic.api.key",
+      "type": "java.lang.String",
+      "description": "Anthropic API key injected via the ANTHROPIC_API_KEY environment variable."
+    }
+  ]
+}
