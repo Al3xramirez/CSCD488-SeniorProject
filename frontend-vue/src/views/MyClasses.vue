@@ -184,7 +184,7 @@ function confirmAndDelete(c) {
 }
 
 // Syllabus upload modal state
-const syllabusClass = ref(null); // the class whose syllabus we're uploading
+const syllabusClass = ref(null);
 
 function openSyllabusUpload(c) {
   syllabusClass.value = c;
@@ -192,6 +192,57 @@ function openSyllabusUpload(c) {
 
 function closeSyllabusUpload() {
   syllabusClass.value = null;
+}
+
+// Edit class modal state
+const editClassItem = ref(null);
+const editForm      = ref({ classCode: "", quarter: "", year: "", title: "" });
+const editError     = ref("");
+const editing       = ref(false);
+
+function openEdit(c) {
+  editClassItem.value = c;
+  editForm.value = { classCode: c.classCode, quarter: c.quarter, year: c.year, title: c.title };
+  editError.value = "";
+}
+
+function closeEdit() {
+  editClassItem.value = null;
+  editError.value = "";
+}
+
+async function submitEdit() {
+  if (!isProfessor.value || !editClassItem.value) return;
+  editing.value = true;
+  editError.value = "";
+  try {
+    const payload = {
+      joinCode:  editClassItem.value.joinCode,
+      classCode: editForm.value.classCode,
+      quarter:   editForm.value.quarter,
+      year:      editForm.value.year,
+      title:     editForm.value.title,
+    };
+    const res = await fetch("/api/classes/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const msg = await safeErrorMessage(res);
+      throw new Error(msg || `Failed to update class (${res.status})`);
+    }
+    const updated = await res.json();
+    classes.value = classes.value.map(c =>
+      c.joinCode === updated.joinCode ? updated : c
+    );
+    closeEdit();
+  } catch (e) {
+    editError.value = e?.message || "Failed to update class";
+  } finally {
+    editing.value = false;
+  }
 }
 
 /* onMounted is used to call the LoadMyclasses function when the component is first mounted.
@@ -238,14 +289,10 @@ onMounted(loadMyClasses);
       <div v-for="c in classes" :key="`${c.classCode}-${c.quarter}-${c.year}`" class="class-box">
         <div class="class-top">
           <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
-          <button
-            v-if="isProfessor"
-            class="btn ghost btn-sm delete-btn"
-            type="button"
-            @click="confirmAndDelete(c)"
-          >
-            Delete
-          </button>
+          <div v-if="isProfessor" class="class-actions">
+            <button class="btn ghost btn-sm" type="button" @click="openEdit(c)">Edit</button>
+            <button class="btn ghost btn-sm delete-btn" type="button" @click="confirmAndDelete(c)">Delete</button>
+          </div>
         </div>
         <div class="class-title">{{ c.title }}</div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
@@ -255,7 +302,7 @@ onMounted(loadMyClasses);
           type="button"
           @click="openSyllabusUpload(c)"
         >
-          Upload Syllabus
+          Manage Syllabus
         </button>
       </div>
 
@@ -303,6 +350,43 @@ onMounted(loadMyClasses);
       <div class="modal-actions">
         <button class="btn" type="button" :disabled="creating" @click="submitCreate">
           {{ creating ? "Creating…" : "Create" }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit class modal -->
+  <div v-if="editClassItem" class="overlay" @click.self="closeEdit">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Edit class">
+      <div class="modal-header">
+        <h3>Edit Class</h3>
+        <button class="btn ghost" type="button" @click="closeEdit">Close</button>
+      </div>
+
+      <div v-if="editError" class="alert">{{ editError }}</div>
+
+      <div class="form">
+        <label class="field">
+          <span class="label">Class Code</span>
+          <input v-model="editForm.classCode" class="input" placeholder="CSCD 488" />
+        </label>
+        <label class="field">
+          <span class="label">Quarter</span>
+          <input v-model="editForm.quarter" class="input" placeholder="Fall" />
+        </label>
+        <label class="field">
+          <span class="label">Year</span>
+          <input v-model="editForm.year" class="input" placeholder="2026" />
+        </label>
+        <label class="field">
+          <span class="label">Title</span>
+          <input v-model="editForm.title" class="input" placeholder="Senior Project" />
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" type="button" :disabled="editing" @click="submitEdit">
+          {{ editing ? "Saving…" : "Save changes" }}
         </button>
       </div>
     </div>
@@ -428,6 +512,12 @@ h3 {
   padding: 6px 10px;
   border-radius: 12px;
   min-width: auto;
+}
+
+.class-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .delete-btn {
