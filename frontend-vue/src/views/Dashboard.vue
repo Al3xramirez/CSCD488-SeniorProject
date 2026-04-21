@@ -75,6 +75,22 @@ const passConditions = computed(() => {
   return Array.isArray(pc) ? pc : [];
 });
 
+const meetingTimes = computed(() => syllabus.value?.classMeetingTimes ?? null);
+
+function formatTime(t) {
+  if (!t) return "";
+  const [hh, mm] = t.split(":").map(Number);
+  const ampm = hh < 12 ? "AM" : "PM";
+  const h = hh % 12 || 12;
+  return `${h}:${String(mm).padStart(2, "0")} ${ampm}`;
+}
+
+function formatDays(days) {
+  if (!Array.isArray(days)) return "";
+  const map = { MON: "Mon", TUE: "Tue", WED: "Wed", THU: "Thu", FRI: "Fri", SAT: "Sat", SUN: "Sun" };
+  return days.map(d => map[d] || d).join(", ");
+}
+
 // ── Calendar events ────────────────────────────────────────────────
 const loadingEvents = ref(false);
 const events = ref([]);
@@ -192,6 +208,25 @@ onMounted(async () => {
         <div v-if="syllabus.officeHours" class="syllabus-section">
           <div class="syllabus-section__title">Office Hours</div>
           <p class="syllabus-text">{{ syllabus.officeHours }}</p>
+        </div>
+
+        <!-- Meeting Times -->
+        <div v-if="meetingTimes" class="syllabus-section">
+          <div class="syllabus-section__title">Meeting Times</div>
+          <div class="meeting-times">
+            <div v-if="meetingTimes.days?.length" class="meeting-row">
+              <span class="meeting-label">Days</span>
+              <span class="meeting-value">{{ formatDays(meetingTimes.days) }}</span>
+            </div>
+            <div v-if="meetingTimes.startTime && meetingTimes.endTime" class="meeting-row">
+              <span class="meeting-label">Time</span>
+              <span class="meeting-value">{{ formatTime(meetingTimes.startTime) }} – {{ formatTime(meetingTimes.endTime) }}</span>
+            </div>
+            <div v-if="meetingTimes.location" class="meeting-row">
+              <span class="meeting-label">Location</span>
+              <span class="meeting-value">{{ meetingTimes.location }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Grade Scale -->
@@ -686,6 +721,38 @@ h3 {
   margin: 0;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.meeting-times {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meeting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.meeting-row:last-child {
+  border-bottom: none;
+}
+
+.meeting-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.meeting-value {
+  color: #e5e7eb;
+  font-weight: 600;
 }
 
 @media (max-width: 980px) {
