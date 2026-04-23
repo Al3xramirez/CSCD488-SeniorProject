@@ -73,22 +73,25 @@ export default {
       } catch (error) {
         console.error("Error loading meetings:", error);
       }
-    },
+  },
 
-    async createMeeting = async (meetingData) => {
+  async createMeeting(event) {
+    const form = new FormData(event.target);
+    const meetingData = {
+      classCode: form.get('classCode'),
+      meetingDate: form.get('meetingDate'),
+      startTime: form.get('startTime'),
+      endTime: form.get('endTime'),
+      recipient: form.get('recipient')
+    };
+
     try {
       const response = await fetch('/api/meetings/create-meeting', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            classCode: meetingData.classCode,
-            meetingDate: meetingData.meetingDate,
-            startTime: meetingData.startTime,
-            endTime: meetingData.endTime,
-            recipient: meetingData.recipient
-        })
+        body: JSON.stringify(meetingData)
       });
 
       if (!response.ok) {

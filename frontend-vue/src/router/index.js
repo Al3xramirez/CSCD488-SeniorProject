@@ -7,7 +7,10 @@ import Profile from "../views/Profile.vue";
 import Meetings from "../views/Meetings.vue";
 import DashboardLayout from "../layout/DashboardLayout.vue";
 import Calendar from "../views/Calendar.vue";
-import OfficeHours from "../views/OfficeHours.vue";
+import OfficeHours from "../views/newofficehours.vue";
+//import OfficeHours from "../views/OfficeHours.vue";
+//import OfficeHours from "../views/OfficeHours-calanderadded.vue";
+//import OfficeHours from "../views/updatedOfficeHours.vue";
 
 const router = createRouter({
   history: createWebHistory(),
