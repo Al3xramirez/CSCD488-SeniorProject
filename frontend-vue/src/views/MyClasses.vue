@@ -194,6 +194,67 @@ function closeSyllabusUpload() {
   syllabusClass.value = null;
 }
 
+// Roster modal state
+const rosterClass = ref(null);
+const rosterLoading = ref(false);
+const rosterError = ref("");
+const rosterUsers = ref([]);
+const photoFailed = ref({});
+
+function closeRoster() {
+  rosterClass.value = null;
+  rosterUsers.value = [];
+  rosterError.value = "";
+  rosterLoading.value = false;
+  photoFailed.value = {};
+}
+
+function rosterPhotoUrl(userId) {
+  const jc = rosterClass.value?.joinCode;
+  if (!jc || !userId) return "";
+  return `/api/classes/${encodeURIComponent(jc)}/users/${encodeURIComponent(userId)}/photo`;
+}
+
+function initials(u) {
+  const first = (u?.firstName || "").trim();
+  const last = (u?.lastName || "").trim();
+  const a = first ? first[0] : "";
+  const b = last ? last[0] : "";
+  const out = (a + b).toUpperCase();
+  return out || "?";
+}
+
+function markPhotoFailed(userId) {
+  if (!userId) return;
+  photoFailed.value = { ...photoFailed.value, [userId]: true };
+}
+
+const rosterTAs = computed(() => rosterUsers.value.filter(u => (u?.role || "").toString().toUpperCase() === "TA"));
+const rosterStudents = computed(() => rosterUsers.value.filter(u => (u?.role || "").toString().toUpperCase() === "STUDENT"));
+
+async function openRoster(c) {
+  if (!isProfessor.value) return;
+  rosterClass.value = c;
+  rosterUsers.value = [];
+  rosterError.value = "";
+  rosterLoading.value = true;
+  photoFailed.value = {};
+
+  try {
+    const res = await fetch(`/api/classes/${encodeURIComponent(c.joinCode)}/students`, { credentials: "include" });
+    if (!res.ok) {
+      const msg = await safeErrorMessage(res);
+      throw new Error(msg || `Failed to load roster (${res.status})`);
+    }
+    const data = await res.json();
+    rosterUsers.value = Array.isArray(data) ? data : [];
+  } catch (e) {
+    rosterError.value = e?.message || "Failed to load roster";
+  } finally {
+    rosterLoading.value = false;
+  }
+}
+
 // Edit class modal state
 const editClassItem = ref(null);
 const editForm      = ref({ classCode: "", quarter: "", year: "", title: "" });
@@ -257,16 +318,12 @@ onMounted(loadMyClasses);
       <div>
         <h2>My Classes</h2>
         <p class="muted" v-if="isProfessor">
-          Classes you’ve created. Use + to add another.
+          Classes you’ve created. Use Create class to add another.
         </p>
         <p class="muted" v-else-if="isStudentOrTa">
           Classes you’ve joined.
         </p>
       </div>
-
-      <button v-if="isProfessor" class="btn" type="button" @click="openCreate">
-        +
-      </button>
     </div>
 
     <div v-if="error" class="alert">
@@ -286,12 +343,34 @@ onMounted(loadMyClasses);
     <div v-if="loading" class="muted">Loading…</div>
     <!-- If not loading and no error, show the classes or an empty state message -->
     <div v-else class="class-grid">
-      <div v-for="c in classes" :key="`${c.classCode}-${c.quarter}-${c.year}`" class="class-box">
+      <!-- If the user is a professor, show the create class button -->
+      <button
+        v-if="isProfessor"
+        type="button"
+        class="class-box create-class"
+        @click="openCreate"
+        aria-label="Create class"
+      >
+        <span class="create-class__plus" aria-hidden="true">+</span>
+        <span class="create-class__label">Create class</span>
+      </button>
+
+      <div
+        v-for="c in classes"
+        :key="`${c.classCode}-${c.quarter}-${c.year}`"
+        class="class-box"
+        :class="{ 'class-box--clickable': isProfessor }"
+        role="button"
+        :tabindex="isProfessor ? 0 : undefined"
+        @click="openRoster(c)"
+        @keydown.enter.prevent="openRoster(c)"
+        @keydown.space.prevent="openRoster(c)"
+      >
         <div class="class-top">
           <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
           <div v-if="isProfessor" class="class-actions">
-            <button class="btn ghost btn-sm" type="button" @click="openEdit(c)">Edit</button>
-            <button class="btn ghost btn-sm delete-btn" type="button" @click="confirmAndDelete(c)">Delete</button>
+            <button class="btn ghost btn-sm" type="button" @click.stop="openEdit(c)">Edit</button>
+            <button class="btn ghost btn-sm delete-btn" type="button" @click.stop="confirmAndDelete(c)">Delete</button>
           </div>
         </div>
         <div class="class-title">{{ c.title }}</div>
@@ -300,14 +379,14 @@ onMounted(loadMyClasses);
           v-if="isProfessor"
           class="btn ghost btn-sm syllabus-btn"
           type="button"
-          @click="openSyllabusUpload(c)"
+          @click.stop="openSyllabusUpload(c)"
         >
           Manage Syllabus
         </button>
       </div>
 
       <div v-if="!classes.length" class="empty">
-        <span v-if="isProfessor">No classes yet — click + to create one.</span>
+        <span v-if="isProfessor">No classes yet — click Create class to add one.</span>
         <span v-else-if="isStudentOrTa">No classes yet — enter a join code above.</span>
       </div>
     </div>
@@ -406,6 +485,84 @@ onMounted(loadMyClasses);
       />
     </div>
   </div>
+
+  <!-- Roster modal (professor) -->
+  <div v-if="rosterClass" class="overlay" @click.self="closeRoster">
+    <div class="modal modal--wide" role="dialog" aria-modal="true" aria-label="Class roster">
+      <div class="modal-header">
+        <h3>{{ rosterClass.classCode }} · {{ rosterClass.quarter }} {{ rosterClass.year }} — Roster</h3>
+        <button class="btn ghost" type="button" @click="closeRoster">Close</button>
+      </div>
+
+      <div v-if="rosterError" class="alert">{{ rosterError }}</div>
+      <div v-else-if="rosterLoading" class="muted">Loading roster…</div>
+
+      <div v-else class="roster">
+        <div v-if="!rosterUsers.length" class="muted">No students enrolled yet.</div>
+
+        <div v-if="rosterTAs.length" class="roster-section">
+          <div class="roster-section__title">TAs</div>
+          <div class="roster-list">
+            <div v-for="u in rosterTAs" :key="u.userId" class="roster-row">
+              <div class="avatar">
+                <img
+                  v-if="!photoFailed[u.userId]"
+                  class="avatar__img"
+                  :src="rosterPhotoUrl(u.userId)"
+                  alt=""
+                  @error="markPhotoFailed(u.userId)"
+                />
+                <div v-else class="avatar__fallback" aria-hidden="true">{{ initials(u) }}</div>
+              </div>
+              <div class="roster-row__name">{{ u.firstName }} {{ u.lastName }}</div>
+              <div class="roster-row__role">TA</div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="rosterStudents.length" class="roster-section">
+          <div class="roster-section__title">Students</div>
+          <div class="roster-list">
+            <div v-for="u in rosterStudents" :key="u.userId" class="roster-row">
+              <div class="avatar">
+                <img
+                  v-if="!photoFailed[u.userId]"
+                  class="avatar__img"
+                  :src="rosterPhotoUrl(u.userId)"
+                  alt=""
+                  @error="markPhotoFailed(u.userId)"
+                />
+                <div v-else class="avatar__fallback" aria-hidden="true">{{ initials(u) }}</div>
+              </div>
+              <div class="roster-row__name">{{ u.firstName }} {{ u.lastName }}</div>
+              <div class="roster-row__role">Student</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fallback for unexpected roles -->
+        <div v-if="!rosterTAs.length && !rosterStudents.length && rosterUsers.length" class="roster-section">
+          <div class="roster-section__title">Enrolled</div>
+          <div class="roster-list">
+            <div v-for="u in rosterUsers" :key="u.userId" class="roster-row">
+              <div class="avatar">
+                <img
+                  v-if="!photoFailed[u.userId]"
+                  class="avatar__img"
+                  :src="rosterPhotoUrl(u.userId)"
+                  alt=""
+                  @error="markPhotoFailed(u.userId)"
+                />
+                <div v-else class="avatar__fallback" aria-hidden="true">{{ initials(u) }}</div>
+              </div>
+              <div class="roster-row__name">{{ u.firstName }} {{ u.lastName }}</div>
+              <div class="roster-row__role">{{ (u.role || "").toString().toUpperCase() }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -499,6 +656,50 @@ h3 {
   border-radius: 18px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
+}
+
+.class-box--clickable {
+  cursor: pointer;
+}
+
+.class-box--clickable:hover {
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.035);
+}
+
+.create-class {
+  min-height: 126px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  cursor: pointer;
+  background: rgba(37,99,235,0.14);
+  border: 1px dashed rgba(37,99,235,0.55);
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.create-class:hover {
+  background: rgba(37,99,235,0.18);
+  border-color: rgba(37,99,235,0.70);
+}
+
+.create-class:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.45);
+}
+
+.create-class__plus {
+  font-size: 46px;
+  line-height: 1;
+  font-weight: 900;
+  color: rgba(229,231,235,0.92);
+}
+
+.create-class__label {
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 .class-top {
@@ -632,5 +833,73 @@ h3 {
   display: flex;
   justify-content: flex-end;
   margin-top: 14px;
+}
+
+/* Roster */
+.roster {
+  margin-top: 12px;
+}
+
+.roster-section {
+  margin-top: 12px;
+}
+
+.roster-section__title {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0 0 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.roster-list {
+  display: grid;
+  gap: 8px;
+}
+
+.roster-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.roster-row__name {
+  font-weight: 900;
+  color: #e5e7eb;
+}
+
+.roster-row__role {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 900;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(15,23,42,0.65);
+  display: grid;
+  place-items: center;
+}
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar__fallback {
+  font-weight: 900;
+  color: rgba(229,231,235,0.92);
 }
 </style>
