@@ -54,10 +54,21 @@ public class MeetingController {
                         .body(Map.of("error", "End time must be after start time"));
             }
 
+            // Check for conflicts in recipient's schedule
+            LocalDate meetingDate = LocalDate.parse(date);
+            List<Meeting> recipientMeetings = meetingRepository.findByRecipientIDAndMeetingDate(recipientID, meetingDate);
+            boolean hasConflict = recipientMeetings.stream().anyMatch(m ->
+                !(endTime.isBefore(m.getStartTime()) || startTime.isAfter(m.getEndTime().minusSeconds(1)))
+            );
+            if (hasConflict) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", "The recipient has a conflicting meeting at this time."));
+            }
+
             Meeting meeting = new Meeting();
             meeting.setRequesterID(requesterID);
             meeting.setRecipientID(recipientID);
-            meeting.setMeetingDate(LocalDate.parse(date));
+            meeting.setMeetingDate(meetingDate);
             meeting.setStartTime(startTime);
             meeting.setEndTime(endTime);
             meeting.setNotes(notes != null ? notes : "");

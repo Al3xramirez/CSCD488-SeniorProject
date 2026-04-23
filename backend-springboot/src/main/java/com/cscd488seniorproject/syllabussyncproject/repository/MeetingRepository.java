@@ -20,4 +20,8 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
     
     @Query("SELECT m FROM Meeting m WHERE (m.requesterID = :userID OR m.recipientID = :userID) AND m.meetingDate BETWEEN :startDate AND :endDate ORDER BY m.meetingDate ASC, m.startTime ASC")
     List<Meeting> findByUserIDAndDateBetween(@Param("userID") String userID, @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    // New method to find meetings for a specific recipient on a specific date
+    @Query("SELECT m FROM Meeting m WHERE m.recipientID = :recipientID AND m.meetingDate = :meetingDate")
+    List<Meeting> findByRecipientIDAndMeetingDate(@Param("recipientID") String recipientID, @Param("meetingDate") LocalDate meetingDate);
 }
