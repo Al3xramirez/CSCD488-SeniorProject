@@ -1,9 +1,10 @@
 <script setup>
 // ------- Imports and retrieving user info -------
 import { computed, inject, onMounted, ref } from "vue";
-import SyllabusUpload from "./SyllabusUpload.vue";
+import { useRouter } from "vue-router";
 
 const me = inject("me", null);
+const router = useRouter();
 
 const role = computed(() => {
   const r = me?.value?.role;
@@ -148,101 +149,11 @@ async function safeErrorMessage(res) {
   }
 }
 
-// Function to delete class, when class does delete, it filters out the deleted class from list
-async function submitDelete(joinCode) {
+function openClassDetails(c) {
   if (!isProfessor.value) return;
-
-  try {
-    const payload = { joinCode };
-    const res = await fetch("/api/classes/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const msg = await safeErrorMessage(res);
-      throw new Error(msg || `Failed to delete class (${res.status})`);
-    }
-
-    const deleted = await res.json();
-    classes.value = classes.value.filter(c => !(c.classCode === deleted.classCode && c.quarter === deleted.quarter && c.year === deleted.year));
-  } catch (e) {
-    error.value = e?.message || "Failed to delete class";
-  }
-}
-
-function confirmAndDelete(c) {
-  if (!isProfessor.value) return;
-  const classLabel = `${c?.classCode || ""} ${c?.quarter || ""} ${c?.year || ""}`.trim();
-  const ok = window.confirm(
-    `Are you sure you want to delete this class${classLabel ? ` (${classLabel})` : ""}?`
-  );
-  if (!ok) return;
-  submitDelete(c.joinCode);
-}
-
-// Syllabus upload modal state
-const syllabusClass = ref(null);
-
-function openSyllabusUpload(c) {
-  syllabusClass.value = c;
-}
-
-function closeSyllabusUpload() {
-  syllabusClass.value = null;
-}
-
-// Edit class modal state
-const editClassItem = ref(null);
-const editForm      = ref({ classCode: "", quarter: "", year: "", title: "" });
-const editError     = ref("");
-const editing       = ref(false);
-
-function openEdit(c) {
-  editClassItem.value = c;
-  editForm.value = { classCode: c.classCode, quarter: c.quarter, year: c.year, title: c.title };
-  editError.value = "";
-}
-
-function closeEdit() {
-  editClassItem.value = null;
-  editError.value = "";
-}
-
-async function submitEdit() {
-  if (!isProfessor.value || !editClassItem.value) return;
-  editing.value = true;
-  editError.value = "";
-  try {
-    const payload = {
-      joinCode:  editClassItem.value.joinCode,
-      classCode: editForm.value.classCode,
-      quarter:   editForm.value.quarter,
-      year:      editForm.value.year,
-      title:     editForm.value.title,
-    };
-    const res = await fetch("/api/classes/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const msg = await safeErrorMessage(res);
-      throw new Error(msg || `Failed to update class (${res.status})`);
-    }
-    const updated = await res.json();
-    classes.value = classes.value.map(c =>
-      c.joinCode === updated.joinCode ? updated : c
-    );
-    closeEdit();
-  } catch (e) {
-    editError.value = e?.message || "Failed to update class";
-  } finally {
-    editing.value = false;
-  }
+  const jc = (c?.joinCode || "").toString().trim();
+  if (!jc) return;
+  router.push({ name: "class-details", params: { joinCode: jc } });
 }
 
 /* onMounted is used to call the LoadMyclasses function when the component is first mounted.
@@ -257,16 +168,12 @@ onMounted(loadMyClasses);
       <div>
         <h2>My Classes</h2>
         <p class="muted" v-if="isProfessor">
-          Classes you’ve created. Use + to add another.
+          Classes you’ve created. Use Create class to add another.
         </p>
         <p class="muted" v-else-if="isStudentOrTa">
           Classes you’ve joined.
         </p>
       </div>
-
-      <button v-if="isProfessor" class="btn" type="button" @click="openCreate">
-        +
-      </button>
     </div>
 
     <div v-if="error" class="alert">
@@ -286,28 +193,38 @@ onMounted(loadMyClasses);
     <div v-if="loading" class="muted">Loading…</div>
     <!-- If not loading and no error, show the classes or an empty state message -->
     <div v-else class="class-grid">
-      <div v-for="c in classes" :key="`${c.classCode}-${c.quarter}-${c.year}`" class="class-box">
+      <!-- If the user is a professor, show the create class button -->
+      <button
+        v-if="isProfessor"
+        type="button"
+        class="class-box create-class"
+        @click="openCreate"
+        aria-label="Create class"
+      >
+        <span class="create-class__plus" aria-hidden="true">+</span>
+        <span class="create-class__label">Create class</span>
+      </button>
+
+      <div
+        v-for="c in classes"
+        :key="`${c.classCode}-${c.quarter}-${c.year}`"
+        class="class-box"
+        :class="{ 'class-box--clickable': isProfessor }"
+        :role="isProfessor ? 'button' : undefined"
+        :tabindex="isProfessor ? 0 : undefined"
+        @click="openClassDetails(c)"
+        @keydown.enter.prevent="openClassDetails(c)"
+        @keydown.space.prevent="openClassDetails(c)"
+      >
         <div class="class-top">
           <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
-          <div v-if="isProfessor" class="class-actions">
-            <button class="btn ghost btn-sm" type="button" @click="openEdit(c)">Edit</button>
-            <button class="btn ghost btn-sm delete-btn" type="button" @click="confirmAndDelete(c)">Delete</button>
-          </div>
         </div>
         <div class="class-title">{{ c.title }}</div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
-        <button
-          v-if="isProfessor"
-          class="btn ghost btn-sm syllabus-btn"
-          type="button"
-          @click="openSyllabusUpload(c)"
-        >
-          Manage Syllabus
-        </button>
       </div>
 
       <div v-if="!classes.length" class="empty">
-        <span v-if="isProfessor">No classes yet — click + to create one.</span>
+        <span v-if="isProfessor">No classes yet — click Create class to add one.</span>
         <span v-else-if="isStudentOrTa">No classes yet — enter a join code above.</span>
       </div>
     </div>
@@ -352,58 +269,6 @@ onMounted(loadMyClasses);
           {{ creating ? "Creating…" : "Create" }}
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- Edit class modal -->
-  <div v-if="editClassItem" class="overlay" @click.self="closeEdit">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Edit class">
-      <div class="modal-header">
-        <h3>Edit Class</h3>
-        <button class="btn ghost" type="button" @click="closeEdit">Close</button>
-      </div>
-
-      <div v-if="editError" class="alert">{{ editError }}</div>
-
-      <div class="form">
-        <label class="field">
-          <span class="label">Class Code</span>
-          <input v-model="editForm.classCode" class="input" placeholder="CSCD 488" />
-        </label>
-        <label class="field">
-          <span class="label">Quarter</span>
-          <input v-model="editForm.quarter" class="input" placeholder="Fall" />
-        </label>
-        <label class="field">
-          <span class="label">Year</span>
-          <input v-model="editForm.year" class="input" placeholder="2026" />
-        </label>
-        <label class="field">
-          <span class="label">Title</span>
-          <input v-model="editForm.title" class="input" placeholder="Senior Project" />
-        </label>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn" type="button" :disabled="editing" @click="submitEdit">
-          {{ editing ? "Saving…" : "Save changes" }}
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Syllabus upload modal -->
-  <div v-if="syllabusClass" class="overlay" @click.self="closeSyllabusUpload">
-    <div class="modal modal--wide" role="dialog" aria-modal="true" aria-label="Upload syllabus">
-      <div class="modal-header">
-        <h3>{{ syllabusClass.classCode }} · {{ syllabusClass.quarter }} {{ syllabusClass.year }}</h3>
-        <button class="btn ghost" type="button" @click="closeSyllabusUpload">Close</button>
-      </div>
-      <SyllabusUpload
-        userRole="professor"
-        :courseId="syllabusClass.joinCode"
-        @saved="closeSyllabusUpload"
-      />
     </div>
   </div>
 </template>
@@ -499,6 +364,78 @@ h3 {
   border-radius: 18px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
+  position: relative;
+  overflow: hidden;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  --accent-rgb: 37, 99, 235;
+}
+
+.class-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb), 0.12),
+    rgba(255, 255, 255, 0.02)
+  );
+  pointer-events: none;
+}
+
+.class-box::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: rgba(var(--accent-rgb), 0.70);
+  pointer-events: none;
+}
+
+.class-box--clickable {
+  cursor: pointer;
+}
+
+.class-box--clickable:hover {
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: rgba(255,255,255,0.035);
+  transform: translateY(-1px);
+}
+
+.create-class {
+  min-height: 126px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  cursor: pointer;
+  background: rgba(37,99,235,0.14);
+  border: 1px dashed rgba(37,99,235,0.55);
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.create-class:hover {
+  background: rgba(37,99,235,0.18);
+  border-color: rgba(37,99,235,0.70);
+}
+
+.create-class:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.45);
+}
+
+.create-class__plus {
+  font-size: 46px;
+  line-height: 1;
+  font-weight: 900;
+  color: rgba(229,231,235,0.92);
+}
+
+.create-class__label {
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 .class-top {
@@ -506,6 +443,7 @@ h3 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  position: relative;
 }
 
 .btn.btn-sm {
@@ -539,18 +477,24 @@ h3 {
 .class-code {
   font-weight: 900;
   color: #e5e7eb;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  position: relative;
 }
 
 .class-title {
   margin-top: 6px;
   color: #9ca3af;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.25;
+  position: relative;
 }
 
 .class-join {
   margin-top: 10px;
   font-size: 12px;
   color: #9ca3af;
+  position: relative;
 }
 
 .join-code {
@@ -632,5 +576,73 @@ h3 {
   display: flex;
   justify-content: flex-end;
   margin-top: 14px;
+}
+
+/* Roster */
+.roster {
+  margin-top: 12px;
+}
+
+.roster-section {
+  margin-top: 12px;
+}
+
+.roster-section__title {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0 0 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.roster-list {
+  display: grid;
+  gap: 8px;
+}
+
+.roster-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.roster-row__name {
+  font-weight: 900;
+  color: #e5e7eb;
+}
+
+.roster-row__role {
+  font-size: 12px;
+  color: #9ca3af;
+  font-weight: 900;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(15,23,42,0.65);
+  display: grid;
+  place-items: center;
+}
+
+.avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar__fallback {
+  font-weight: 900;
+  color: rgba(229,231,235,0.92);
 }
 </style>
