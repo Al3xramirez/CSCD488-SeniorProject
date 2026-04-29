@@ -1,5 +1,6 @@
 package com.cscd488seniorproject.syllabussyncproject.controllers;
 
+import com.cscd488seniorproject.syllabussyncproject.dto.AddTARequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.ClassSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.CreateClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.JoinClassRequestDTO;
@@ -78,6 +79,21 @@ public class ClassesController {
             .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
             .cacheControl(CacheControl.noStore())
             .body(payload.bytes());
+    }
+
+    // Get TAs for a class by join code (any enrolled/TA/professor user)
+    @GetMapping("/{joinCode}/tas")
+    public ResponseEntity<List<StudentSummaryDTO>> tas(Authentication auth, @PathVariable String joinCode) {
+        String email = auth == null ? null : auth.getName();
+        return ResponseEntity.ok(courseService.getTAsForCourse(email, joinCode));
+    }
+
+    // Assign a TA to a class by their email (professors only)
+    @PostMapping("/{joinCode}/ta")
+    public ResponseEntity<StudentSummaryDTO> assignTA(Authentication auth, @PathVariable String joinCode, @RequestBody AddTARequestDTO req) {
+        String email = auth == null ? null : auth.getName();
+        String taEmail = req == null ? null : req.taEmail;
+        return ResponseEntity.ok(courseService.assignTA(email, joinCode, taEmail));
     }
 
     // Delete a class by its join code (professors only)

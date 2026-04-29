@@ -1,14 +1,10 @@
 <script setup>
-import { computed, inject, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useMe } from "../composables/useMe.js";
 
-const me = inject("me", null);
 const router = useRouter();
-
-const role = computed(() => {
-  const r = me?.value?.role;
-  return (r || "STUDENT").toString().trim().toUpperCase();
-});
+const { role } = useMe();
 
 // ── Syllabus Overview ──────────────────────────────────────────────
 const myClasses = ref([]);

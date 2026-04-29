@@ -1,23 +1,18 @@
 <script setup>
 // ------- Imports and retrieving user info -------
-import { computed, inject, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useMe } from "../composables/useMe.js";
 
-const me = inject("me", null);
 const router = useRouter();
-
-const role = computed(() => {
-  const r = me?.value?.role;
-  return (r || "STUDENT").toString().trim().toUpperCase();
-});
-
-//------ Setting variables and functions for class management per user role -------
-const isProfessor = computed(() => role.value === "PROFESSOR");
-const isStudentOrTa = computed(() => role.value === "STUDENT" || role.value === "TA");
+const { role, isProfessor, isTA } = useMe();
 
 const classes = ref([]);
 const loading = ref(false);
 const error = ref("");
+
+// Maps joinCode -> array of TA summaries, fetched for student users
+const classTAs = ref({});
 
 const joinCode = ref("");
 const joining = ref(false);
@@ -44,11 +39,37 @@ async function loadMyClasses() {
 
     const data = await res.json();
     classes.value = Array.isArray(data) ? data : [];
+
+    if (role.value === "STUDENT") {
+      fetchAllTAs(classes.value);
+    }
   } catch (e) {
     error.value = e?.message || "Failed to load classes";
   } finally {
     loading.value = false;
   }
+}
+
+async function fetchAllTAs(courseList) {
+  const entries = await Promise.all(
+    courseList.map(async (c) => {
+      const jc = (c?.joinCode || "").toString().trim();
+      if (!jc) return null;
+      try {
+        const res = await fetch(`/api/classes/${encodeURIComponent(jc)}/tas`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          return [jc, Array.isArray(data) ? data : []];
+        }
+      } catch {}
+      return null;
+    })
+  );
+  const map = {};
+  for (const entry of entries) {
+    if (entry) map[entry[0]] = entry[1];
+  }
+  classTAs.value = map;
 }
 // Function to open the create class modal
 function openCreate() {
@@ -143,7 +164,12 @@ async function submitJoin() {
 async function safeErrorMessage(res) {
   try {
     const text = await res.text();
-    return text || "";
+    try {
+      const json = JSON.parse(text);
+      return json.message || json.error || text;
+    } catch {
+      return text || "";
+    }
   } catch {
     return "";
   }
@@ -170,7 +196,10 @@ onMounted(loadMyClasses);
         <p class="muted" v-if="isProfessor">
           Classes you’ve created. Use Create class to add another.
         </p>
-        <p class="muted" v-else-if="isStudentOrTa">
+        <p class="muted" v-else-if="isTA">
+          Classes you’re assigned to as TA.
+        </p>
+        <p class="muted" v-else>
           Classes you’ve joined.
         </p>
       </div>
@@ -180,7 +209,7 @@ onMounted(loadMyClasses);
       {{ error }}
     </div>
     <!-- If the user is a student or ta, show the join code input and button -->
-    <div v-if="isStudentOrTa">
+    <div v-if="role === 'STUDENT'">
       <div v-if="joinError" class="alert">{{ joinError }}</div>
       <div class="row">
         <input v-model="joinCode" class="input" placeholder="Join code (ex: 8H7K2M9Q)" />
@@ -218,14 +247,23 @@ onMounted(loadMyClasses);
       >
         <div class="class-top">
           <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
+          <span v-if="isTA" class="role-badge">TA</span>
         </div>
         <div class="class-title">{{ c.title }}</div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
+        <div v-if="role === 'STUDENT'" class="class-tas">
+          <template v-if="classTAs[c.joinCode] && classTAs[c.joinCode].length">
+            <span class="tas-label">TA:</span>
+            <span v-for="ta in classTAs[c.joinCode]" :key="ta.userId" class="ta-name">{{ ta.firstName }} {{ ta.lastName }}</span>
+          </template>
+          <span v-else-if="classTAs[c.joinCode]" class="tas-none">No TA assigned</span>
+        </div>
       </div>
 
       <div v-if="!classes.length" class="empty">
         <span v-if="isProfessor">No classes yet — click Create class to add one.</span>
-        <span v-else-if="isStudentOrTa">No classes yet — enter a join code above.</span>
+        <span v-else-if="isTA">No classes yet — ask your professor to assign you.</span>
+        <span v-else>No classes yet — enter a join code above.</span>
       </div>
     </div>
   </section>
@@ -274,23 +312,6 @@ onMounted(loadMyClasses);
 </template>
 
 <style scoped>
-.card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 18px;
-  padding: 16px;
-  color: #e5e7eb;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.25);
-}
-
-.card-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
 h2 {
   margin: 0;
   font-size: 18px;
@@ -301,55 +322,10 @@ h3 {
   font-size: 16px;
 }
 
-.muted {
-  margin: 6px 0 0;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
 .row {
   margin-top: 12px;
   display: flex;
   gap: 10px;
-}
-
-.alert {
-  margin: 10px 0 14px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.10);
-  color: #e5e7eb;
-  font-size: 13px;
-}
-
-.btn {
-  border: none;
-  background: #2563eb;
-  color: white;
-  font-weight: 800;
-  padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  min-width: 44px;
-}
-
-.btn:hover {
-  background: #1d4ed8;
-}
-
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn.ghost {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-
-.btn.ghost:hover {
-  background: rgba(255,255,255,0.09);
 }
 
 .class-grid {
@@ -446,33 +422,6 @@ h3 {
   position: relative;
 }
 
-.btn.btn-sm {
-  padding: 6px 10px;
-  border-radius: 12px;
-  min-width: auto;
-}
-
-.class-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.delete-btn {
-  white-space: nowrap;
-}
-
-.syllabus-btn {
-  margin-top: 10px;
-  width: 100%;
-  justify-content: center;
-}
-
-.modal--wide {
-  max-width: 680px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
 
 .class-code {
   font-weight: 900;
@@ -480,6 +429,42 @@ h3 {
   font-size: 15px;
   letter-spacing: 0.2px;
   position: relative;
+}
+
+.role-badge {
+  font-size: 11px;
+  font-weight: 900;
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: 6px;
+  padding: 2px 7px;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.class-tas {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9ca3af;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  position: relative;
+}
+
+.tas-label {
+  font-weight: 900;
+}
+
+.ta-name {
+  color: #e5e7eb;
+}
+
+.tas-none {
+  font-style: italic;
 }
 
 .class-title {
@@ -512,34 +497,6 @@ h3 {
   font-size: 13px;
 }
 
-/* Modal */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  z-index: 50;
-}
-
-.modal {
-  width: 100%;
-  max-width: 520px;
-  background: rgba(15,23,42,0.95);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 18px;
-  padding: 16px;
-  color: #e5e7eb;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
 
 .form {
   display: grid;
@@ -558,91 +515,4 @@ h3 {
   color: #9ca3af;
 }
 
-.input {
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(15,23,42,0.6);
-  color: #e5e7eb;
-  outline: none;
-}
-
-.input:focus {
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.5);
-  border-color: rgba(37,99,235,0.6);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
-
-/* Roster */
-.roster {
-  margin-top: 12px;
-}
-
-.roster-section {
-  margin-top: 12px;
-}
-
-.roster-section__title {
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 0 0 8px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.roster-list {
-  display: grid;
-  gap: 8px;
-}
-
-.roster-row {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-}
-
-.roster-row__name {
-  font-weight: 900;
-  color: #e5e7eb;
-}
-
-.roster-row__role {
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 900;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(15,23,42,0.65);
-  display: grid;
-  place-items: center;
-}
-
-.avatar__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.avatar__fallback {
-  font-weight: 900;
-  color: rgba(229,231,235,0.92);
-}
 </style>

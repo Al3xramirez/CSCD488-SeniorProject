@@ -1,24 +1,11 @@
 
 <script setup>
-import { computed, inject, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SyllabusUpload from "./SyllabusUpload.vue";
+import { useMe } from "../composables/useMe.js";
 
-/**
- * Class details page. This is for professors to view details about a class, including the roster and syllabus management.
- * The join code is used to identify the class, and is passed as a route parameter.
- * This page also allows professors to delete the class, which will remove it from all enrolled users' dashboards and revoke access.
- * Students should not have access to this page nor the TA's
- */
-
-const me = inject("me", null);
-
-const role = computed(() => {
-  const r = me?.value?.role;
-  return (r || "STUDENT").toString().trim().toUpperCase();
-});
-
-const isProfessor = computed(() => role.value === "PROFESSOR");
+const { isProfessor } = useMe();
 
 const route = useRoute();
 const router = useRouter();
@@ -34,6 +21,11 @@ const rosterError = ref("");
 const rosterUsers = ref([]);
 const photoFailed = ref({});
 
+const addTaEmail = ref("");
+const addTaLoading = ref(false);
+const addTaError = ref("");
+const addTaSuccess = ref("");
+
 const syllabusOpen = ref(false);
 
 const rosterTAs = computed(() => rosterUsers.value.filter(u => (u?.role || "").toString().toUpperCase() === "TA"));
@@ -42,7 +34,12 @@ const rosterStudents = computed(() => rosterUsers.value.filter(u => (u?.role || 
 async function safeErrorMessage(res) {
   try {
     const text = await res.text();
-    return text || "";
+    try {
+      const json = JSON.parse(text);
+      return json.message || json.error || text;
+    } catch {
+      return text || "";
+    }
   } catch {
     return "";
   }
@@ -150,6 +147,36 @@ async function deleteClass() {
   }
 }
 
+async function submitAddTa() {
+  if (!isProfessor.value || !joinCode.value) return;
+  addTaLoading.value = true;
+  addTaError.value = "";
+  addTaSuccess.value = "";
+
+  try {
+    const res = await fetch(`/api/classes/${encodeURIComponent(joinCode.value)}/ta`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ taEmail: addTaEmail.value.trim() }),
+    });
+
+    if (!res.ok) {
+      const msg = await safeErrorMessage(res);
+      throw new Error(msg || `Failed to add TA (${res.status})`);
+    }
+
+    const ta = await res.json();
+    rosterUsers.value = [...rosterUsers.value, ta];
+    addTaSuccess.value = `${ta.firstName} ${ta.lastName} added as TA.`;
+    addTaEmail.value = "";
+  } catch (e) {
+    addTaError.value = e?.message || "Failed to add TA";
+  } finally {
+    addTaLoading.value = false;
+  }
+}
+
 function goBack() {
   router.push({ name: "classes" });
 }
@@ -216,6 +243,15 @@ watch(joinCode, async () => {
 
       <div class="section">
         <div class="section-title">Enrolled Students</div>
+
+        <div class="add-ta-row">
+          <input v-model="addTaEmail" class="input" placeholder="TA email address" type="email" />
+          <button class="btn" type="button" :disabled="addTaLoading || !addTaEmail.trim()" @click="submitAddTa">
+            {{ addTaLoading ? "Adding…" : "Add TA" }}
+          </button>
+        </div>
+        <div v-if="addTaError" class="alert">{{ addTaError }}</div>
+        <div v-if="addTaSuccess" class="alert alert--success">{{ addTaSuccess }}</div>
 
         <div v-if="rosterError" class="alert">{{ rosterError }}</div>
         <div v-else-if="rosterLoading" class="muted">Loading roster…</div>
@@ -289,80 +325,9 @@ watch(joinCode, async () => {
 </template>
 
 <style scoped>
-.card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 18px;
-  padding: 16px;
-  color: #e5e7eb;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.25);
-}
-
-.card-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
 h2 {
   margin: 0;
   font-size: 18px;
-}
-
-.muted {
-  margin: 6px 0 0;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
-.alert {
-  margin: 10px 0 14px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.10);
-  color: #e5e7eb;
-  font-size: 13px;
-}
-
-.btn {
-  border: none;
-  background: #2563eb;
-  color: white;
-  font-weight: 800;
-  padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  min-width: 44px;
-}
-
-.btn:hover {
-  background: #1d4ed8;
-}
-
-.btn.danger {
-  background: rgb(239, 68, 68);
-  border: 1px solid rgba(239, 68, 68, 0.55);
-}
-
-.btn.danger:hover {
-  background: rgb(239, 68, 68);
-  filter: brightness(0.92);
-}
-
-.btn.ghost {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-
-.btn.ghost:hover {
-  background: rgba(255,255,255,0.09);
-}
-
-.btn.danger {
-  white-space: nowrap;
 }
 
 .meta {
@@ -421,70 +386,14 @@ h2 {
   margin-top: 12px;
 }
 
-.roster {
-  margin-top: 12px;
-}
-
-.roster-section {
-  margin-top: 12px;
-}
-
-.roster-section__title {
-  font-size: 12px;
-  color: #9ca3af;
-  margin: 0 0 8px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.roster-list {
-  display: grid;
-  gap: 8px;
-}
-
-.roster-row {
-  display: grid;
-  grid-template-columns: 40px 1fr auto;
-  align-items: center;
+.add-ta-row {
+  display: flex;
   gap: 10px;
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 10px;
 }
 
-.roster-row__name {
-  font-weight: 900;
-  color: #e5e7eb;
+.add-ta-row .input {
+  flex: 1;
 }
 
-.roster-row__role {
-  font-size: 12px;
-  color: #9ca3af;
-  font-weight: 900;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(15,23,42,0.65);
-  display: grid;
-  place-items: center;
-}
-
-.avatar__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.avatar__fallback {
-  font-weight: 900;
-  color: rgba(229,231,235,0.92);
-}
 </style>
