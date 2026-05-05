@@ -1,7 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { useMe } from "../composables/useMe.js";
+
+import {
+  endOfWeekSaturday,
+  parseLocalDateTime,
+  startOfWeekSunday,
+  workloadLevelFromCount,
+} from "../utils/workload";
 
 const router = useRouter();
 const { role } = useMe();
@@ -95,10 +101,8 @@ const hasEvents = computed(() => events.value.length > 0);
 
 const upcomingItems = computed(() => {
   const now = new Date();
-  // End of current week Sunday 23:59:59
-  const endOfWeek = new Date(now);
-  endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-  endOfWeek.setHours(23, 59, 59, 999);
+  // End of current week Saturday 23:59:59 (Sunday–Saturday week)
+  const endOfWeek = endOfWeekSaturday(now);
 
   return events.value
     .filter(e => {
@@ -133,14 +137,23 @@ async function fetchEvents() {
   }
 }
 
-function parseLocalDateTime(s) {
-  if (!s) return new Date(NaN);
-  const [datePart, timePart = "00:00:00"] = String(s).split("T");
-  const [y, m, d] = datePart.split("-").map(Number);
-  const [hh, mm, ssRaw] = timePart.split(":");
-  const ss = (ssRaw || "0").split(".")[0];
-  return new Date(y, m - 1, d, Number(hh || 0), Number(mm || 0), Number(ss || 0));
-}
+// ── Workload This Week (overall Sun–Sat) ──────────────────────────
+const weekStart = computed(() => startOfWeekSunday(new Date()));
+const weekEnd = computed(() => endOfWeekSaturday(new Date()));
+
+const assignmentsThisWeek = computed(() => {
+  const start = weekStart.value;
+  const end = weekEnd.value;
+  return events.value.filter((e) => {
+    if (e.isCancelled) return false;
+    const dt = parseLocalDateTime(e.startAt);
+    return dt >= start && dt <= end;
+  });
+});
+
+const assignmentCountThisWeek = computed(() => assignmentsThisWeek.value.length);
+const workloadLevelThisWeek = computed(() => workloadLevelFromCount(assignmentCountThisWeek.value));
+const workloadMeterWidth = computed(() => Math.min(100, (assignmentCountThisWeek.value / 8) * 100));
 
 onMounted(async () => {
   await fetchMyClasses();
@@ -298,12 +311,14 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Workload This Week (placeholder) -->
+      <!-- Workload This Week  -->
       <section class="card">
         <div class="card-header">
           <div>
             <h2>Workload This Week</h2>
+            <p class="muted" style="margin:6px 0 0">{{ assignmentCountThisWeek }} assignment(s) due (Sun–Sat).</p>
           </div>
+          <button class="btn" @click="router.push('/app/workload-projections')">Details</button>
         </div>
 
         <div class="workload-scale">
@@ -313,11 +328,11 @@ onMounted(async () => {
         </div>
 
         <div class="workload-meter" aria-hidden="true">
-          <div class="workload-meter-fill heavy" style="width: 70%"></div>
+          <div class="workload-meter-fill" :class="workloadLevelThisWeek" :style="{ width: workloadMeterWidth + '%' }"></div>
         </div>
 
-        <div class="empty-note">
-          Placeholder for a workload summary (e.g., readings, assignments, quizzes).
+        <div v-if="!assignmentCountThisWeek" class="empty-note">
+          {{ hasEvents ? 'No due assignments detected this week.' : 'No Canvas feed connected yet.' }}
         </div>
       </section>
     </div>
@@ -338,17 +353,12 @@ onMounted(async () => {
   gap: 18px;
 }
 
-.workload-scale {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
+ /* Pill component for workload levels */
 
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 10px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
@@ -376,8 +386,17 @@ onMounted(async () => {
   color: rgba(187, 247, 208, 0.95);
 }
 
+/* css for workload meter */
+
+.workload-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .workload-meter {
-  height: 12px;
+  height: 14px;
   border-radius: 999px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
@@ -398,6 +417,24 @@ onMounted(async () => {
     rgba(239, 68, 68, 0.25)
   );
 }
+
+.workload-meter-fill.moderate {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.65),
+    rgba(245, 158, 11, 0.25)
+  );
+}
+
+.workload-meter-fill.light {
+  background: linear-gradient(
+    90deg,
+    rgba(34, 197, 94, 0.65),
+    rgba(34, 197, 94, 0.25)
+  );
+}
+
+/* Class schedule grid */
 
 .prof {
   display: flex;
@@ -593,7 +630,6 @@ h3 {
   font-weight: 800;
 }
 
-
 .row {
   margin-top: 12px;
   display: flex;
@@ -617,18 +653,23 @@ h3 {
 
 .class-select {
   font-size: 13px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.04);
-  color: #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: 900;
   outline: none;
   cursor: pointer;
   flex-shrink: 0;
 }
 
+.class-select:hover {
+  background: #1d4ed8;
+}
+
 .class-select:focus {
-  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.5);
 }
 
 .syllabus-section {
