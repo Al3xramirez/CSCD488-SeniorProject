@@ -1,6 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
 
+// good-ol vue imports
+import { computed, onMounted, reactive, ref } from "vue"; 
+
+// utility functions from src/utils/workload.js
 import {
   addDays,
   endOfWeekSaturday,
@@ -11,6 +14,7 @@ import {
   workloadLevelFromCount,
 } from "../utils/workload";
 
+// ---- ref varaibles for classes ---
 const loading = ref(false);
 const error = ref("");
 
@@ -19,23 +23,26 @@ const events = ref([]);
 
 const weekIndex = ref(0); // 0 = this week
 
-// toggle state per joinCode
+// ---- reactive state for which class panels are open ----
 const open = reactive({});
 
 const syllabusCache = ref(new Map()); // joinCode -> syllabusObject|null
 
+// ---- fetching classes from current user ----
 async function fetchMyClasses() {
   const res = await fetch("/api/classes/mine", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to load classes");
   myClasses.value = await res.json();
 }
 
+// ---- fetching calendar events from current user ----
 async function fetchEvents() {
   const res = await fetch("/api/calendar/events", { credentials: "include" });
   if (!res.ok) throw new Error("Failed to load calendar events");
   events.value = await res.json();
 }
 
+/// ---- fetching syllabus for a class, if we haven't already ----
 async function fetchSyllabusIfNeeded(joinCode) {
   if (!joinCode) return;
   if (syllabusCache.value.has(joinCode)) return;
@@ -49,23 +56,28 @@ async function fetchSyllabusIfNeeded(joinCode) {
   }
 }
 
+// calculates the start date for that week index (0 = this week, 1 = next week, etc)
 function weekStartForIndex(i) {
   return addDays(startOfWeekSunday(new Date()), i * 7);
 }
 
+// calculates the end date for that week index (0 = this week, 1 = next week, etc)
 function weekEndForIndex(i) {
   return endOfWeekSaturday(weekStartForIndex(i));
 }
 
+// computed properties for the selected week's start and end dates, based on the current weekIndex
 const selectedWeekStart = computed(() => weekStartForIndex(weekIndex.value));
 const selectedWeekEnd = computed(() => weekEndForIndex(weekIndex.value));
 
+// formats a date range (e.g. "Mar 5 – Mar 11") for display in the UI
 function fmtRange(start, end) {
   const a = start.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const b = end.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   return `${a} – ${b}`;
 }
 
+// options for the week selection dropdown, showing the date range for each week
 const weekOptions = computed(() => {
   const out = [];
   for (let i = 0; i < 8; i++) {
@@ -77,27 +89,90 @@ const weekOptions = computed(() => {
   return out;
 });
 
+// helper function to check if a given date falls within the currently selected week
 function inSelectedWeek(dt) {
   return dt >= selectedWeekStart.value && dt <= selectedWeekEnd.value;
 }
 
 // All iCal events returned by the backend are treated as workload items.
-// (We only exclude cancelled events.)
 const workloadEvents = computed(() => events.value.filter((e) => !e.isCancelled));
 
+// Overall workload level for the selected week, based on the count of due items.
 const overallCount = computed(() =>
   workloadEvents.value.filter((e) => inSelectedWeek(parseLocalDateTime(e.startAt))).length
 );
 
+// Maps the overall count to a workload level (e.g. "light", "moderate", "heavy") for UI display.
 const overallLevel = computed(() => workloadLevelFromCount(overallCount.value));
 
+// Calculates the width of the workload meter bar as a percentage, capping at 100% for 8 or more items.
 const overallMeterWidth = computed(() => Math.min(100, (overallCount.value / 8) * 100));
 
+/*monthly overview calculations*/
+const monthStart = computed(() => {
+  const d = new Date();
+  const out = new Date(d.getFullYear(), d.getMonth(), 1);
+  out.setHours(0, 0, 0, 0);
+  return out;
+});
+
+const monthEnd = computed(() => {
+  const d = new Date();
+  const out = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  out.setHours(23, 59, 59, 999);
+  return out;
+});
+
+const monthLabel = computed(() =>
+  monthStart.value.toLocaleDateString(undefined, { month: "long", year: "numeric" })
+);
+
+const monthWeeks = computed(() => {
+  const start = startOfWeekSunday(monthStart.value);
+  const end = endOfWeekSaturday(monthEnd.value);
+  const out = [];
+
+  for (let ws = new Date(start); ws <= end; ws = addDays(ws, 7)) {
+    const we = endOfWeekSaturday(ws);
+    const wsCopy = new Date(ws);
+    const weCopy = new Date(we);
+    const labelStart = wsCopy.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const labelEnd = weCopy.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const count = workloadEvents.value.filter((e) => {
+      const dt = parseLocalDateTime(e.startAt);
+      return dt >= wsCopy && dt <= weCopy;
+    }).length;
+    const level = workloadLevelFromCount(count);
+
+    out.push({
+      start: wsCopy,
+      end: weCopy,
+      count,
+      level,
+      labelStart,
+      labelEnd,
+    });
+  }
+
+  return out;
+});
+
+// Fixed chart scale so bars stay readable
+const MONTH_CHART_MAX = 10;
+
+// Calculates the height percentage for a bar in the monthly overview chart, capping at MONTH_CHART_MAX for readability.
+function monthBarHeightPct(count) {
+  const capped = Math.min(MONTH_CHART_MAX, Math.max(0, Number(count) || 0));
+  return (capped / MONTH_CHART_MAX) * 100;
+}
+
+// Helper function to get the class code (e.g. "CSCD350") for a given join code, by looking it up in the user's classes.
 function classCodeForJoinCode(joinCode) {
   const c = myClasses.value.find((x) => x.joinCode === joinCode);
   return String(c?.classCode || "").toUpperCase() || null;
 }
 
+// Gets the calendar events for a specific class (identified by join code)
 function eventsForClassThisWeek(joinCode) {
   const code = classCodeForJoinCode(joinCode);
   if (!code) return [];
@@ -112,12 +187,15 @@ function eventsForClassThisWeek(joinCode) {
     .sort((a, b) => parseLocalDateTime(a.startAt) - parseLocalDateTime(b.startAt));
 }
 
+// Helper function to get the grade breakdown array for a given class (identified by join code) from the syllabus cache.
 function gradeBreakdownForJoinCode(joinCode) {
   const syllabus = syllabusCache.value.get(joinCode);
   const gb = syllabus?.gradeBreakdown;
   return Array.isArray(gb) ? gb : [];
 }
 
+// Helper function to generate a badge string showing the grade component and weight for a calendar event,
+//  by matching the event summary to the syllabus grade breakdown.
 function weightBadgeForEvent(joinCode, summary) {
   const gb = gradeBreakdownForJoinCode(joinCode);
   const matched = matchGradeBreakdownComponent(summary, gb);
@@ -128,10 +206,14 @@ function weightBadgeForEvent(joinCode, summary) {
   return `${comp}${comp && w ? " · " : ""}${w}`;
 }
 
+/* Helper function to generate a unique key for a calendar event, based on its iCal UID, start time, and recurrence ID.
+   We need this to ensure that events are rendered correctly with v-for loops */
 function eventKey(e) {
   return `${e.icalUid || ""}|${e.startAt || ""}|${e.recurrenceId || ""}`;
 }
 
+// Toggles whether the details panel for a class (identified by join code) is open, 
+// and if opening, fetches the syllabus if we haven't already.
 async function toggleClass(joinCode) {
   open[joinCode] = !open[joinCode];
   if (open[joinCode]) {
@@ -139,6 +221,7 @@ async function toggleClass(joinCode) {
   }
 }
 
+// On component mount, fetch the user's classes and calendar events in parallel, and handle loading and error states.
 onMounted(async () => {
   loading.value = true;
   error.value = "";
@@ -160,7 +243,7 @@ onMounted(async () => {
         <p class="muted">Counts are based on Canvas iCal due items (Sunday–Saturday).</p>
       </div>
 
-      <select class="select" v-model.number="weekIndex">
+      <select class="select" :class="{ primary: weekIndex === 0 }" v-model.number="weekIndex">
         <option v-for="o in weekOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
     </div>
@@ -168,11 +251,12 @@ onMounted(async () => {
     <div v-if="error" class="note err">{{ error }}</div>
 
     <div class="grid">
-      <!-- Overall -->
+
+      <!-- Workload This Week-->
       <section class="card">
         <div class="card-header">
           <div>
-            <h2>Overall Workload</h2>
+            <h2>Workload This Week</h2>
             <p class="muted">{{ overallCount }} assignment(s) due · {{ fmtRange(selectedWeekStart, selectedWeekEnd) }}</p>
           </div>
           <span class="pill" :class="overallLevel">{{ overallLevel }}</span>
@@ -188,12 +272,10 @@ onMounted(async () => {
           <div class="workload-meter-fill" :class="overallLevel" :style="{ width: overallMeterWidth + '%' }" />
         </div>
 
-        <div class="empty-note">
-          {{ overallCount ? `Workload level: ${overallLevel}.` : 'No due assignments detected for this week.' }}
-        </div>
+        <div v-if="!overallCount" class="empty-note">No due assignments detected for this week.</div>
       </section>
 
-      <!-- Per-class -->
+      <!-- Per-class Cards -->
       <section class="card">
         <div class="card-header">
           <div>
@@ -256,10 +338,31 @@ onMounted(async () => {
                 </div>
 
                 <div class="note small">
-                  If your syllabus only provides category weights (e.g., “Assignments 60%”), we show that category weight for each matched item. Exact per-assignment % typically requires point totals or explicit per-assignment grading.
+                 Note: Weight shown is the syllabus category weight, not this item’s exact grade impact.
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Monthly overview (Bar Chart) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2>{{ monthLabel }}</h2>
+            <p class="muted">Weekly due Assignments (Sun–Sat).</p>
+          </div>
+        </div>
+
+        <div v-if="loading" class="placeholder">Loading…</div>
+        <div v-else-if="!workloadEvents.length" class="empty-note">No due assignments detected for this month.</div>
+
+        <div v-else class="bar-chart" role="img" :aria-label="`${monthLabel} weekly due items bar chart`">
+          <div class="bar-col" v-for="(w, i) in monthWeeks" :key="i" :title="`${fmtRange(w.start, w.end)} · ${w.count} due item(s)`">
+            <div class="bar" :class="w.level" :style="{ height: monthBarHeightPct(w.count) + '%' }" />
+            <div class="bar-count">{{ w.count }}</div>
+            <div class="bar-label">{{ w.labelStart }} - {{ w.labelEnd }}</div>
           </div>
         </div>
       </section>
@@ -285,12 +388,8 @@ h2 { margin: 0; font-size: 18px; }
 
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 18px;
-}
-
-@media (max-width: 980px) {
-  .grid { grid-template-columns: 1fr; }
 }
 
 .card {
@@ -315,6 +414,15 @@ h2 { margin: 0; font-size: 18px; }
   color: #e5e7eb;
   padding: 10px 12px;
   border-radius: 14px;
+  cursor: pointer;
+}
+
+.select.primary {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  font-weight: 800;
+  border-radius: 999px;
 }
 
 .workload-scale {
@@ -327,7 +435,7 @@ h2 { margin: 0; font-size: 18px; }
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 10px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
@@ -357,7 +465,7 @@ h2 { margin: 0; font-size: 18px; }
 }
 
 .workload-meter {
-  height: 12px;
+  height: 14px;
   border-radius: 999px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
@@ -392,6 +500,63 @@ h2 { margin: 0; font-size: 18px; }
   font-size: 13px;
   color: #9ca3af;
   font-weight: 800;
+}
+
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 150px;
+  padding: 8px 4px;
+}
+
+.bar-col {
+  flex: 1;
+  min-width: 32px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.bar {
+  width: 100%;
+  max-width: 46px;
+  min-height: 4px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.bar.heavy {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.bar.moderate {
+  background: rgba(245, 158, 11, 0.20);
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.bar.light {
+  background: rgba(34, 197, 94, 0.20);
+  border-color: rgba(34, 197, 94, 0.30);
+}
+
+.bar-count {
+  font-size: 12px;
+  font-weight: 900;
+  color: #e5e7eb;
+}
+
+.bar-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #9ca3af;
+  line-height: 1.1;
+  text-align: center;
 }
 
 .note {

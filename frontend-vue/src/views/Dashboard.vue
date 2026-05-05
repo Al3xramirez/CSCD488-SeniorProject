@@ -281,14 +281,14 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Workload This Week (placeholder) -->
+      <!-- Workload This Week  -->
       <section class="card">
         <div class="card-header">
           <div>
             <h2>Workload This Week</h2>
             <p class="muted" style="margin:6px 0 0">{{ assignmentCountThisWeek }} assignment(s) due (Sun–Sat).</p>
           </div>
-          <button class="btn ghost" @click="router.push('/app/workload-projections')">Details</button>
+          <button class="btn" @click="router.push('/app/workload-projections')">Details</button>
         </div>
 
         <div class="workload-scale">
@@ -301,8 +301,8 @@ onMounted(async () => {
           <div class="workload-meter-fill" :class="workloadLevelThisWeek" :style="{ width: workloadMeterWidth + '%' }"></div>
         </div>
 
-        <div class="empty-note">
-          {{ assignmentCountThisWeek ? `Workload level: ${workloadLevelThisWeek}.` : (hasEvents ? 'No due assignments detected this week.' : 'No Canvas feed connected yet.') }}
+        <div v-if="!assignmentCountThisWeek" class="empty-note">
+          {{ hasEvents ? 'No due assignments detected this week.' : 'No Canvas feed connected yet.' }}
         </div>
       </section>
     </div>
@@ -323,17 +323,12 @@ onMounted(async () => {
   gap: 18px;
 }
 
-.workload-scale {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
+ /* Pill component for workload levels */
 
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 6px 10px;
+  padding: 10px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 900;
@@ -361,8 +356,17 @@ onMounted(async () => {
   color: rgba(187, 247, 208, 0.95);
 }
 
+/* css for workload meter */
+
+.workload-scale {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .workload-meter {
-  height: 12px;
+  height: 14px;
   border-radius: 999px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
@@ -399,6 +403,8 @@ onMounted(async () => {
     rgba(34, 197, 94, 0.25)
   );
 }
+
+/* Class schedule grid */
 
 .prof {
   display: flex;
@@ -594,7 +600,6 @@ h3 {
   font-weight: 800;
 }
 
-
 .row {
   margin-top: 12px;
   display: flex;
@@ -618,18 +623,23 @@ h3 {
 
 .class-select {
   font-size: 13px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.04);
-  color: #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: 900;
   outline: none;
   cursor: pointer;
   flex-shrink: 0;
 }
 
+.class-select:hover {
+  background: #1d4ed8;
+}
+
 .class-select:focus {
-  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.5);
 }
 
 .syllabus-section {

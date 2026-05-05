@@ -4,6 +4,10 @@ This helps keep workload related logic in its own module, which can be used by
 multiple components
  */
 
+
+/* Parses a local date-time string (e.g. "2024-09-15T14:30") into a Date object.
+* This is used to handle date-time strings for workload Items
+*/
 export function parseLocalDateTime(s) {
   if (!s) return new Date(NaN);
   const [datePart, timePart = "00:00:00"] = String(s).split("T");
@@ -13,13 +17,21 @@ export function parseLocalDateTime(s) {
   return new Date(y, (m || 1) - 1, d || 1, Number(hh || 0), Number(mm || 0), Number(ss || 0));
 }
 
+/*
+* Returns the start of the week (Sunday) for a given date.
+* If no date is provided, uses the current date.
+*/
 export function startOfWeekSunday(d = new Date()) {
   const out = new Date(d);
-  out.setHours(0, 0, 0, 0);
+  out.setHours(0, 0, 0, 0); 
   out.setDate(out.getDate() - out.getDay()); // Sunday=0
   return out;
 }
 
+/**
+ * Returns the end of the week (Saturday) for a given date.
+ * If no date is provided, uses the current date.
+ */
 export function endOfWeekSaturday(d = new Date()) {
   const start = startOfWeekSunday(d);
   const out = new Date(start);
@@ -28,36 +40,25 @@ export function endOfWeekSaturday(d = new Date()) {
   return out;
 }
 
+/* Adds a specified number of days to a date and returns the new date.
+* This is used to calculate week ranges for workload projections.
+*/
 export function addDays(d, days) {
   const out = new Date(d);
   out.setDate(out.getDate() + days);
   return out;
 }
 
-export function isLikelyWorkloadItem(summary) {
-  const s = String(summary || "").toLowerCase();
-  if (!s) return false;
-  return (
-    s.includes("due") ||
-    s.includes("assignment") ||
-    s.match(/\bhw\b/) ||
-    s.includes("homework") ||
-    s.includes("quiz") ||
-    s.includes("exam") ||
-    s.includes("midterm") ||
-    s.includes("final") ||
-    s.includes("project") ||
-    s.includes("lab") ||
-    s.includes("discussion")
-  );
-}
-
+/* Checks if the count of due items falls into light, moderate, or heavy workload levels.*/
 export function workloadLevelFromCount(count) {
   if (count >= 6) return "heavy";
   if (count >= 3) return "moderate";
   return "light";
 }
 
+/* Extracts a course code (e.g. "CSCD350") from a calendar event summary string.
+* This is used to link calendar events to specific classes for workload analysis.
+*/
 export function extractCourseCodeFromSummary(summary) {
   const s = String(summary || "");
   // Common patterns: CSCD350, CSCD 350, CSCD-350
@@ -66,6 +67,11 @@ export function extractCourseCodeFromSummary(summary) {
   return `${m[1]}${m[2]}`.toUpperCase();
 }
 
+/* Attempts to match a calendar event summary to one of the user's class codes.
+* This is used to link calendar events to specific classes for workload analysis.
+* THIS IS A VERY IMPORTANT FUNCTION
+* It will first look for direct matches (which is really unlikely to work), then looks for type-based matches
+*/
 export function matchEventToClassCode(summary, myClasses) {
   const s = String(summary || "").toUpperCase();
   if (!s) return null;
@@ -84,19 +90,12 @@ export function matchEventToClassCode(summary, myClasses) {
   return extractCourseCodeFromSummary(summary);
 }
 
-export function parsePercent(weightStr) {
-  const raw = String(weightStr || "").trim();
-  if (!raw) return null;
-  const m = raw.match(/(-?\d+(?:\.\d+)?)\s*%/);
-  if (m) return Number(m[1]);
-  const n = Number(raw);
-  if (Number.isFinite(n)) {
-    if (n > 0 && n <= 1) return n * 100;
-    return n;
-  }
-  return null;
-}
-
+/* This const defines synonyms for different types of coursework (e.g. "assignment", "quiz", "exam") to help
+* match calendar events to grade breakdown components, even if the wording is different.
+* For example, an event with "HW1" in the summary could be matched to a
+* grade breakdown component labeled "Homework 1" because "hw" is a recognized synonym for "homework".
+* This improves the accuracy of linking calendar events to their corresponding grade components for workload analysis. 
+*/
 const TYPE_SYNONYMS = {
   assignment: ["assignment", "assignments", "hw", "homework"],
   quiz: ["quiz", "quizzes"],
@@ -107,6 +106,10 @@ const TYPE_SYNONYMS = {
   reading: ["reading", "read"],
 };
 
+/* Normalizes a string by converting it to lowercase, removing special characters, and collapsing whitespace.
+* This is used to improve the robustness of matching calendar event summaries to grade breakdown components,
+* by reducing variations in formatting and wording.
+*/
 function norm(s) {
   return String(s || "")
     .toLowerCase()
@@ -115,6 +118,13 @@ function norm(s) {
     .trim();
 }
 
+/* This is the big boy function that tries to match a calendar event summary to a grade breakdown component, using multiple strategies:
+1) Direct component name match: checks if the normalized event summary includes the normalized component name.
+2) Type-based match: detects if the event summary contains keywords associated with a coursework type (e.g. "hw" for homework),
+ and then checks if any component names include synonyms for that type.
+3) If there is exactly one component in the grade breakdown, it assumes that is the match.
+This function is crucial for linking calendar events to their corresponding grade components
+*/
 export function matchGradeBreakdownComponent(eventSummary, gradeBreakdown) {
   const s = norm(eventSummary);
   const list = Array.isArray(gradeBreakdown) ? gradeBreakdown : [];
