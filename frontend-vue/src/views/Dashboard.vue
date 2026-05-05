@@ -4,7 +4,6 @@ import { useRouter } from "vue-router";
 
 import {
   endOfWeekSaturday,
-  isLikelyWorkloadItem,
   parseLocalDateTime,
   startOfWeekSunday,
   workloadLevelFromCount,
@@ -136,7 +135,6 @@ const assignmentsThisWeek = computed(() => {
   const end = weekEnd.value;
   return events.value.filter((e) => {
     if (e.isCancelled) return false;
-    if (!isLikelyWorkloadItem(e.summary)) return false;
     const dt = parseLocalDateTime(e.startAt);
     return dt >= start && dt <= end;
   });
