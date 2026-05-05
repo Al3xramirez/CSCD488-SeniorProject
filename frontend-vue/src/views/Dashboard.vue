@@ -2,6 +2,14 @@
 import { computed, inject, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
+import {
+  endOfWeekSaturday,
+  isLikelyWorkloadItem,
+  parseLocalDateTime,
+  startOfWeekSunday,
+  workloadLevelFromCount,
+} from "../utils/workload";
+
 const me = inject("me", null);
 const router = useRouter();
 
@@ -83,10 +91,8 @@ const hasEvents = computed(() => events.value.length > 0);
 
 const upcomingItems = computed(() => {
   const now = new Date();
-  // End of current week Sunday 23:59:59
-  const endOfWeek = new Date(now);
-  endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-  endOfWeek.setHours(23, 59, 59, 999);
+  // End of current week Saturday 23:59:59 (Sunday–Saturday week)
+  const endOfWeek = endOfWeekSaturday(now);
 
   return events.value
     .filter(e => {
@@ -121,14 +127,24 @@ async function fetchEvents() {
   }
 }
 
-function parseLocalDateTime(s) {
-  if (!s) return new Date(NaN);
-  const [datePart, timePart = "00:00:00"] = String(s).split("T");
-  const [y, m, d] = datePart.split("-").map(Number);
-  const [hh, mm, ssRaw] = timePart.split(":");
-  const ss = (ssRaw || "0").split(".")[0];
-  return new Date(y, m - 1, d, Number(hh || 0), Number(mm || 0), Number(ss || 0));
-}
+// ── Workload This Week (overall Sun–Sat) ──────────────────────────
+const weekStart = computed(() => startOfWeekSunday(new Date()));
+const weekEnd = computed(() => endOfWeekSaturday(new Date()));
+
+const assignmentsThisWeek = computed(() => {
+  const start = weekStart.value;
+  const end = weekEnd.value;
+  return events.value.filter((e) => {
+    if (e.isCancelled) return false;
+    if (!isLikelyWorkloadItem(e.summary)) return false;
+    const dt = parseLocalDateTime(e.startAt);
+    return dt >= start && dt <= end;
+  });
+});
+
+const assignmentCountThisWeek = computed(() => assignmentsThisWeek.value.length);
+const workloadLevelThisWeek = computed(() => workloadLevelFromCount(assignmentCountThisWeek.value));
+const workloadMeterWidth = computed(() => Math.min(100, (assignmentCountThisWeek.value / 8) * 100));
 
 onMounted(async () => {
   await fetchMyClasses();
@@ -272,7 +288,9 @@ onMounted(async () => {
         <div class="card-header">
           <div>
             <h2>Workload This Week</h2>
+            <p class="muted" style="margin:6px 0 0">{{ assignmentCountThisWeek }} assignment(s) due (Sun–Sat).</p>
           </div>
+          <button class="btn ghost" @click="router.push('/app/workload-projections')">Details</button>
         </div>
 
         <div class="workload-scale">
@@ -282,11 +300,11 @@ onMounted(async () => {
         </div>
 
         <div class="workload-meter" aria-hidden="true">
-          <div class="workload-meter-fill heavy" style="width: 70%"></div>
+          <div class="workload-meter-fill" :class="workloadLevelThisWeek" :style="{ width: workloadMeterWidth + '%' }"></div>
         </div>
 
         <div class="empty-note">
-          Placeholder for a workload summary (e.g., readings, assignments, quizzes).
+          {{ assignmentCountThisWeek ? `Workload level: ${workloadLevelThisWeek}.` : (hasEvents ? 'No due assignments detected this week.' : 'No Canvas feed connected yet.') }}
         </div>
       </section>
     </div>
@@ -365,6 +383,22 @@ onMounted(async () => {
     90deg,
     rgba(239, 68, 68, 0.65),
     rgba(239, 68, 68, 0.25)
+  );
+}
+
+.workload-meter-fill.moderate {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.65),
+    rgba(245, 158, 11, 0.25)
+  );
+}
+
+.workload-meter-fill.light {
+  background: linear-gradient(
+    90deg,
+    rgba(34, 197, 94, 0.65),
+    rgba(34, 197, 94, 0.25)
   );
 }
 
