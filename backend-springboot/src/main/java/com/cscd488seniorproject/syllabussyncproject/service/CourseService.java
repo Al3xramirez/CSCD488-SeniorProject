@@ -228,8 +228,8 @@ public class CourseService {
         UserAccountEntity ta = userRepo.findByEmail(taEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No account found with that email"));
 
-        if (!normalizeRole(ta.getRole()).equals("TA")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That user is not registered as a TA");
+        if (normalizeRole(ta.getRole()).equals("PROFESSOR")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot assign a professor as TA");
         }
 
         boolean already = taRepo.existsByUserIdAndClassCodeAndQuarterAndYear(

@@ -8,6 +8,7 @@ import Meetings from "../views/Meetings.vue";
 import DashboardLayout from "../layout/DashboardLayout.vue";
 import Calendar from "../views/Calendar.vue";
 import OfficeHours from "../views/OfficeHours.vue";
+import MyOfficeHours from "../views/MyOfficeHours.vue";
 import SyllabusUpload from "../views/SyllabusUpload.vue";
 import WorkloadProjections from "../views/WorkloadProjections.vue";
 import MyClasses from "../views/MyClasses.vue";
@@ -30,6 +31,7 @@ const router = createRouter({
         { path: "meetings", name: "meetings", component: Meetings },
         { path: "calendar", name: "calendar", component: Calendar },
         { path: "office-hours", name: "office-hours", component: OfficeHours },
+        { path: "my-office-hours", name: "my-office-hours", component: MyOfficeHours },
         { path: "syllabus-upload", name: "syllabus-upload", component: SyllabusUpload },
         { path: "workload-projections", name: "workload-projections", component: WorkloadProjections },
         { path: "profile", name: "profile", component: Profile, meta: { hideHeader: true } },
