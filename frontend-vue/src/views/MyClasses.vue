@@ -1,11 +1,17 @@
 <script setup>
 // ------- Imports and retrieving user info -------
-import { onMounted, ref } from "vue";
+import { computed, inject, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { useMe } from "../composables/useMe.js";
 
+const me = inject("me", null);
 const router = useRouter();
-const { role, isProfessor, isTA } = useMe();
+
+const role = computed(() => {
+  const r = me?.value?.role;
+  return (r || "STUDENT").toString().trim().toUpperCase();
+});
+const isProfessor = computed(() => role.value === "PROFESSOR");
+const isTA = computed(() => role.value === "TA");
 
 const classes = ref([]);
 const loading = ref(false);

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, inject, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import {
@@ -9,8 +9,13 @@ import {
   workloadLevelFromCount,
 } from "../utils/workload";
 
+const me = inject("me", null);
 const router = useRouter();
-const { role } = useMe();
+
+const role = computed(() => {
+  const r = me?.value?.role;
+  return (r || "STUDENT").toString().trim().toUpperCase();
+});
 
 // ── Syllabus Overview ──────────────────────────────────────────────
 const myClasses = ref([]);

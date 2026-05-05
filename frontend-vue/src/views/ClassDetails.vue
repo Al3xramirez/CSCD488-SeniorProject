@@ -1,11 +1,16 @@
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, inject, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SyllabusUpload from "./SyllabusUpload.vue";
-import { useMe } from "../composables/useMe.js";
 
-const { isProfessor } = useMe();
+const me = inject("me", null);
+
+const role = computed(() => {
+  const r = me?.value?.role;
+  return (r || "STUDENT").toString().trim().toUpperCase();
+});
+const isProfessor = computed(() => role.value === "PROFESSOR");
 
 const route = useRoute();
 const router = useRouter();
