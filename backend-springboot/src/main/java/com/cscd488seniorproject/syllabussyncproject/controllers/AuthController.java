@@ -110,16 +110,17 @@ public class AuthController {
                 }
             }
         }
-        // Return the user's email, role, first name, and last name to the frontend. The frontend can use this info for role-based UI.
+        // Return the user's email, role, first name, last name, AND NOW availability status (if professor/TA) to the frontend
         return ResponseEntity.ok(new MeResponse(
             email,
             role,
             user == null ? null : user.getFirstName(),
-            user == null ? null : user.getLastName()
+            user == null ? null : user.getLastName(),
+            user == null || user.getAvailabilityStatus() == null ? null : user.getAvailabilityStatus().name()
         ));
     }
     // This record class is used to represent the response from the /me endpoint, which includes the user's email, role, first name, and last name. 
     // Inline suggestions suggested making this a record.
-    public record MeResponse(String email, String role, String firstName, String lastName) {}
+    public record MeResponse(String email, String role, String firstName, String lastName, String availabilityStatus) {}
 
 }
