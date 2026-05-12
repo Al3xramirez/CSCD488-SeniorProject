@@ -1,7 +1,9 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"; 
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from "vue"; 
 import { useRouter } from "vue-router";
 const router = useRouter();
+
+const me = inject('me', null);
 
 const props = defineProps({ // props is an object containing role, firstName, and lastName
   role: { type: String, default: null },
@@ -49,6 +51,55 @@ async function refreshPhoto() {
 
 const roleViewLabel = computed(() => `${roleLabel.value} View`);
 
+const isStaff = computed(() => {
+  const r = (props.role || 'STUDENT').toString().trim().toUpperCase();
+  return r === 'PROFESSOR' || r === 'TA';
+});
+
+const availability = ref('AVAILABLE');
+
+// watch is used to instantly update availability whenever me.value.availabilityStatus changes.
+watch(
+  () => me?.value?.availabilityStatus,
+  (v) => {
+    const next = (v || '').toString().trim().toUpperCase();
+    availability.value = next || 'AVAILABLE';
+  },
+  { immediate: true }
+);
+
+function availabilityDotClass(status) {
+  const v = (status || '').toString().trim().toUpperCase();
+  if (v === 'IDLE') return 'status-dot--idle';
+  if (v === 'DND') return 'status-dot--dnd';
+  return 'status-dot--available';
+}
+
+// API call to cycle availability status between AVAILABLE, IDLE, and DND for staff users.
+async function cycleAvailability() {
+  if (!isStaff.value) return;
+
+  const current = availability.value;
+  const next = current === 'AVAILABLE' ? 'IDLE' : current === 'IDLE' ? 'DND' : 'AVAILABLE';
+
+  try {
+    const res = await fetch('/api/me/availability', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ status: next }),
+    });
+    if (!res.ok) return;
+
+    availability.value = next;
+    if (me?.value) {
+      me.value = { ...me.value, availabilityStatus: next };
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
 function goProfile() {
   router.push("/app/profile");
 }
@@ -83,8 +134,20 @@ onBeforeUnmount(() => {
 
       <div class="profile" @click="goProfile" type="button" title="Open profile">
         <div class="avatar" aria-label="Profile photo">
-          <img v-if="photoUrl" class="avatar-img" :src="photoUrl" alt="Profile photo" />
-          <div v-else class="avatar-fallback">{{ initials }}</div>
+          <div class="avatar-clip">
+            <img v-if="photoUrl" class="avatar-img" :src="photoUrl" alt="Profile photo" />
+            <div v-else class="avatar-fallback">{{ initials }}</div>
+          </div>
+
+          <button
+            v-if="isStaff"
+            class="status-dot"
+            type="button"
+            :class="availabilityDotClass(availability)"
+            title="Toggle availability"
+            aria-label="Toggle availability"
+            @click.stop="cycleAvailability"
+          />
         </div>
         <div class="meta">
           <div class="name">{{ displayName }}</div>
@@ -195,7 +258,17 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   background: rgba(255,255,255,0.07);
+  overflow: visible;
+  position: relative;
+}
+
+.avatar-clip {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
   overflow: hidden;
+  display: grid;
+  place-items: center;
 }
 
 .avatar-img {
@@ -210,6 +283,23 @@ onBeforeUnmount(() => {
   color: #e5e7eb;
   font-size: 12px;
 }
+
+.status-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid rgba(11, 18, 32, 1);
+  padding: 0;
+  cursor: pointer;
+  background: rgb(34, 197, 94);
+}
+
+.status-dot--available { background: rgb(34, 197, 94); }
+.status-dot--idle { background: rgb(250, 204, 21); }
+.status-dot--dnd { background: rgb(239, 68, 68); }
 
 .name {
   font-weight: 800;
