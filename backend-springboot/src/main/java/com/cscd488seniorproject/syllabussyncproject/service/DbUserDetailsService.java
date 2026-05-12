@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject.config;
+package com.cscd488seniorproject.syllabussyncproject.service;
 
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.*;

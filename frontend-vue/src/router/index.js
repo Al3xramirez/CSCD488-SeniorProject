@@ -9,6 +9,7 @@ import DashboardLayout from "../layout/DashboardLayout.vue";
 import Calendar from "../views/Calendar.vue";
 import OfficeHours from "../views/OfficeHours.vue";
 import SyllabusUpload from "../views/SyllabusUpload.vue";
+import MyClasses from "../views/MyClasses.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,6 +23,7 @@ const router = createRouter({
       meta: { requiresAuth: true }, // This route and all its children require authentication
       children: [
         { path: "", name: "dashboard", component: Dashboard }, // /app
+        { path: "classes", name: "classes", component: MyClasses },
         { path: "meetings", name: "meetings", component: Meetings },
         { path: "calendar", name: "calendar", component: Calendar },
         { path: "office-hours", name: "office-hours", component: OfficeHours },
