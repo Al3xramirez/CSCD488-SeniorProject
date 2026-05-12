@@ -27,6 +27,10 @@ public class UserAccountEntity {
     @Column(name = "Role", length = 20, nullable = false)
     private String role; // STUDENT, TA, or PROFESSOR
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "AvailabilityStatus", length = 20)
+    private AvailabilityStatus availabilityStatus; // AVAILABLE, IDLE, DND (prof/TA only)
+
     @Column(name = "Department", length = 50)
     private String department;
 
@@ -59,6 +63,9 @@ public class UserAccountEntity {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public AvailabilityStatus getAvailabilityStatus() { return availabilityStatus; }
+    public void setAvailabilityStatus(AvailabilityStatus availabilityStatus) { this.availabilityStatus = availabilityStatus; }
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
