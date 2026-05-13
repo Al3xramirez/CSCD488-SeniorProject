@@ -53,7 +53,7 @@ public class OfficeHoursService {
         LocalTime start = requireTime(req == null ? null : req.startTime, "startTime");
         LocalTime end   = requireTime(req == null ? null : req.endTime,   "endTime");
         String quarter  = requireString(req == null ? null : req.quarter, "quarter");
-        String year     = requireString(req == null ? null : req.year,    "year");
+        int year        = requireYear(req == null ? 0 : req.year);
 
         if (!end.isAfter(start)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endTime must be after startTime");
@@ -215,6 +215,13 @@ public class OfficeHoursService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " required");
         }
         return v;
+    }
+
+    private static int requireYear(int value) {
+        if (value < 2000 || value > 2100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "year must be a valid 4-digit year");
+        }
+        return value;
     }
 
     private static String requireDay(String value) {

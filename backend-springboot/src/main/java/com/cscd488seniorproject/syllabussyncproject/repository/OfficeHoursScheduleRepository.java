@@ -8,7 +8,7 @@ public interface OfficeHoursScheduleRepository extends JpaRepository<OfficeHours
 
     List<OfficeHoursScheduleEntity> findAllByUserId(String userId);
 
-    List<OfficeHoursScheduleEntity> findAllByUserIdAndQuarterAndYear(String userId, String quarter, String year);
+    List<OfficeHoursScheduleEntity> findAllByUserIdAndQuarterAndYear(String userId, String quarter, int year);
 
     boolean existsByIdAndUserId(Long id, String userId);
 }

@@ -6,11 +6,11 @@ public class OfficeHoursScheduleDTO {
     public String startTime;   // HH:mm
     public String endTime;     // HH:mm
     public String quarter;
-    public String year;
+    public int year;
 
     public OfficeHoursScheduleDTO() {}
 
-    public OfficeHoursScheduleDTO(Long id, String dayOfWeek, String startTime, String endTime, String quarter, String year) {
+    public OfficeHoursScheduleDTO(Long id, String dayOfWeek, String startTime, String endTime, String quarter, int year) {
         this.id = id;
         this.dayOfWeek = dayOfWeek;
         this.startTime = startTime;
