@@ -14,10 +14,10 @@ public class Meeting {
     @Column(name = "MeetingID")
     private Long meetingId;
 
-    @Column(name = "ClassCode")
+    @Column(name = "ClassCode", length = 20)
     private String classCode;
 
-    @Column(name = "Quarter")
+    @Column(name = "Quarter", length = 10)
     private String quarter;
 
     @Column(name = "Year")
@@ -47,8 +47,17 @@ public class Meeting {
     @Column(name = "CreatedAt", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (status == null) {
+            status = "PENDING";
+        }
+    }
+
     public Meeting() {
-        this.createdAt = LocalDateTime.now();
         this.status = "PENDING";
     }
 
