@@ -8,14 +8,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface EnrollRelationRepository extends JpaRepository<EnrollRelationEntity, EnrollRelationId> {
 
     // Custom query to check if an enrollment relation exists for a specific user and course
-    boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, String year);
+    boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, Integer year);
 
     // Custom query to find all enrollment relations for a specific user
     List<EnrollRelationEntity> findAllByUserId(String userId);
 
     // Custom query to find all enrollment relations for a specific course
-    List<EnrollRelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+    List<EnrollRelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
 
     // Delete all enrollment relations for a specific course
-    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
 }

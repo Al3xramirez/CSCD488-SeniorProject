@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject.service;
+package com.cscd488seniorproject.syllabussyncproject.Service;
 
 import com.cscd488seniorproject.syllabussyncproject.dto.ClassSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.CreateClassRequestDTO;
@@ -84,7 +84,7 @@ public class CourseService {
         // Normalize and validate the input parameters from the request DTO, ensuring they are not blank
         String classCode = normalizeRequired(req == null ? null : req.classCode, "classCode");
         String quarter = normalizeRequired(req == null ? null : req.quarter, "quarter");
-        String year = normalizeRequired(req == null ? null : req.year, "year");
+        Integer year = normalizeRequiredInt(req == null ? null : req.year, "year");
         String title = normalizeRequired(req == null ? null : req.title, "title");
 
         //Optional is used to handle the possibility that a course with the same class code, quarter, and year already exists.
@@ -195,7 +195,7 @@ public class CourseService {
         //NOTE: Once we add other entities and repositories that depend on CourseEntity, we will need to delete them here
         String classCode = course.getClassCode();
         String quarter = course.getQuarter();
-        String year = course.getYear();
+        Integer year = course.getYear();
 
         teachesRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
         enrollRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
@@ -234,6 +234,13 @@ public class CourseService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " required");
         }
         return v;
+    }
+    //duplicate of above method need it for the year field 
+    private static Integer normalizeRequiredInt(Integer value, String fieldName) {
+        if (value == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " required");
+        }
+        return value;
     }
 
     // This method checks if the generated join code is unique by checking the database, and if not, 

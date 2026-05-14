@@ -4,7 +4,7 @@ import com.cscd488seniorproject.syllabussyncproject.dto.ClassSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.CreateClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.JoinClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.StudentSummaryDTO;
-import com.cscd488seniorproject.syllabussyncproject.service.CourseService;
+import com.cscd488seniorproject.syllabussyncproject.Service.CourseService;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

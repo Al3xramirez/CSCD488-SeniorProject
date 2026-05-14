@@ -30,7 +30,7 @@ public class EmailController {
             @RequestBody Meeting meeting,
             @RequestParam String recipientUserId) {
         
-        if (meeting == null || meeting.getDate() == null || meeting.getClassId() == null || recipientUserId == null) {
+        if (meeting == null || meeting.getMeetingDate() == null || meeting.getClassCode() == null || recipientUserId == null) {
             return ResponseEntity.badRequest().body("Invalid meeting or recipient");
         }
 

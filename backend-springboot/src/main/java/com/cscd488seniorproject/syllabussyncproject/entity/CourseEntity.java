@@ -16,7 +16,7 @@ public class CourseEntity {
 
     @Id
     @Column(name = "Year")
-    private String year;
+    private Integer year; // Changed from String to Integer
 
     @Column(name = "Title")
     private String title;
@@ -44,11 +44,11 @@ public class CourseEntity {
         this.quarter = quarter;
     }
 
-    public String getYear() {
+    public Integer getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(Integer year) {
         this.year = year;
     }
 

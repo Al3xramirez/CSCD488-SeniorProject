@@ -1,59 +1,69 @@
 package com.cscd488seniorproject.syllabussyncproject.meeting;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.List;
 
 public class MeetingRequest {
-
-    private LocalDate startDate;
-    private LocalDate endDate;
-    private List<DayOfWeek> daysOfWeek;
-
+    private String classCode;
+    private String quarter;
+    private Integer year;
+    private String requesterId;
+    private String recipientId;
+    private LocalDate meetingDate;
     private LocalTime startTime;
     private LocalTime endTime;
-
-    private Long classId;
+    private String status;
+    private String notes;
 
     public MeetingRequest() {}
 
-    public MeetingRequest(
-        LocalDate startDate, LocalDate endDate,
-        List<DayOfWeek> daysOfWeek,
-        LocalTime startTime, LocalTime endTime,                  
-        Long classId) {
-            
-        this.startDate = startDate;
-        this.endDate = endDate;
-        this.daysOfWeek = daysOfWeek;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.classId = classId;
+    // Getters and Setters
+    public String getClassCode() {
+        return classCode;
     }
 
-    public LocalDate getStartDate() {
-        return startDate;
+    public void setClassCode(String classCode) {
+        this.classCode = classCode;
     }
 
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
+    public String getQuarter() {
+        return quarter;
     }
 
-    public LocalDate getEndDate() {
-        return endDate;
+    public void setQuarter(String quarter) {
+        this.quarter = quarter;
     }
 
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
+    public Integer getYear() {
+        return year;
     }
 
-    public List<DayOfWeek> getDaysOfWeek() {
-        return daysOfWeek;
+    public void setYear(Integer year) {
+        this.year = year;
     }
 
-    public void setDaysOfWeek(List<DayOfWeek> daysOfWeek) {
-        this.daysOfWeek = daysOfWeek;
+    public String getRequesterId() {
+        return requesterId;
+    }
+
+    public void setRequesterId(String requesterId) {
+        this.requesterId = requesterId;
+    }
+
+    public String getRecipientId() {
+        return recipientId;
+    }
+
+    public void setRecipientId(String recipientId) {
+        this.recipientId = recipientId;
+    }
+
+    public LocalDate getMeetingDate() {
+        return meetingDate;
+    }
+
+    public void setMeetingDate(LocalDate meetingDate) {
+        this.meetingDate = meetingDate;
     }
 
     public LocalTime getStartTime() {
@@ -72,23 +82,19 @@ public class MeetingRequest {
         this.endTime = endTime;
     }
 
-    public Long getClassId() {
-        return classId;
+    public String getStatus() {
+        return status;
     }
 
-    public void setClassId(Long classId) {
-        this.classId = classId;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
-    public boolean isValid() {
-        return startDate != null &&
-               endDate != null &&
-               !endDate.isBefore(startDate) &&
-               daysOfWeek != null &&
-               !daysOfWeek.isEmpty() &&
-               startTime != null &&
-               endTime != null &&
-               startTime.isBefore(endTime) &&
-               classId != null;
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 }

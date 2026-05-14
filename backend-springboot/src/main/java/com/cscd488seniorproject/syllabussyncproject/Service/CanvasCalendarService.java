@@ -1,4 +1,4 @@
-package com.cscd488seniorproject.syllabussyncproject.service;
+package com.cscd488seniorproject.syllabussyncproject.Service;
 
 import com.cscd488seniorproject.syllabussyncproject.dto.CanvasSubscribeRequest;
 import com.cscd488seniorproject.syllabussyncproject.dto.ExternalEventResponse;

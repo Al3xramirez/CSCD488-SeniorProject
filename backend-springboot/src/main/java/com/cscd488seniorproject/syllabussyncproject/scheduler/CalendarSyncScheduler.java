@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.cscd488seniorproject.syllabussyncproject.service.CanvasCalendarService;
+import com.cscd488seniorproject.syllabussyncproject.Service.CanvasCalendarService;
 
 
 @Configuration

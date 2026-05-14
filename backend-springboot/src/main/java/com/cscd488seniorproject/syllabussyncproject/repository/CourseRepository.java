@@ -17,7 +17,7 @@ public interface CourseRepository extends JpaRepository<CourseEntity, CourseId> 
     boolean existsByJoinCode(String joinCode);
 
     // Custom query to find a course by its class code, quarter, and year
-    Optional<CourseEntity> findByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+    Optional<CourseEntity> findByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
 
     // Custom query to find courses taught by a specific user
     @Query("select c from CourseEntity c, TeachesRelationEntity t " +

@@ -20,7 +20,7 @@ public class EmailService {
     }
 
     public void sendMeetingNotification(Meeting meeting, String recipientUserId) {
-        if (meeting == null || meeting.getDate() == null || meeting.getClassId() == null) {
+        if (meeting == null || meeting.getMeetingDate() == null || meeting.getClassCode() == null) {
             throw new IllegalArgumentException("Invalid meeting");
         }
 
@@ -29,7 +29,7 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(SENDER_EMAIL);
         message.setTo(recipientEmail);
-        message.setSubject("Meeting Scheduled: " + meeting.getDate());
+        message.setSubject("Meeting Scheduled: " + meeting.getMeetingDate());
         message.setText(buildMeetingEmailBody(meeting));
 
         mailSender.send(message);
@@ -49,10 +49,10 @@ public class EmailService {
             "End Time: %s\n" +
             "Class ID: %d\n\n" +
             "Please mark your calendar accordingly.",
-            meeting.getDate(),
+            meeting.getMeetingDate(),
             meeting.getStartTime(),
             meeting.getEndTime(),
-            meeting.getClassId()
+            meeting.getClassCode()
         );
     }
 }
