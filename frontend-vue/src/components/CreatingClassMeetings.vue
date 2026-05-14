@@ -21,8 +21,8 @@
     </div>
 
     <div>
-      <label>Class ID</label>
-      <input type="number" v-model="classId" required />
+      <label>Class Code</label>
+      <input type="text" v-model="classCode" required />
     </div>
 
     <div>
@@ -52,7 +52,7 @@ const startDate = ref('');
 const endDate = ref('');
 const startTime = ref('');
 const endTime = ref('');
-const classId = ref('');
+const classCode = ref('');
 const selectedDays = ref([]);
 const message = ref('');
 
@@ -74,7 +74,7 @@ const submitRecurringMeetings = async () => {
     endDate: endDate.value,
     startTime: startTime.value,
     endTime: endTime.value,
-    classId: Number(classId.value),
+    classCode: classCode.value,
     daysOfWeek: selectedDays.value,
   };
 

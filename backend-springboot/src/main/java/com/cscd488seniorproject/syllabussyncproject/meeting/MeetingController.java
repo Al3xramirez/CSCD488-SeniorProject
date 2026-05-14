@@ -89,4 +89,10 @@ public class MeetingController {
         meetingService.deleteMeeting(meetingId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/recurring")
+    public ResponseEntity<List<Meeting>> createRecurringMeetings(@RequestBody RecurringMeetingRequest request) {
+        List<Meeting> createdMeetings = meetingService.createRecurringMeetings(request);
+        return ResponseEntity.ok(createdMeetings);
+    }
 }

@@ -2,8 +2,10 @@ package com.cscd488seniorproject.syllabussyncproject.meeting;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,5 +68,31 @@ public class MeetingService {
     public List<Meeting> getPendingMeetings(String recipientId) {
         List<Meeting> meetings = meetingRepository.findByRecipientId(recipientId);
         return meetings.stream().filter(m -> "PENDING".equals(m.getStatus())).toList();
+    }
+
+    public List<Meeting> createRecurringMeetings(RecurringMeetingRequest request) {
+        List<Meeting> createdMeetings = new ArrayList<>();
+        LocalDate currentDate = request.getStartDate();
+
+        while (!currentDate.isAfter(request.getEndDate())) {
+            DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
+            String dayName = dayOfWeek.toString();
+
+            if (request.getDaysOfWeek().contains(dayName)) {
+                Meeting meeting = new Meeting();
+                meeting.setClassCode(request.getClassCode());
+                meeting.setMeetingDate(currentDate);
+                meeting.setStartTime(request.getStartTime());
+                meeting.setEndTime(request.getEndTime());
+                meeting.setStatus("PENDING");
+
+                Meeting savedMeeting = createMeeting(meeting);
+                createdMeetings.add(savedMeeting);
+            }
+
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return createdMeetings;
     }
 }
