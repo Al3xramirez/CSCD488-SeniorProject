@@ -342,16 +342,16 @@ export default {
         body: JSON.stringify(meetingData)
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create meeting');
-      }
+        if (!response.ok) {
+          throw new Error('Failed to create meeting');
+        }
 
-      const data = await response.json();
-      console.log('Meeting created:', data);
-    } catch (error) {
-      console.error('Error creating meeting:', error);
+        const data = await response.json();
+        console.log('Meeting created:', data);
+      } catch (error) {
+        console.error('Error creating meeting:', error);
+      }
     }
-  }
 
   }
 }
