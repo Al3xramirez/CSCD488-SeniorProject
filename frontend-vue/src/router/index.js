@@ -7,14 +7,15 @@ import Profile from "../views/Profile.vue";
 import Meetings from "../views/Meetings.vue";
 import DashboardLayout from "../layout/DashboardLayout.vue";
 import Calendar from "../views/Calendar.vue";
-import OfficeHours from "../views/OfficeHours.vue";
+//import OfficeHours from "../views/OfficeHours.vue";
 import SyllabusUpload from "../views/SyllabusUpload.vue";
 import MyClasses from "../views/MyClasses.vue";
+import OfficeHours from "../views/newofficehours.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", redirect: "/login" },
+    { path: "/", redirect: "/login" },// set default route to dashboard?? we redirect to login as auth feature thoughts?
     { path: "/login", name: "Login", component: Login},
     { path: "/signup", name: "Signup", component: Signup },    
     {

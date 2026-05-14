@@ -1,0 +1,14 @@
+CREATE TABLE meeting (
+    MeetingID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    ClassCode VARCHAR(20),
+    Quarter VARCHAR(10),
+    Year INT,
+    RequesterID VARCHAR(255) NOT NULL,
+    RecipientID VARCHAR(255) NOT NULL,
+    MeetingDate DATE NOT NULL,
+    StartTime TIME NOT NULL,
+    EndTime TIME NOT NULL,
+    Status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    Notes TEXT,
+    CreatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
