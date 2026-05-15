@@ -30,4 +30,10 @@ public interface CourseRepository extends JpaRepository<CourseEntity, CourseId> 
 	    "where e.userId = :userId " +
 	    "and e.classCode = c.classCode and e.quarter = c.quarter and e.year = c.year")
     List<CourseEntity> findCoursesEnrolledBy(@Param("userId") String userId);
+
+    // Custom query to find courses where a user is assigned as TA
+    @Query("select c from CourseEntity c, TARelationEntity t " +
+	    "where t.userId = :userId " +
+	    "and t.classCode = c.classCode and t.quarter = c.quarter and t.year = c.year")
+    List<CourseEntity> findCoursesTAedBy(@Param("userId") String userId);
 }
