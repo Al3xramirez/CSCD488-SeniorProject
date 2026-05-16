@@ -133,7 +133,8 @@ async function submitCreate() {
 
 // Function that fetches the API to join a class using a join code,same error handling, and validation as other function
 async function submitJoin() {
-  if (!isStudentOrTa.value) return;
+  // Join is only allowed for students
+  if (role.value !== "STUDENT") return;
 
   joining.value = true;
   joinError.value = "";
