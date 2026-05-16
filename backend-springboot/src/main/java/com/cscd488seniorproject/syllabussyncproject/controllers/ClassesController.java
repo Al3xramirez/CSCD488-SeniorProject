@@ -6,6 +6,9 @@ import com.cscd488seniorproject.syllabussyncproject.dto.JoinClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.StudentSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.Service.CourseService;
 import java.util.List;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,11 +50,34 @@ public class ClassesController {
         return ResponseEntity.ok(courseService.joinClassByCode(email, joinCode));
     }
     
-    // Get the roster of a class by its join code (professors only)
+    // Get the roster of a class by its join code (professors only). This gets the names of students
     @GetMapping("/{joinCode}/students")
     public ResponseEntity<List<StudentSummaryDTO>> students(Authentication auth, @PathVariable String joinCode) {
         String email = auth == null ? null : auth.getName();
         return ResponseEntity.ok(courseService.getRosterByJoinCode(email, joinCode));
+    }
+
+    // Get an enrolled user's profile photo for a class (professors only). This gets the profile photo of students
+    @GetMapping("/{joinCode}/users/{userId}/photo")
+    public ResponseEntity<byte[]> rosterUserPhoto(Authentication auth, @PathVariable String joinCode, @PathVariable String userId) {
+        String email = auth == null ? null : auth.getName();
+        CourseService.PhotoPayload payload = courseService.getRosterUserPhoto(email, joinCode, userId);
+        if (payload == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(payload.contentType());
+        } catch (Exception e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+            .contentType(mediaType)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+            .cacheControl(CacheControl.noStore())
+            .body(payload.bytes());
     }
 
     // Delete a class by its join code (professors only)

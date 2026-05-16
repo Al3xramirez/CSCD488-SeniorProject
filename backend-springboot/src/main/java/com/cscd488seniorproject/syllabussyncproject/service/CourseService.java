@@ -25,6 +25,9 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class CourseService {
 
+    // Payload for returning profile photos from endpoints
+    public record PhotoPayload(byte[] bytes, String contentType) {}
+
 
     // Configuration for join code generation
     private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -169,7 +172,50 @@ public class CourseService {
         }
 
         Collection<UserAccountEntity> users = userRepo.findAllById(userIds);
-        return users.stream().map(u -> new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName())).toList();
+        return users.stream().map(u -> new StudentSummaryDTO(
+            u.getUserId(),
+            u.getEmail(),
+            u.getFirstName(),
+            u.getLastName(),
+            normalizeRole(u.getRole()) //updated dto to include role, so we can distinguish between students and TAs in the roster
+        )).toList();
+    }
+
+    // getRosterUserPhoto allows a professor to retrieve the profile photo for a user enrolled in a class.
+    // It checks 1. professor role, 2. professor teaches the class, and 3. target user is enrolled.
+    @Transactional(readOnly = true)
+    public PhotoPayload getRosterUserPhoto(String email, String joinCodeRaw, String userIdRaw) {
+        UserAccountEntity me = requireUserByEmail(email);
+        requireRole(me, Set.of("PROFESSOR"));
+
+        String joinCode = normalizeRequired(joinCodeRaw, "joinCode");
+        String userId = normalizeRequired(userIdRaw, "userId");
+
+        CourseEntity course = courseRepo.findByJoinCode(joinCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
+
+        boolean teaches = teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+                me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!teaches) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to view roster for this class");
+        }
+
+        boolean enrolled = enrollRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+                userId, course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!enrolled) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not enrolled in this class");
+        }
+
+        UserAccountEntity user = userRepo.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        byte[] bytes = user.getProfilePhoto();
+        String ct = user.getProfilePhotoContentType();
+
+        if (bytes == null || bytes.length == 0 || ct == null || ct.isBlank()) {
+            return null;
+        }
+        return new PhotoPayload(bytes, ct);
     }
     
     /*Transactional ensures that all databases operations

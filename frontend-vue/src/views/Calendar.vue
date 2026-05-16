@@ -165,9 +165,9 @@ function fmtTime(s) {
       </div>
 
       <div class="top-actions">
-        <button class="btn ghost" @click="goToday">Today</button>
-        <button class="btn ghost" @click="prevMonth">Prev</button>
-        <button class="btn ghost" @click="nextMonth">Next</button>
+        <button class="btn" @click="goToday">Today</button>
+        <button class="btn" @click="prevMonth">Prev</button>
+        <button class="btn" @click="nextMonth">Next</button>
       </div>
     </div>
 

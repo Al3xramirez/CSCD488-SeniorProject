@@ -24,6 +24,7 @@ const links = computed(() => {
       { to: "/app/meetings", label: "Meeting Times" },
       { to: "/app/calendar", label: "Calendar" },
       { to: "/app/syllabus-upload", label: "Syllabus Upload" },
+      { to: "/app/workload-projections", label: "Workload Projections" },
     ];
   }
 
@@ -33,6 +34,7 @@ const links = computed(() => {
       { to: "/app/classes", label: "My Classes" },
       { to: "/app/meetings", label: "Meeting Times" },
       { to: "/app/calendar", label: "Calendar" },
+      { to: "/app/workload-projections", label: "Workload Projections" },
     ];
   }
 
@@ -42,6 +44,7 @@ const links = computed(() => {
     { to: "/app/classes", label: "My Classes" },
     { to: "/app/meetings", label: "Meeting Times" },
     { to: "/app/calendar", label: "Calendar" },
+    { to: "/app/workload-projections", label: "Workload Projections" },
     { to: "/app/office-hours", label: "Office Hours Match" },
   ];
 });

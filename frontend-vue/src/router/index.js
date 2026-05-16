@@ -9,8 +9,10 @@ import DashboardLayout from "../layout/DashboardLayout.vue";
 import Calendar from "../views/Calendar.vue";
 //import OfficeHours from "../views/OfficeHours.vue";
 import SyllabusUpload from "../views/SyllabusUpload.vue";
+import WorkloadProjections from "../views/WorkloadProjections.vue";
 import MyClasses from "../views/MyClasses.vue";
 import OfficeHours from "../views/newofficehours.vue";
+import ClassDetails from "../views/ClassDetails.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,10 +27,12 @@ const router = createRouter({
       children: [
         { path: "", name: "dashboard", component: Dashboard }, // /app
         { path: "classes", name: "classes", component: MyClasses },
+        { path: "classes/:joinCode", name: "class-details", component: ClassDetails }, // sub-route for class details
         { path: "meetings", name: "meetings", component: Meetings },
         { path: "calendar", name: "calendar", component: Calendar },
         { path: "office-hours", name: "office-hours", component: OfficeHours },
         { path: "syllabus-upload", name: "syllabus-upload", component: SyllabusUpload },
+        { path: "workload-projections", name: "workload-projections", component: WorkloadProjections },
         { path: "profile", name: "profile", component: Profile, meta: { hideHeader: true } },
       ],
     },

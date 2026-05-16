@@ -37,7 +37,13 @@ public class WebSecurityConfig {
     			.successHandler((req, res, auth) -> res.setStatus(200))
   		  		.failureHandler((req, res, ex) -> res.sendError(401))
 			)
-			.logout(LogoutConfigurer::permitAll);
+			.logout(logout -> logout
+				.permitAll()
+				.invalidateHttpSession(true)
+				.clearAuthentication(true)
+				.deleteCookies("JSESSIONID")
+				.logoutSuccessHandler((req, res, auth) -> res.setStatus(200))
+			);
 		// @formatter:on
 
 		return http.build();
