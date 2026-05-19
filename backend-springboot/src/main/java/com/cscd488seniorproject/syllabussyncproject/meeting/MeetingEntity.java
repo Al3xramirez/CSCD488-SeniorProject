@@ -2,64 +2,52 @@ package com.cscd488seniorproject.syllabussyncproject.meeting;
 
 import jakarta.persistence.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "meeting")
-public class Meeting {
+public class MeetingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "MeetingID")
     private Long meetingId;
 
-    @Column(name = "ClassCode", length = 20)
+    @Column(name = "ClassCode")
     private String classCode;
 
-    @Column(name = "Quarter", length = 10)
+    @Column(name = "Quarter")
     private String quarter;
 
     @Column(name = "Year")
     private Integer year;
 
-    @Column(name = "RequesterID", nullable = false)
+    @Column(name = "RequesterID")
     private String requesterId;
 
-    @Column(name = "RecipientID", nullable = false)
+    @Column(name = "RecipientID")
     private String recipientId;
 
-    @Column(name = "MeetingDate", nullable = false)
+    @Column(name = "MeetingDate")
     private LocalDate meetingDate;
 
-    @Column(name = "StartTime", nullable = false)
+    @Column(name = "StartTime")
     private LocalTime startTime;
 
-    @Column(name = "EndTime", nullable = false)
+    @Column(name = "EndTime")
     private LocalTime endTime;
 
-    @Column(name = "Status", nullable = false)
-    private String status = "PENDING";
+    @Column(name = "Status")  // ✅ ADD THIS
+    private String status;
 
     @Column(name = "Notes", columnDefinition = "TEXT")
     private String notes;
 
-    @Column(name = "CreatedAt", nullable = false, updatable = false)
+    @Column(name = "CreatedAt")
     private LocalDateTime createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
-        if (status == null) {
-            status = "PENDING";
-        }
-    }
-
-    public Meeting() {
-        this.status = "PENDING";
-    }
+    public MeetingEntity() {}
 
     // Getters and Setters
     public Long getMeetingId() {
@@ -134,11 +122,11 @@ public class Meeting {
         this.endTime = endTime;
     }
 
-    public String getStatus() {
+    public String getStatus() {  // ✅ ADD THIS
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(String status) {  // ✅ ADD THIS
         this.status = status;
     }
 

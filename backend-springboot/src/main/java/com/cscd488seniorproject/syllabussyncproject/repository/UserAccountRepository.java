@@ -13,7 +13,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccountEntity, 
 
     boolean existsByEmail(String email);
 
-    Optional<UserAccountEntity> findByEmail(String email);
+    Optional<UserAccountEntity> findByEmail(String email) throws org.springframework.security.core.userdetails.UsernameNotFoundException;
 
     @Query(value = "SELECT u.* FROM useraccount u " +
            "INNER JOIN class_members cm ON u.UserID = cm.UserID " +

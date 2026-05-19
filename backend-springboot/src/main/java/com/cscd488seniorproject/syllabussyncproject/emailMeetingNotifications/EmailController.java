@@ -1,7 +1,7 @@
 package com.cscd488seniorproject.syllabussyncproject.emailMeetingNotifications;
 
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
-import com.cscd488seniorproject.syllabussyncproject.meeting.Meeting;
+import com.cscd488seniorproject.syllabussyncproject.meeting.MeetingEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +27,7 @@ public class EmailController {
 
     @PostMapping("/send-meeting-notification")
     public ResponseEntity<String> sendMeetingNotification(
-            @RequestBody Meeting meeting,
+            @RequestBody MeetingEntity meeting,
             @RequestParam String recipientUserId) {
         
         if (meeting == null || meeting.getMeetingDate() == null || meeting.getClassCode() == null || recipientUserId == null) {

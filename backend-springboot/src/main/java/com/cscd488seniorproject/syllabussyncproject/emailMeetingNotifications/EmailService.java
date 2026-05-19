@@ -1,7 +1,7 @@
 package com.cscd488seniorproject.syllabussyncproject.emailMeetingNotifications;
 
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
-import com.cscd488seniorproject.syllabussyncproject.meeting.Meeting;
+import com.cscd488seniorproject.syllabussyncproject.meeting.MeetingEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -19,7 +19,7 @@ public class EmailService {
         this.userAccountRepository = userAccountRepository;
     }
 
-    public void sendMeetingNotification(Meeting meeting, String recipientUserId) {
+    public void sendMeetingNotification(MeetingEntity meeting, String recipientUserId) {
         if (meeting == null || meeting.getMeetingDate() == null || meeting.getClassCode() == null) {
             throw new IllegalArgumentException("Invalid meeting");
         }
@@ -41,7 +41,7 @@ public class EmailService {
         return user.getEmail();
     }
 
-    private String buildMeetingEmailBody(Meeting meeting) {
+    private String buildMeetingEmailBody(MeetingEntity meeting) {
         return String.format(
             "A new meeting has been scheduled:\n\n" +
             "Date: %s\n" +

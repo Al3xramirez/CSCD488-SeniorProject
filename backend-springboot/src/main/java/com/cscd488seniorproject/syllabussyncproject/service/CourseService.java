@@ -1,6 +1,7 @@
-package com.cscd488seniorproject.syllabussyncproject.Service;
+package com.cscd488seniorproject.syllabussyncproject.service;
 
 import com.cscd488seniorproject.syllabussyncproject.dto.ClassSummaryDTO;
+import com.cscd488seniorproject.syllabussyncproject.dto.CourseDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.CreateClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.StudentSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.entity.CourseEntity;
@@ -28,7 +29,6 @@ public class CourseService {
     // Payload for returning profile photos from endpoints
     public record PhotoPayload(byte[] bytes, String contentType) {}
 
-
     // Configuration for join code generation
     private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int JOIN_CODE_LENGTH = 5;
@@ -44,8 +44,8 @@ public class CourseService {
     private final SecureRandom random = new SecureRandom();
 
     // Constructor for dependency injection of repositories
-    public CourseService(CourseRepository courseRepo, TeachesRelationRepository teachesRepo, EnrollRelationRepository enrollRepo, UserAccountRepository userRepo) {
-        
+    public CourseService(CourseRepository courseRepo, TeachesRelationRepository teachesRepo, 
+                         EnrollRelationRepository enrollRepo, UserAccountRepository userRepo) {
         this.courseRepo = courseRepo;
         this.teachesRepo = teachesRepo;
         this.enrollRepo = enrollRepo;
@@ -250,6 +250,107 @@ public class CourseService {
         return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
     }
 
+    // ============================================================================
+    // NEW FUNCTIONALITY - FROM REFACTORED SERVICE LAYER
+    // ============================================================================
+
+    /**
+     * Get a course by its composite key (classCode, quarter, year)
+     * @return CourseDTO or null if not found
+     */
+    public CourseDTO getCourseById(String classCode, String quarter, Integer year) {
+        Optional<CourseEntity> course = courseRepo.findByClassCodeAndQuarterAndYear(classCode, quarter, year);
+        return course.map(this::mapToDTO).orElse(null);
+    }
+
+    /**
+     * Get a course by its join code
+     * @return CourseDTO or null if not found
+     */
+    public CourseDTO getCourseByJoinCode(String joinCode) {
+        Optional<CourseEntity> course = courseRepo.findByJoinCode(joinCode);
+        return course.map(this::mapToDTO).orElse(null);
+    }
+
+    /**
+     * Get all course instances with a specific class code
+     * @return List of CourseDTOs
+     */
+    public List<CourseDTO> getCoursesByClassCode(String classCode) {
+        return courseRepo.findByClassCode(classCode).stream()
+            .map(this::mapToDTO)
+            .toList();
+    }
+
+    /**
+     * Get all courses taught by a specific user
+     * @return List of CourseDTOs
+     */
+    public List<CourseDTO> getCoursesTaughtBy(String userId) {
+        return courseRepo.findCoursesTaughtBy(userId).stream()
+            .map(this::mapToDTO)
+            .toList();
+    }
+
+    /**
+     * Get all courses a user is enrolled in
+     * @return List of CourseDTOs
+     */
+    public List<CourseDTO> getCoursesEnrolledBy(String userId) {
+        return courseRepo.findCoursesEnrolledBy(userId).stream()
+            .map(this::mapToDTO)
+            .toList();
+    }
+
+    /**
+     * Check if a course exists
+     * @return true if course exists, false otherwise
+     */
+    public boolean courseExists(String classCode, String quarter, Integer year) {
+        return courseRepo.findByClassCodeAndQuarterAndYear(classCode, quarter, year).isPresent();
+    }
+
+    /**
+     * Get the enrollment count for a specific course
+     * @return number of enrolled students
+     */
+    public long getCourseEnrollmentCount(String classCode, String quarter, Integer year) {
+        return enrollRepo.countByClassCodeAndQuarterAndYear(classCode, quarter, year);
+    }
+
+    /**
+     * Check if a user is enrolled in a course
+     * @return true if enrolled, false otherwise
+     */
+    public boolean isUserEnrolled(String userId, String classCode, String quarter, Integer year) {
+        return enrollRepo.existsByUserIdAndClassCodeAndQuarterAndYear(userId, classCode, quarter, year);
+    }
+
+    /**
+     * Check if a user teaches a course
+     * @return true if teaches, false otherwise
+     */
+    public boolean doesUserTeach(String userId, String classCode, String quarter, Integer year) {
+        return teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(userId, classCode, quarter, year);
+    }
+
+    /**
+     * Map CourseEntity to CourseDTO for API responses
+     */
+    private CourseDTO mapToDTO(CourseEntity entity) {
+        return CourseDTO.builder()
+            .classCode(entity.getClassCode())
+            .quarter(entity.getQuarter())
+            .year(entity.getYear())
+            .title(entity.getTitle())
+            .joinCode(entity.getJoinCode())
+            .build();
+    }
+
+    // ============================================================================
+    // HELPER METHODS
+    // ============================================================================
+
     // Helper method to retrieve a user by email and throw exception if the email is not provided or the user is not found.
     private UserAccountEntity requireUserByEmail(String emailRaw) {
         String email = emailRaw == null ? "" : emailRaw.trim().toLowerCase(Locale.ROOT);
@@ -281,7 +382,8 @@ public class CourseService {
         }
         return v;
     }
-    //duplicate of above method need it for the year field 
+
+    //Helper method to normalize required integer inputs
     private static Integer normalizeRequiredInt(Integer value, String fieldName) {
         if (value == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " required");

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
 import com.cscd488seniorproject.syllabussyncproject.service.ProfilePhotoService;
 
 /* Controller for handling profile photo upload and retrieval */

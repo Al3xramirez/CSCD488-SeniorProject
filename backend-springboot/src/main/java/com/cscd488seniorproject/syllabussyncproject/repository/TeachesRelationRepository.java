@@ -4,7 +4,11 @@ import com.cscd488seniorproject.syllabussyncproject.entity.TeachesRelationEntity
 import com.cscd488seniorproject.syllabussyncproject.entity.TeachesRelationId;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public interface TeachesRelationRepository extends JpaRepository<TeachesRelationEntity, TeachesRelationId> {
     
     // Custom query to check if a teaching relation exists for a specific user and course
@@ -15,4 +19,8 @@ public interface TeachesRelationRepository extends JpaRepository<TeachesRelation
 
     // Delete all teaching relations for a specific course
     long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
+
+    // Custom query to find all teaching relations for a specific class code
+    @Query("SELECT t FROM TeachesRelationEntity t WHERE t.id.classCode = :classCode")
+    List<TeachesRelationEntity> findByClassCode(@Param("classCode") String classCode);
 }

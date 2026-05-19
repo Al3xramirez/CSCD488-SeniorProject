@@ -1,6 +1,7 @@
 package com.cscd488seniorproject.syllabussyncproject.entity;
 
 import jakarta.persistence.*;
+
 @Entity
 @Table(name = "course")
 @IdClass(CourseId.class)
@@ -16,15 +17,24 @@ public class CourseEntity {
 
     @Id
     @Column(name = "Year")
-    private Integer year; // Changed from String to Integer
+    private Integer year;
 
     @Column(name = "Title")
     private String title;
 
-    @Column (name = "JoinCode")
+    @Column(name = "JoinCode", unique = true)
     private String joinCode;
 
-    public CourseEntity() {
+
+
+    // Constructors
+    public CourseEntity() {}
+
+    public CourseEntity(String classCode, String quarter, Integer year, String title) {
+        this.classCode = classCode;
+        this.quarter = quarter;
+        this.year = year;
+        this.title = title;
     }
 
     // Getters and Setters
@@ -60,6 +70,15 @@ public class CourseEntity {
         this.title = title;
     }
 
+    // Alias for compatibility
+    public String getClassName() {
+        return title;
+    }
+
+    public void setClassName(String className) {
+        this.title = className;
+    }
+
     public String getJoinCode() {
         return joinCode;
     }
@@ -67,5 +86,10 @@ public class CourseEntity {
     public void setJoinCode(String joinCode) {
         this.joinCode = joinCode;
     }
-    
+
+
+    // Convenience method
+    public String getCourseCode() {
+        return classCode;
+    }
 }

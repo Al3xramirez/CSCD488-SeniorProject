@@ -3,9 +3,9 @@ package com.cscd488seniorproject.syllabussyncproject.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "teachesrelation")
-@IdClass(TeachesRelationId.class)
-public class TeachesRelationEntity {
+@Table(name = "assistsrelation")
+@IdClass(AssistsRelationId.class)
+public class AssistsRelationEntity {
 
     @Id
     @Column(name = "UserID")
@@ -23,7 +23,6 @@ public class TeachesRelationEntity {
     @Column(name = "Year")
     private Integer year;
 
-    // ✅ ADD THESE RELATIONSHIPS
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserID", insertable = false, updatable = false)
     private UserAccountEntity userEntity;
@@ -36,10 +35,10 @@ public class TeachesRelationEntity {
     })
     private CourseEntity courseEntity;
 
-    public TeachesRelationEntity() {
-    }
+    // Constructors
+    public AssistsRelationEntity() {}
 
-    public TeachesRelationEntity(String userId, String classCode, String quarter, Integer year) {
+    public AssistsRelationEntity(String userId, String classCode, String quarter, Integer year) {
         this.userId = userId;
         this.classCode = classCode;
         this.quarter = quarter;
@@ -79,7 +78,6 @@ public class TeachesRelationEntity {
         this.year = year;
     }
 
-    // ✅ ADD THESE GETTERS/SETTERS
     public UserAccountEntity getUserEntity() {
         return userEntity;
     }

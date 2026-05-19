@@ -8,8 +8,11 @@ const dayEvents = ref([]);
 
 const currentUser = ref("");
 const currentUserEmail = ref("");
-const meetingWith = ref('Professor');
-const otherPerson = ref('');
+const userClasses = ref([]);
+const selectedClass = ref("");
+const classRecipients = ref([]);
+
+const meetingWith = ref("");
 const date = ref('');
 const start = ref('');
 const end = ref('');
@@ -18,7 +21,7 @@ const notes = ref('');
 const errors = ref([]);
 const success = ref(false);
 const showSuccessToast = ref(false);
-const blockedMeetings = ref([]);
+const showErrorToast = ref(false);
 
 const minDate = computed(() => {
   const d = new Date();
@@ -31,8 +34,8 @@ const minDate = computed(() => {
 const currentUserNormalized = computed(() => currentUserEmail.value.trim().toLowerCase());
 
 const canSubmit = computed(() => {
-  if (!date.value || !start.value || !end.value) return false;
-  if (meetingWith.value === 'Other' && !otherPerson.value) return false;
+  if (!selectedClass.value || !date.value || !start.value || !end.value) return false;
+  if (!meetingWith.value) return false;
   if (start.value >= end.value) return false;
   return true;
 });
@@ -42,38 +45,80 @@ function toYmd(d) {
   return d.toISOString().split("T")[0];
 }
 
-function matchesCurrentUser(value) {
-  if (!currentUserNormalized.value) return false;
-  return String(value || '').trim().toLowerCase() === currentUserNormalized.value;
+function getOtherPerson(meeting) {
+  if (meeting.requesterID?.toLowerCase() === currentUserNormalized.value) {
+    return meeting.recipientID;
+  } else {
+    return meeting.requesterID;
+  }
 }
 
-function isRelatedEvent(event) {
-  return matchesCurrentUser(event.requester) || matchesCurrentUser(event.title);
+function getRole(meeting) {
+  if (meeting.requesterID?.toLowerCase() === currentUserNormalized.value) {
+    return "To: " + meeting.recipientID;
+  } else {
+    return "From: " + meeting.requesterID;
+  }
 }
 
-function isRelatedMeeting(meeting) {
-  return matchesCurrentUser(meeting.requesterID || meeting.requester) ||
-         matchesCurrentUser(meeting.recipientID || meeting.title);
+function truncateNotes(notes, maxLength = 60) {
+  if (!notes) return "";
+  if (notes.length <= maxLength) return notes;
+  return notes.substring(0, maxLength) + "...";
 }
 
 async function loadCurrentUser() {
   try {
-    const res = await fetch("/api/session/current-user", {
+    const res = await fetch("/api/auth/current-user", {
       method: "GET",
       credentials: "include"
     });
-    if (!res.ok) {
-      currentUser.value = "";
-      currentUserEmail.value = "";
-      return;
+    if (res.ok) {
+      const data = await res.json();
+      currentUserEmail.value = data.currentUser || "";
     }
-    const data = await res.json();
-    currentUser.value = data.currentUser || "";
-    currentUserEmail.value = data.currentUser || "";
   } catch (err) {
     console.error("Error loading current user:", err);
-    currentUser.value = "";
-    currentUserEmail.value = "";
+  }
+}
+
+async function loadUserClasses() {
+  if (!currentUserEmail.value) return;
+  try {
+    const res = await fetch("/api/classes/user-classes", {
+      method: "GET",
+      credentials: "include"
+    });
+    if (res.ok) {
+      const data = await res.json();
+      userClasses.value = data || [];
+    }
+  } catch (err) {
+    console.error("Error loading user classes:", err);
+  }
+}
+
+async function loadClassRecipients(classCode) {
+  if (!classCode) {
+    classRecipients.value = [];
+    return;
+  }
+  try {
+    const res = await fetch(`/api/classes/${classCode}/members`, {
+      method: "GET",
+      credentials: "include"
+    });
+    if (res.ok) {
+      const data = await res.json();
+      classRecipients.value = (data || []).filter(
+        member => member.email?.toLowerCase() !== currentUserNormalized.value
+      );
+    } else {
+      classRecipients.value = [];
+    }
+  } catch (err) {
+    console.error("Error loading class recipients:", err);
+    classRecipients.value = [];
   }
 }
 
@@ -85,60 +130,99 @@ async function loadEvents() {
       return;
     }
     const data = await res.json();
-    events.value = data.map(e => ({
-      id: e.meetingID,
-      title: e.recipientID,
-      requester: e.requesterID,
-      start: `${e.meetingDate}T${e.startTime}`,
-      end: `${e.meetingDate}T${e.endTime}`,
-      date: e.meetingDate,
-      startTime: e.startTime,
-      endTime: e.endTime
-    }));
+    console.log("Raw meetings from API:", data);
+    
+    // Create a cache for user details to avoid duplicate API calls
+    const userCache = new Map();
+    
+    const getUserName = async (email) => {
+      if (userCache.has(email)) {
+        return userCache.get(email);
+      }
+      try {
+        const userRes = await fetch(`/api/users/by-email/${encodeURIComponent(email)}`, { credentials: "include" });
+        if (userRes.ok) {
+          const user = await userRes.json();
+          const name = `${user.firstName} ${user.lastName}`;
+          userCache.set(email, name);
+          console.log(`Cached user: ${email} -> ${name}`);
+          return name;
+        } else {
+          console.error(`User lookup failed for ${email}: ${userRes.status}`);
+        }
+      } catch (err) {
+        console.error("Error loading user:", err);
+      }
+      return email; // Fallback to email if lookup fails
+    };
+    
+    events.value = await Promise.all(
+      data
+        .filter(e => {
+          const isRequester = e.requesterID?.toLowerCase() === currentUserNormalized.value;
+          const isRecipient = e.recipientID?.toLowerCase() === currentUserNormalized.value;
+          console.log(`Meeting ${e.meetingID}: requester=${e.requesterID}, recipient=${e.recipientID}, isRequester=${isRequester}, isRecipient=${isRecipient}`);
+          return isRequester || isRecipient;
+        })
+        .map(async (e) => {
+          // Get the name of the other person
+          const otherEmail = e.requesterID?.toLowerCase() === currentUserNormalized.value 
+            ? e.recipientID 
+            : e.requesterID;
+          const otherName = await getUserName(otherEmail);
+          
+          // Determine role
+          const role = e.requesterID?.toLowerCase() === currentUserNormalized.value 
+            ? `To: ${otherName}` 
+            : `From: ${otherName}`;
+          
+          return {
+            id: e.meetingID,
+            requesterID: e.requesterID,
+            recipientID: e.recipientID,
+            otherPerson: otherName,
+            role: role,
+            start: `${e.meetingDate}T${e.startTime}`,
+            end: `${e.meetingDate}T${e.endTime}`,
+            date: e.meetingDate,
+            startTime: e.startTime,
+            endTime: e.endTime,
+            classCode: e.classCode,
+            notes: e.notes
+          };
+        })
+    );
 
-    console.log("Events loaded:", events.value);
+    console.log("Filtered events for current user:", events.value);
   } catch (err) {
     console.error("Error loading events:", err);
     events.value = [];
   }
 }
 
-async function loadMeetingsForDate(dateStr) {
-  if (!dateStr || !currentUserNormalized.value) {
-    blockedMeetings.value = [];
-    return;
-  }
-  const startDate = dateStr + "T00:00:00";
-  const endDate = dateStr + "T23:59:59";
-
+async function getMeetingsForUserOnDate(userEmail, dateStr) {
   try {
     const res = await fetch(
-      `/api/meetings?start=${encodeURIComponent(startDate)}&end=${encodeURIComponent(endDate)}`,
+      `/api/meetings/user/${encodeURIComponent(userEmail)}/date/${dateStr}`,
       { credentials: "include" }
     );
-    if (!res.ok) {
-      blockedMeetings.value = [];
-      return;
-    }
-    const data = await res.json();
-    blockedMeetings.value = data
-      .filter(isRelatedMeeting)
-      .map(m => ({
-        start: new Date(m.meetingDate + "T" + m.startTime),
-        end: new Date(m.meetingDate + "T" + m.endTime),
-        raw: m
-      }));
+    if (!res.ok) return [];
+    return await res.json();
   } catch (e) {
     console.error("Error loading meetings:", e);
-    blockedMeetings.value = [];
+    return [];
   }
 }
 
-function timeRangeOverlaps(startTime, endTime, dateStr) {
-  if (!startTime || !endTime || !dateStr) return false;
-  const s = new Date(dateStr + "T" + startTime);
-  const e = new Date(dateStr + "T" + endTime);
-  return blockedMeetings.value.some(b => !(e <= b.start || s >= b.end));
+function hasTimeConflict(requestedStart, requestedEnd, meetings, dateStr) {
+  const s = new Date(dateStr + "T" + requestedStart);
+  const e = new Date(dateStr + "T" + requestedEnd);
+  
+  return meetings.some(m => {
+    const mStart = new Date(dateStr + "T" + m.startTime);
+    const mEnd = new Date(dateStr + "T" + m.endTime);
+    return !(e <= mStart || s >= mEnd);
+  });
 }
 
 function handleDaySelect(day) {
@@ -156,7 +240,16 @@ watch([events, selectedDay], ([eventsVal, selected]) => {
 
 watch(currentUserEmail, () => {
   loadEvents();
-  if (date.value) loadMeetingsForDate(date.value);
+  loadUserClasses();
+});
+
+watch(selectedClass, (newClassId) => {
+  meetingWith.value = "";
+  if (newClassId) {
+    loadClassRecipients(newClassId);
+  } else {
+    classRecipients.value = [];
+  }
 });
 
 async function createMeeting(meetingData) {
@@ -175,11 +268,12 @@ async function createMeeting(meetingData) {
 
 function validate() {
   errors.value = [];
+  if (!selectedClass.value) errors.value.push('Please select a class.');
+  if (!meetingWith.value) errors.value.push('Please select a recipient.');
   if (!date.value) errors.value.push('Date is required.');
   if (!start.value) errors.value.push('Start time is required.');
   if (!end.value) errors.value.push('End time is required.');
   if (start.value && end.value && start.value >= end.value) errors.value.push('End time must be after start time.');
-  if (meetingWith.value === 'Other' && !otherPerson.value.trim()) errors.value.push('Please provide the other person\'s name.');
   return errors.value.length === 0;
 }
 
@@ -187,24 +281,55 @@ async function onSubmit() {
   success.value = false;
   errors.value = [];
   showSuccessToast.value = false;
+  showErrorToast.value = false;
 
-  if (!validate()) return;
-
-  await loadMeetingsForDate(date.value);
-  if (timeRangeOverlaps(start.value, end.value, date.value)) {
-    errors.value = ["The selected time overlaps an existing meeting. Please choose a different time."];
+  if (!validate()) {
+    showErrorToast.value = true;
     return;
   }
 
-  const payload = {
-    recipientID: meetingWith.value === "Other" ? otherPerson.value : meetingWith.value,
-    date: date.value,
-    start: start.value,
-    end: end.value,
-    notes: notes.value
-  };
-
   try {
+    // Get current user's meetings for the selected date
+    const currentUserMeetings = await getMeetingsForUserOnDate(currentUserEmail.value, date.value);
+    
+    // Get recipient's meetings for the selected date
+    const recipientMeetings = await getMeetingsForUserOnDate(meetingWith.value, date.value);
+
+    // Check for conflicts with current user's meetings
+    if (hasTimeConflict(start.value, end.value, currentUserMeetings, date.value)) {
+      errors.value = ["The selected time conflicts with your existing meeting."];
+      showErrorToast.value = true;
+      return;
+    }
+
+    // Check for conflicts with recipient's meetings
+    if (hasTimeConflict(start.value, end.value, recipientMeetings, date.value)) {
+      errors.value = ["The selected time conflicts with the recipient's schedule."];
+      showErrorToast.value = true;
+      return;
+    }
+
+    // Find the selected class details
+    const selectedClassObj = userClasses.value.find(c => c.classID === selectedClass.value);
+    if (!selectedClassObj) {
+      errors.value = ["Selected class not found"];
+      showErrorToast.value = true;
+      return;
+    }
+
+    const payload = {
+      classCode: selectedClass.value,
+      quarter: selectedClassObj.quarter,
+      year: selectedClassObj.year,
+      requesterId: currentUserEmail.value,
+      recipientId: meetingWith.value,
+      meetingDate: date.value,
+      startTime: start.value,
+      endTime: end.value,
+      status: "PENDING",
+      notes: notes.value
+    };
+
     const data = await createMeeting(payload);
     console.log("Meeting created:", data);
     success.value = true;
@@ -212,28 +337,28 @@ async function onSubmit() {
     showSuccessToast.value = true;
 
     // Reset form
-    meetingWith.value = "Professor";
-    otherPerson.value = "";
+    selectedClass.value = "";
+    meetingWith.value = "";
     date.value = "";
     start.value = "";
     end.value = "";
     notes.value = "";
+    classRecipients.value = [];
 
-    // Refresh events and reload calendar
+    // Refresh events
     await loadEvents();
     
-    // If a day was selected, reload meetings for that day and update agenda
     if (selectedDay.value) {
-      await loadMeetingsForDate(selectedDay.value);
+      //await loadMeetingsForDate(selectedDay.value);
       dayEvents.value = events.value.filter(e => e.start.startsWith(selectedDay.value));
     }
 
-    // Hide toast after 3 seconds
     setTimeout(() => {
       showSuccessToast.value = false;
     }, 3000);
   } catch (err) {
     errors.value = [err.message || "Failed to create meeting."];
+    showErrorToast.value = true;
     success.value = false;
     console.error("Error creating meeting:", err);
   }
@@ -242,7 +367,7 @@ async function onSubmit() {
 onMounted(async () => {
   await loadCurrentUser();
   await loadEvents();
-  if (date.value) await loadMeetingsForDate(date.value);
+  await loadUserClasses();
 });
 </script>
 
@@ -267,6 +392,21 @@ onMounted(async () => {
       </div>
     </Transition>
 
+    <!-- Error Toast Notification -->
+    <Transition name="slide-fade">
+      <div v-if="showErrorToast && errors.length > 0" class="error-toast">
+        <div class="toast-content">
+          <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>{{ errors[0] }}</span>
+        </div>
+        <button @click="showErrorToast = false" class="toast-close">×</button>
+      </div>
+    </Transition>
+
     <CalendarGrid :events="events" @select-day="handleDaySelect" />
 
     <div class="agenda">
@@ -279,11 +419,19 @@ onMounted(async () => {
       <div v-else class="meetings-list">
         <div v-for="e in dayEvents" :key="e.id" class="meeting-bubble">
           <div class="meeting-header">
-            <strong class="meeting-with">{{ e.title }}</strong>
-            <span class="meeting-requester">{{ e.requester }}</span>
+            <strong class="meeting-with">{{ e.otherPerson }}</strong>
+            <span class="meeting-role">{{ e.role }}</span>
           </div>
-          <div class="meeting-time">
-            {{ e.startTime }} - {{ e.endTime }}
+          <div class="meeting-details">
+            <div class="meeting-time">
+              🕐 {{ e.startTime }} - {{ e.endTime }}
+            </div>
+            <div class="meeting-class">
+              📚 {{ e.classCode }}
+            </div>
+            <div v-if="e.notes" class="meeting-notes">
+              📝 {{ truncateNotes(e.notes) }}
+            </div>
           </div>
         </div>
       </div>
@@ -300,17 +448,23 @@ onMounted(async () => {
       <div class="content">
         <form @submit.prevent="onSubmit" novalidate>
           <label class="field">
-            Meeting with
-            <select v-model="meetingWith" class="input">
-              <option>Professor</option>
-              <option>TA</option>
-              <option>Other</option>
+            Class
+            <select v-model="selectedClass" class="input">
+              <option value="">-- Select a class --</option>
+              <option v-for="cls in userClasses" :key="cls.classID" :value="cls.classID">
+                {{ cls.courseCode }} - {{ cls.className }}
+              </option>
             </select>
           </label>
 
-          <label v-if="meetingWith === 'Other'" class="field">
-            Other (name)
-            <input v-model="otherPerson" class="input" type="text" placeholder="Person's name" />
+          <label class="field" v-if="selectedClass">
+            Recipient
+            <select v-model="meetingWith" class="input">
+              <option value="">-- Select a person --</option>
+              <option v-for="person in classRecipients" :key="person.userID" :value="person.email">
+                {{ person.name }} ({{ person.role }})
+              </option>
+            </select>
           </label>
 
           <div class="row">
@@ -338,10 +492,6 @@ onMounted(async () => {
               Request Meeting
             </button>
           </div>
-
-          <ul v-if="errors.length" class="errors">
-            <li v-for="(err, i) in errors" :key="i">{{ err }}</li>
-          </ul>
         </form>
       </div>
     </div>
@@ -390,6 +540,23 @@ onMounted(async () => {
   max-width: 400px;
 }
 
+.error-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  max-width: 400px;
+}
+
 .toast-content {
   display: flex;
   align-items: center;
@@ -399,12 +566,20 @@ onMounted(async () => {
   font-size: 14px;
 }
 
+.error-toast .toast-content {
+  color: #fee2e2;
+}
+
 .toast-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
   color: #86efac;
   stroke-width: 3;
+}
+
+.error-toast .toast-icon {
+  color: #fca5a5;
 }
 
 .toast-close {
@@ -420,6 +595,14 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   transition: color 0.2s ease;
+}
+
+.error-toast .toast-close {
+  color: #fca5a5;
+}
+
+.error-toast .toast-close:hover {
+  color: #fee2e2;
 }
 
 .toast-close:hover {
@@ -494,18 +677,38 @@ onMounted(async () => {
   color: #60a5fa;
 }
 
-.meeting-requester {
-  font-size: 13px;
+.meeting-role {
+  font-size: 12px;
   color: #9ca3af;
   background: rgba(255, 255, 255, 0.05);
   padding: 4px 8px;
   border-radius: 6px;
 }
 
-.meeting-time {
+.meeting-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   font-size: 13px;
+}
+
+.meeting-time {
   color: #d1d5db;
   font-weight: 500;
+}
+
+.meeting-class {
+  color: #9ca3af;
+}
+
+.meeting-notes {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #c7d2e0;
+  border-left: 2px solid rgba(37, 99, 235, 0.5);
+  line-height: 1.4;
 }
 
 .card {
@@ -581,16 +784,17 @@ h2 {
   background: #1d4ed8;
 }
 
-.errors {
-  color: #fca5a5;
-  margin-top: 8px;
-  padding-left: 18px;
+.btn:disabled {
+  background: #6b7280;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 @media (max-width: 980px) {
   .row { flex-direction: column; align-items: stretch; }
 
-  .success-toast {
+  .success-toast,
+  .error-toast {
     top: auto;
     bottom: 20px;
     right: 20px;

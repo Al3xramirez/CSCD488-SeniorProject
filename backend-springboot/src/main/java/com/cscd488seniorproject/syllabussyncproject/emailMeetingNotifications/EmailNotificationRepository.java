@@ -1,6 +1,5 @@
 package com.cscd488seniorproject.syllabussyncproject.emailMeetingNotifications;
 
-import com.cscd488seniorproject.syllabussyncproject.emailMeetingNotifications.EmailNotificationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;

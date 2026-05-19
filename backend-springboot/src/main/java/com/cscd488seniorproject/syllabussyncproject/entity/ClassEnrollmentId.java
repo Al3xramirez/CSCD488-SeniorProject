@@ -4,20 +4,20 @@ import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
 
-@Embeddable  // ✅ ADD THIS
-public class EnrollRelationId implements Serializable {
+@Embeddable
+public class ClassEnrollmentId implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private String userId;
-    private String classCode;
-    private String quarter;
-    private Integer year;
+    public String userId;
+    public String classCode;
+    public String quarter;
+    public Integer year;
 
-    public EnrollRelationId() {
-    }
+    // Constructors
+    public ClassEnrollmentId() {}
 
-    public EnrollRelationId(String userId, String classCode, String quarter, Integer year) {
+    public ClassEnrollmentId(String userId, String classCode, String quarter, Integer year) {
         this.userId = userId;
         this.classCode = classCode;
         this.quarter = quarter;
@@ -57,11 +57,12 @@ public class EnrollRelationId implements Serializable {
         this.year = year;
     }
 
+    // equals and hashCode
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        EnrollRelationId that = (EnrollRelationId) o;
+        ClassEnrollmentId that = (ClassEnrollmentId) o;
         return Objects.equals(userId, that.userId) &&
                Objects.equals(classCode, that.classCode) &&
                Objects.equals(quarter, that.quarter) &&

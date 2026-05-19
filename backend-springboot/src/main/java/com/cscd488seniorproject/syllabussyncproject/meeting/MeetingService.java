@@ -15,41 +15,41 @@ public class MeetingService {
     @Autowired
     private MeetingRepository meetingRepository;
 
-    public Meeting createMeeting(Meeting meeting) {
+    public MeetingEntity createMeeting(MeetingEntity meeting) {  // ✅ Changed from Meeting
         meeting.setCreatedAt(LocalDateTime.now());
         return meetingRepository.save(meeting);
     }
 
-    public List<Meeting> getMeetingsByClassCode(String classCode) {
+    public List<MeetingEntity> getMeetingsByClassCode(String classCode) {  // ✅ Changed
         return meetingRepository.findByClassCode(classCode);
     }
 
-    public Optional<Meeting> getMeetingById(Long meetingId) {
+    public Optional<MeetingEntity> getMeetingById(Long meetingId) {  // ✅ Changed
         return meetingRepository.findById(meetingId);
     }
 
-    public Meeting updateMeeting(Long meetingId, Meeting updatedMeeting) {
-    Optional<Meeting> existing = meetingRepository.findById(meetingId);
-    if (existing.isPresent()) {
-        Meeting meeting = existing.get();
-        meeting.setClassCode(updatedMeeting.getClassCode());
-        meeting.setQuarter(updatedMeeting.getQuarter());
-        meeting.setYear(updatedMeeting.getYear());
-        meeting.setMeetingDate(updatedMeeting.getMeetingDate());
-        meeting.setStartTime(updatedMeeting.getStartTime());
-        meeting.setEndTime(updatedMeeting.getEndTime());
-        meeting.setStatus(updatedMeeting.getStatus());
-        meeting.setNotes(updatedMeeting.getNotes());
-        return meetingRepository.save(meeting);
+    public MeetingEntity updateMeeting(Long meetingId, MeetingEntity updatedMeeting) {  // ✅ Changed
+        Optional<MeetingEntity> existing = meetingRepository.findById(meetingId);
+        if (existing.isPresent()) {
+            MeetingEntity meeting = existing.get();
+            meeting.setClassCode(updatedMeeting.getClassCode());
+            meeting.setQuarter(updatedMeeting.getQuarter());
+            meeting.setYear(updatedMeeting.getYear());
+            meeting.setMeetingDate(updatedMeeting.getMeetingDate());
+            meeting.setStartTime(updatedMeeting.getStartTime());
+            meeting.setEndTime(updatedMeeting.getEndTime());
+            meeting.setStatus(updatedMeeting.getStatus());
+            meeting.setNotes(updatedMeeting.getNotes());
+            return meetingRepository.save(meeting);
+        }
+        return null;
     }
-    return null;
-}
 
     public void deleteMeeting(Long meetingId) {
         meetingRepository.deleteById(meetingId);
     }
 
-    public List<Meeting> getUpcomingMeetings(String classCode) {
+    public List<MeetingEntity> getUpcomingMeetings(String classCode) {  // ✅ Changed
         return meetingRepository.findByClassCodeAndMeetingDateBetween(
             classCode, 
             LocalDate.now(), 
@@ -57,21 +57,23 @@ public class MeetingService {
         );
     }
 
-    public List<Meeting> getMeetingsByRequesterId(String requesterId) {
+    public List<MeetingEntity> getMeetingsByRequesterId(String requesterId) {  // ✅ Changed
         return meetingRepository.findByRequesterId(requesterId);
     }
 
-    public List<Meeting> getMeetingsByRecipientId(String recipientId) {
+    public List<MeetingEntity> getMeetingsByRecipientId(String recipientId) {  // ✅ Changed
         return meetingRepository.findByRecipientId(recipientId);
     }
 
-    public List<Meeting> getPendingMeetings(String recipientId) {
-        List<Meeting> meetings = meetingRepository.findByRecipientId(recipientId);
-        return meetings.stream().filter(m -> "PENDING".equals(m.getStatus())).toList();
+    public List<MeetingEntity> getPendingMeetings(String recipientId) {  // ✅ Changed
+        List<MeetingEntity> meetings = meetingRepository.findByRecipientId(recipientId);
+        return meetings.stream()
+            .filter(m -> "PENDING".equals(m.getStatus()))
+            .toList();
     }
 
-    public List<Meeting> createRecurringMeetings(RecurringMeetingRequest request) {
-        List<Meeting> createdMeetings = new ArrayList<>();
+    public List<MeetingEntity> createRecurringMeetings(RecurringMeetingRequest request) {  // ✅ Changed
+        List<MeetingEntity> createdMeetings = new ArrayList<>();
         LocalDate currentDate = request.getStartDate();
 
         while (!currentDate.isAfter(request.getEndDate())) {
@@ -79,14 +81,14 @@ public class MeetingService {
             String dayName = dayOfWeek.toString();
 
             if (request.getDaysOfWeek().contains(dayName)) {
-                Meeting meeting = new Meeting();
+                MeetingEntity meeting = new MeetingEntity();  // ✅ Changed
                 meeting.setClassCode(request.getClassCode());
                 meeting.setMeetingDate(currentDate);
                 meeting.setStartTime(request.getStartTime());
                 meeting.setEndTime(request.getEndTime());
                 meeting.setStatus("PENDING");
 
-                Meeting savedMeeting = createMeeting(meeting);
+                MeetingEntity savedMeeting = createMeeting(meeting);
                 createdMeetings.add(savedMeeting);
             }
 
@@ -94,5 +96,9 @@ public class MeetingService {
         }
 
         return createdMeetings;
+    }
+
+    public List<MeetingEntity> getAllMeetings() {
+        return meetingRepository.findAll();
     }
 }
