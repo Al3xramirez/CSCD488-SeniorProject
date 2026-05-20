@@ -17,10 +17,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import java.util.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.HashMap;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api")
@@ -123,6 +119,15 @@ public class MeetingController {
     public ResponseEntity<List<MeetingEntity>> createRecurringMeetings(@RequestBody RecurringMeetingRequest request) {
         List<MeetingEntity> createdMeetings = meetingService.createRecurringMeetings(request);
         return ResponseEntity.ok(createdMeetings);
+    }
+    
+    @GetMapping("/meetings/user/{userEmail}/date/{date}")
+    public ResponseEntity<List<MeetingEntity>> getMeetingsForUserByDate(
+        @PathVariable String userEmail,
+        @PathVariable String date
+    ) {
+        List<MeetingEntity> meetings = meetingService.getMeetingsForUserByDate(userEmail, date);
+        return ResponseEntity.ok(meetings);
     }
 
     @GetMapping("/auth/current-user")

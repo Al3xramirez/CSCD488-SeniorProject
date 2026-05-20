@@ -332,6 +332,12 @@ async function onSubmit() {
 
     const data = await createMeeting(payload);
     console.log("Meeting created:", data);
+    Authentication authentication = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+        String currentUserEmail = authentication.getName();
+        
+    sendMeetingNotification(data)///send email notification
     success.value = true;
     errors.value = [];
     showSuccessToast.value = true;

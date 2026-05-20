@@ -2,6 +2,10 @@ package com.cscd488seniorproject.syllabussyncproject.meeting;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.security.core.Authentication; 
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,20 +19,20 @@ public class MeetingService {
     @Autowired
     private MeetingRepository meetingRepository;
 
-    public MeetingEntity createMeeting(MeetingEntity meeting) {  // ✅ Changed from Meeting
+    public MeetingEntity createMeeting(MeetingEntity meeting) {
         meeting.setCreatedAt(LocalDateTime.now());
         return meetingRepository.save(meeting);
     }
 
-    public List<MeetingEntity> getMeetingsByClassCode(String classCode) {  // ✅ Changed
+    public List<MeetingEntity> getMeetingsByClassCode(String classCode) {
         return meetingRepository.findByClassCode(classCode);
     }
 
-    public Optional<MeetingEntity> getMeetingById(Long meetingId) {  // ✅ Changed
+    public Optional<MeetingEntity> getMeetingById(Long meetingId) {
         return meetingRepository.findById(meetingId);
     }
 
-    public MeetingEntity updateMeeting(Long meetingId, MeetingEntity updatedMeeting) {  // ✅ Changed
+    public MeetingEntity updateMeeting(Long meetingId, MeetingEntity updatedMeeting) {
         Optional<MeetingEntity> existing = meetingRepository.findById(meetingId);
         if (existing.isPresent()) {
             MeetingEntity meeting = existing.get();
@@ -49,7 +53,7 @@ public class MeetingService {
         meetingRepository.deleteById(meetingId);
     }
 
-    public List<MeetingEntity> getUpcomingMeetings(String classCode) {  // ✅ Changed
+    public List<MeetingEntity> getUpcomingMeetings(String classCode) {
         return meetingRepository.findByClassCodeAndMeetingDateBetween(
             classCode, 
             LocalDate.now(), 
@@ -57,37 +61,44 @@ public class MeetingService {
         );
     }
 
-    public List<MeetingEntity> getMeetingsByRequesterId(String requesterId) {  // ✅ Changed
+    public List<MeetingEntity> getMeetingsByRequesterId(String requesterId) {
         return meetingRepository.findByRequesterId(requesterId);
     }
 
-    public List<MeetingEntity> getMeetingsByRecipientId(String recipientId) {  // ✅ Changed
+    public List<MeetingEntity> getMeetingsByRecipientId(String recipientId) {
         return meetingRepository.findByRecipientId(recipientId);
     }
 
-    public List<MeetingEntity> getPendingMeetings(String recipientId) {  // ✅ Changed
+    public List<MeetingEntity> getPendingMeetings(String recipientId) {
         List<MeetingEntity> meetings = meetingRepository.findByRecipientId(recipientId);
         return meetings.stream()
             .filter(m -> "PENDING".equals(m.getStatus()))
             .toList();
     }
 
-    public List<MeetingEntity> createRecurringMeetings(RecurringMeetingRequest request) {  // ✅ Changed
+    public List<MeetingEntity> createRecurringMeetings(RecurringMeetingRequest request) {
         List<MeetingEntity> createdMeetings = new ArrayList<>();
         LocalDate currentDate = request.getStartDate();
-
+        Authentication authentication = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+        String currentUserEmail = authentication.getName();
+        
         while (!currentDate.isAfter(request.getEndDate())) {
             DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
             String dayName = dayOfWeek.toString();
-
+            
             if (request.getDaysOfWeek().contains(dayName)) {
-                MeetingEntity meeting = new MeetingEntity();  // ✅ Changed
+                
+                MeetingEntity meeting = new MeetingEntity();
                 meeting.setClassCode(request.getClassCode());
                 meeting.setMeetingDate(currentDate);
                 meeting.setStartTime(request.getStartTime());
                 meeting.setEndTime(request.getEndTime());
-                meeting.setStatus("PENDING");
-
+                meeting.setRequesterId(currentUserEmail);
+                meeting.setRecipientId(request.getRecipientId());
+                meeting.setStatus("CONFIRMED"); //only used for class lectures/officehours so we can set status to confirmed
+                
                 MeetingEntity savedMeeting = createMeeting(meeting);
                 createdMeetings.add(savedMeeting);
             }
@@ -100,5 +111,11 @@ public class MeetingService {
 
     public List<MeetingEntity> getAllMeetings() {
         return meetingRepository.findAll();
+    }
+
+    public List<MeetingEntity> getMeetingsForUserByDate(String userEmail, String date) {
+        
+        LocalDate localDate = LocalDate.parse(date);
+        return meetingRepository.findByRequesterIdOrRecipientIdAndMeetingDate(userEmail, userEmail, localDate);
     }
 }

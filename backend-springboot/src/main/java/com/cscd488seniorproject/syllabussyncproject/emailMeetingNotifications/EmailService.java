@@ -12,7 +12,7 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final UserAccountRepository userAccountRepository;
-    private static final String SENDER_EMAIL = "noreply@syllabussync.com";
+    private static final String SENDER_EMAIL = "syllabussyncproject@gmail.com";
 
     public EmailService(JavaMailSender mailSender, UserAccountRepository userAccountRepository) {
         this.mailSender = mailSender;

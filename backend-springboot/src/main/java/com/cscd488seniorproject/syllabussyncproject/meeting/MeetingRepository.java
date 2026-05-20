@@ -24,4 +24,6 @@ public interface MeetingRepository extends JpaRepository<MeetingEntity, Long> {
     
     List<MeetingEntity> findByRecipientIdAndMeetingDate(String recipientId, LocalDate meetingDate);
     List<MeetingEntity> findAllByOrderByMeetingDateAscStartTimeAsc();
+    List<MeetingEntity> findByRequesterIdOrRecipientIdAndMeetingDate(String userEmail, String userEmail2,
+            LocalDate localDate);
 }

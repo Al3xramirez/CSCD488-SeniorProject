@@ -38,7 +38,7 @@ public class MeetingEntity {
     @Column(name = "EndTime")
     private LocalTime endTime;
 
-    @Column(name = "Status")  // ✅ ADD THIS
+    @Column(name = "Status")
     private String status;
 
     @Column(name = "Notes", columnDefinition = "TEXT")

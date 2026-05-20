@@ -543,7 +543,45 @@ async function parseSyllabus() {
     loading.value = false
   }
 }
+async function loadClassRecipients(classCode) {
+  if (!classCode) {
+    classRecipients.value = [];
+    return;
+  }
+  try {
+    const res = await fetch(`/api/classes/${classCode}/members`, {
+      method: "GET",
+      credentials: "include"
+    });
+    if (res.ok) {
+      const data = await res.json();
+      classRecipients.value = (data || []).filter(
+        member => member.email?.toLowerCase() !== currentUserNormalized.value
+      );
+    } else {
+      classRecipients.value = [];
+    }
+  } catch (err) {
+    console.error("Error loading class recipients:", err);
+    classRecipients.value = [];
+  }
+}
+async function createRecurringMeetings(request) {
+    const res = await fetch("/api/meetings/create-recurring", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(request)
+    });
 
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+
+      return await res.json();
+    }
 async function confirmSave() {
   saving.value = true
   error.value  = ''
@@ -575,7 +613,28 @@ async function confirmSave() {
 
     emit('saved', payload)
     step.value = 'saved'
-  } catch (e) {
+    
+    courseId = String(effectiveCourseId.value)
+    roster = await loadClassRecipients(courseId);
+    MeetingTimes = draft.value.classMeetingTimes.value
+    Notes = courseId + " Lecture "  + MeetingTimes.location
+    
+      for(const student of roster){
+        const request = { 
+          startDate: meetingTimes.startDate, 
+          endDate: meetingTimes.endDate, 
+          startTime: meetingTimes.startTime, 
+          endTime: meetingTimes.endTime, 
+          classCode: courseId, 
+          daysOfWeek: classMeetingTimes.value.days, 
+          notes: notes, 
+          recipientId: student.email };
+        await createRecurringMeetings(request)
+      }
+
+      
+
+    } catch (e) {
     error.value = 'Failed to save. Please try again.'
   } finally {
     saving.value = false
