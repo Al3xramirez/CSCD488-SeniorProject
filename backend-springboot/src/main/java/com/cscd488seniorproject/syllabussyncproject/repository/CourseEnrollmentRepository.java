@@ -1,19 +1,20 @@
 package com.cscd488seniorproject.syllabussyncproject.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.cscd488seniorproject.syllabussyncproject.entity.ClassEnrollmentEntity;
-import com.cscd488seniorproject.syllabussyncproject.entity.EnrollRelationId;
+import com.cscd488seniorproject.syllabussyncproject.entity.ClassEnrollmentId;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CourseEnrollmentRepository extends JpaRepository<ClassEnrollmentEntity, EnrollRelationId> {
+public interface CourseEnrollmentRepository extends JpaRepository<ClassEnrollmentEntity, ClassEnrollmentId> {
     
     @Query("SELECT e FROM ClassEnrollmentEntity e WHERE e.id.userId = :userId")
     List<ClassEnrollmentEntity> findByUserId(@Param("userId") String userId);
@@ -52,10 +53,11 @@ public interface CourseEnrollmentRepository extends JpaRepository<ClassEnrollmen
     );
 
     
+    @Modifying
     @Transactional
     @Query("""
         DELETE FROM ClassEnrollmentEntity e
-        WHERE e.id.userId = :userId 
+        WHERE e.id.userId = :userId
         AND e.id.classCode = :classCode
     """)
     void deleteByUserIdAndClassCode(

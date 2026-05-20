@@ -1,10 +1,8 @@
 package com.cscd488seniorproject.syllabussyncproject.entity;
 
-import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
 
-@Embeddable
 public class TeachesRelationId implements Serializable {
 
     private static final long serialVersionUID = 1L;
