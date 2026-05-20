@@ -45,9 +45,12 @@ public interface CourseRepository extends JpaRepository<CourseEntity, CourseId> 
     """)
     List<CourseEntity> findCoursesEnrolledBy(@Param("userId") String userId);
 
-    // ✅ ADDITIONAL: Find all courses by class code
     List<CourseEntity> findByClassCode(String classCode);
 
-    // ✅ ADDITIONAL: Find courses by quarter and year
     List<CourseEntity> findByQuarterAndYear(String quarter, Integer year);
+
+    @Query("select c from CourseEntity c, TARelationEntity t " +
+        "where t.userId = :userId " +
+        "and t.classCode = c.classCode and t.quarter = c.quarter and t.year = c.year")
+    List<CourseEntity> findCoursesTAedBy(@Param("userId") String userId);
 }

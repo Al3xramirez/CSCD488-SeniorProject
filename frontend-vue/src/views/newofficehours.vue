@@ -390,8 +390,6 @@ async function onSubmit() {
 
 onMounted(async () => {
   await loadCurrentUser();
-  await loadEvents();
-  await loadUserClasses();
 });
 </script>
 
