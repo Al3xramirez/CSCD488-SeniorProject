@@ -6,6 +6,7 @@ import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountReposi
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import java.util.Optional;
 
 @Service
 public class EmailService {
@@ -36,9 +37,12 @@ public class EmailService {
     }
 
     private String getRecipientEmailByUserId(String userId) {
-        UserAccountEntity user = userAccountRepository.findById(userId)
+        Optional<UserAccountEntity> byId = userAccountRepository.findById(userId);
+        if (byId.isPresent()) return byId.get().getEmail();
+        // Frontend passes email addresses directly, not user IDs
+        return userAccountRepository.findByEmail(userId)
+            .map(UserAccountEntity::getEmail)
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        return user.getEmail();
     }
 
     private String buildMeetingEmailBody(MeetingEntity meeting) {
@@ -47,7 +51,7 @@ public class EmailService {
             "Date: %s\n" +
             "Start Time: %s\n" +
             "End Time: %s\n" +
-            "Class ID: %d\n\n" +
+            "Class: %s\n\n" +
             "Please mark your calendar accordingly.",
             meeting.getMeetingDate(),
             meeting.getStartTime(),

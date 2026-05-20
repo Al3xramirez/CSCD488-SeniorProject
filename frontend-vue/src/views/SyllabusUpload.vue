@@ -128,6 +128,16 @@
                 <input class="edit-input edit-input--grow" type="text" v-model="draft.classMeetingTimes.value.location" placeholder="Room / building" />
               </div>
             </div>
+            <div class="row" style="margin-top: 4px;">
+              <div class="select-group" style="flex:1">
+                <label class="select-label">Quarter Start Date</label>
+                <input class="edit-input edit-input--date" type="date" v-model="draft.classMeetingTimes.value.startDate" />
+              </div>
+              <div class="select-group" style="flex:1">
+                <label class="select-label">Quarter End Date</label>
+                <input class="edit-input edit-input--date" type="date" v-model="draft.classMeetingTimes.value.endDate" />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -481,14 +491,16 @@ function resetToUpload() {
 
 function ensureDefaults(parsed) {
   if (!parsed.classMeetingTimes) {
-    parsed.classMeetingTimes = { value: { days: [], startTime: '', endTime: '', location: '' }, confidence: 'low' }
+    parsed.classMeetingTimes = { value: { days: [], startTime: '', endTime: '', location: '', startDate: '', endDate: '' }, confidence: 'low' }
   } else if (!parsed.classMeetingTimes.value || typeof parsed.classMeetingTimes.value !== 'object') {
-    parsed.classMeetingTimes.value = { days: [], startTime: '', endTime: '', location: '' }
+    parsed.classMeetingTimes.value = { days: [], startTime: '', endTime: '', location: '', startDate: '', endDate: '' }
   } else {
     if (!Array.isArray(parsed.classMeetingTimes.value.days)) parsed.classMeetingTimes.value.days = []
     parsed.classMeetingTimes.value.startTime ??= ''
     parsed.classMeetingTimes.value.endTime   ??= ''
     parsed.classMeetingTimes.value.location  ??= ''
+    parsed.classMeetingTimes.value.startDate ??= ''
+    parsed.classMeetingTimes.value.endDate   ??= ''
   }
 
   if (!parsed.attendance) {
@@ -567,21 +579,16 @@ async function loadClassRecipients(classCode) {
   }
 }
 async function createRecurringMeetings(request) {
-    const res = await fetch("/api/meetings/create-recurring", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(request)
-    });
+  const res = await fetch('/api/meetings/recurring', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  })
+  if (!res.ok) throw new Error(await res.text())
+  return await res.json()
+}
 
-    if (!res.ok) {
-      throw new Error(await res.text());
-    }
-
-      return await res.json();
-    }
 async function confirmSave() {
   saving.value = true
   error.value  = ''
@@ -612,29 +619,36 @@ async function confirmSave() {
     }
 
     emit('saved', payload)
-    step.value = 'saved'
-    
-    courseId = String(effectiveCourseId.value)
-    roster = await loadClassRecipients(courseId);
-    MeetingTimes = draft.value.classMeetingTimes.value
-    Notes = courseId + " Lecture "  + MeetingTimes.location
-    
-      for(const student of roster){
-        const request = { 
-          startDate: meetingTimes.startDate, 
-          endDate: meetingTimes.endDate, 
-          startTime: meetingTimes.startTime, 
-          endTime: meetingTimes.endTime, 
-          classCode: courseId, 
-          daysOfWeek: classMeetingTimes.value.days, 
-          notes: notes, 
-          recipientId: student.email };
+
+    const courseId = String(effectiveCourseId.value)
+    const meetingTimes = draft.value.classMeetingTimes.value
+
+    if (meetingTimes.days?.length && meetingTimes.startTime && meetingTimes.endTime &&
+        meetingTimes.startDate && meetingTimes.endDate) {
+      const membersRes = await fetch(`/api/classes/${courseId}/members`, { credentials: 'include' })
+      const members = membersRes.ok ? await membersRes.json() : []
+
+      const DAY_MAP = { MON: 'MONDAY', TUE: 'TUESDAY', WED: 'WEDNESDAY', THU: 'THURSDAY', FRI: 'FRIDAY', SAT: 'SATURDAY', SUN: 'SUNDAY' }
+      const daysOfWeek = meetingTimes.days.map(d => DAY_MAP[d] || d)
+      const notes = `${courseId} Lecture${meetingTimes.location ? ' ' + meetingTimes.location : ''}`
+
+      for (const member of members) {
+        const request = {
+          startDate: meetingTimes.startDate,
+          endDate: meetingTimes.endDate,
+          startTime: meetingTimes.startTime,
+          endTime: meetingTimes.endTime,
+          classCode: courseId,
+          daysOfWeek,
+          notes,
+          recipientId: member.email
+        }
         await createRecurringMeetings(request)
       }
+    }
 
-      
-
-    } catch (e) {
+    step.value = 'saved'
+  } catch (e) {
     error.value = 'Failed to save. Please try again.'
   } finally {
     saving.value = false

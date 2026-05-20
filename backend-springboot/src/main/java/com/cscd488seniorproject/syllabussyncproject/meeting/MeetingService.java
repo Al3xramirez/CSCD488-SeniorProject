@@ -97,6 +97,7 @@ public class MeetingService {
                 meeting.setEndTime(request.getEndTime());
                 meeting.setRequesterId(currentUserEmail);
                 meeting.setRecipientId(request.getRecipientId());
+                meeting.setNotes(request.getNotes());
                 meeting.setStatus("CONFIRMED"); //only used for class lectures/officehours so we can set status to confirmed
                 
                 MeetingEntity savedMeeting = createMeeting(meeting);
@@ -114,8 +115,7 @@ public class MeetingService {
     }
 
     public List<MeetingEntity> getMeetingsForUserByDate(String userEmail, String date) {
-        
         LocalDate localDate = LocalDate.parse(date);
-        return meetingRepository.findByRequesterIdOrRecipientIdAndMeetingDate(userEmail, userEmail, localDate);
+        return meetingRepository.findByUserIdAndDateBetween(userEmail, localDate, localDate);
     }
 }

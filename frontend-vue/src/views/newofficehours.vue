@@ -214,16 +214,18 @@ async function getMeetingsForUserOnDate(userEmail, dateStr) {
   }
 }
 
-function hasTimeConflict(requestedStart, requestedEnd, meetings, dateStr) {
-  const s = new Date(dateStr + "T" + requestedStart);
-  const e = new Date(dateStr + "T" + requestedEnd);
-  
-  return meetings.some(m => {
-    const mStart = new Date(dateStr + "T" + m.startTime);
-    const mEnd = new Date(dateStr + "T" + m.endTime);
-    return !(e <= mStart || s >= mEnd);
-  });
-}
+function timeToMinutes(timeStr) {
+  const [hours, minutes] = timeStr.split(":").map(Number); 
+  return (hours * 60) + minutes; } 
+function hasTimeConflict(requestedStart, requestedEnd, meetings) { 
+  const reqStart = timeToMinutes(requestedStart); 
+  const reqEnd = timeToMinutes(requestedEnd); 
+  return meetings.some(m => { 
+      const meetStart = timeToMinutes(m.startTime); 
+      const meetEnd = timeToMinutes(m.endTime); // overlap check 
+      
+      return reqStart < meetEnd && reqEnd > meetStart; }
+); }
 
 function handleDaySelect(day) {
   const selected = toYmd(day);
@@ -296,14 +298,14 @@ async function onSubmit() {
     const recipientMeetings = await getMeetingsForUserOnDate(meetingWith.value, date.value);
 
     // Check for conflicts with current user's meetings
-    if (hasTimeConflict(start.value, end.value, currentUserMeetings, date.value)) {
+    if (hasTimeConflict(start.value, end.value, currentUserMeetings)) {
       errors.value = ["The selected time conflicts with your existing meeting."];
       showErrorToast.value = true;
       return;
     }
 
     // Check for conflicts with recipient's meetings
-    if (hasTimeConflict(start.value, end.value, recipientMeetings, date.value)) {
+    if (hasTimeConflict(start.value, end.value, recipientMeetings)) {
       errors.value = ["The selected time conflicts with the recipient's schedule."];
       showErrorToast.value = true;
       return;
@@ -332,12 +334,28 @@ async function onSubmit() {
 
     const data = await createMeeting(payload);
     console.log("Meeting created:", data);
-    Authentication authentication = SecurityContextHolder
-                .getContext()
-                .getAuthentication();
-        String currentUserEmail = authentication.getName();
-        
-    sendMeetingNotification(data)///send email notification
+    
+    const meeting = { 
+          classCode: selectedClass.value, 
+          quarter: selectedClassObj.quarter,
+          year: selectedClassObj.year,
+          requesterId: currentUserEmail.value,  
+          meetingDate: date.value,
+          startTime: start.value,
+          endTime: end.value,  
+          notes: notes.value};
+    
+    const res = await fetch(`/api/emails/send-meeting-notification?recipientUserId=${meetingWith.value}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(meeting)
+    })
+    if (!res.ok) {
+      console.error("Failed to send email notification:", await res.text());
+    } else {
+      console.log("Email notification sent successfully");
+    }
     success.value = true;
     errors.value = [];
     showSuccessToast.value = true;
