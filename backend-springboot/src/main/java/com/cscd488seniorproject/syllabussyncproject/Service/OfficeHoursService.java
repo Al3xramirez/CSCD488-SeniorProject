@@ -5,15 +5,22 @@ import com.cscd488seniorproject.syllabussyncproject.dto.OfficeHoursScheduleDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.OfficeHoursViewDTO;
 import com.cscd488seniorproject.syllabussyncproject.entity.OfficeHoursExceptionEntity;
 import com.cscd488seniorproject.syllabussyncproject.entity.OfficeHoursScheduleEntity;
+import com.cscd488seniorproject.syllabussyncproject.entity.TARelationEntity;
+import com.cscd488seniorproject.syllabussyncproject.entity.TeachesRelationEntity;
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.OfficeHoursExceptionRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.OfficeHoursScheduleRepository;
+import com.cscd488seniorproject.syllabussyncproject.repository.TARelationRepository;
+import com.cscd488seniorproject.syllabussyncproject.repository.TeachesRelationRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -26,13 +33,19 @@ public class OfficeHoursService {
     private final OfficeHoursScheduleRepository scheduleRepo;
     private final OfficeHoursExceptionRepository exceptionRepo;
     private final UserAccountRepository userRepo;
+    private final TARelationRepository taRepo;
+    private final TeachesRelationRepository teachesRepo;
 
     public OfficeHoursService(OfficeHoursScheduleRepository scheduleRepo,
                                OfficeHoursExceptionRepository exceptionRepo,
-                               UserAccountRepository userRepo) {
+                               UserAccountRepository userRepo,
+                               TARelationRepository taRepo,
+                               TeachesRelationRepository teachesRepo) {
         this.scheduleRepo = scheduleRepo;
         this.exceptionRepo = exceptionRepo;
         this.userRepo = userRepo;
+        this.taRepo = taRepo;
+        this.teachesRepo = teachesRepo;
     }
 
     // ── TA / Professor: own schedule ──────────────────────────────────────────
@@ -130,6 +143,37 @@ public class OfficeHoursService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Exception not found");
         }
         exceptionRepo.deleteById(id);
+    }
+
+    // ── Class members: view all office hours for a class ─────────────────────
+
+    public List<OfficeHoursViewDTO> getClassOfficeHours(String classCode) {
+        List<OfficeHoursViewDTO> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+
+        for (TARelationEntity ta : taRepo.findByClassCode(classCode)) {
+            if (seen.add(ta.getUserId())) {
+                userRepo.findById(ta.getUserId()).ifPresent(user -> {
+                    List<OfficeHoursScheduleDTO> schedule = scheduleRepo.findAllByUserId(ta.getUserId())
+                            .stream().map(this::toScheduleDTO).toList();
+                    result.add(new OfficeHoursViewDTO(ta.getUserId(), user.getFirstName(),
+                            user.getLastName(), "TA", schedule, List.of()));
+                });
+            }
+        }
+
+        for (TeachesRelationEntity prof : teachesRepo.findByClassCode(classCode)) {
+            if (seen.add(prof.getUserId())) {
+                userRepo.findById(prof.getUserId()).ifPresent(user -> {
+                    List<OfficeHoursScheduleDTO> schedule = scheduleRepo.findAllByUserId(prof.getUserId())
+                            .stream().map(this::toScheduleDTO).toList();
+                    result.add(new OfficeHoursViewDTO(prof.getUserId(), user.getFirstName(),
+                            user.getLastName(), "PROFESSOR", schedule, List.of()));
+                });
+            }
+        }
+
+        return result;
     }
 
     // ── Student: view a TA or Professor's hours ───────────────────────────────

@@ -77,28 +77,33 @@ public class MeetingService {
     }
 
     public List<MeetingEntity> createRecurringMeetings(RecurringMeetingRequest request) {
+        if (request.getStartDate() == null || request.getEndDate() == null
+                || request.getDaysOfWeek() == null || request.getDaysOfWeek().isEmpty()) {
+            return new ArrayList<>();
+        }
+
         List<MeetingEntity> createdMeetings = new ArrayList<>();
         LocalDate currentDate = request.getStartDate();
-        Authentication authentication = SecurityContextHolder
-                .getContext()
-                .getAuthentication();
-        String currentUserEmail = authentication.getName();
-        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserEmail = (authentication != null) ? authentication.getName() : null;
+
         while (!currentDate.isAfter(request.getEndDate())) {
             DayOfWeek dayOfWeek = currentDate.getDayOfWeek();
             String dayName = dayOfWeek.toString();
-            
+
             if (request.getDaysOfWeek().contains(dayName)) {
                 
                 MeetingEntity meeting = new MeetingEntity();
                 meeting.setClassCode(request.getClassCode());
+                meeting.setQuarter(request.getQuarter());
+                meeting.setYear(request.getYear());
                 meeting.setMeetingDate(currentDate);
                 meeting.setStartTime(request.getStartTime());
                 meeting.setEndTime(request.getEndTime());
                 meeting.setRequesterId(currentUserEmail);
-                meeting.setRecipientId(request.getRecipientId());
+                meeting.setRecipientId(request.getRecipientId() != null ? request.getRecipientId() : "");
                 meeting.setNotes(request.getNotes());
-                meeting.setStatus("CONFIRMED"); //only used for class lectures/officehours so we can set status to confirmed
+                meeting.setStatus("CONFIRMED");
                 
                 MeetingEntity savedMeeting = createMeeting(meeting);
                 createdMeetings.add(savedMeeting);
@@ -110,6 +115,10 @@ public class MeetingService {
         return createdMeetings;
     }
 
+    public List<MeetingEntity> getClassWideMeetings(String classCode) {
+        return meetingRepository.findClassWideMeetingsByClassCode(classCode);
+    }
+
     public List<MeetingEntity> getAllMeetings() {
         return meetingRepository.findAll();
     }
@@ -117,5 +126,19 @@ public class MeetingService {
     public List<MeetingEntity> getMeetingsForUserByDate(String userEmail, String date) {
         LocalDate localDate = LocalDate.parse(date);
         return meetingRepository.findByUserIdAndDateBetween(userEmail, localDate, localDate);
+    }
+
+    public List<MeetingEntity> getMeetingsByUserId(String userEmail) {
+        return meetingRepository.findByUserId(userEmail);
+    }
+
+    public MeetingEntity updateMeetingStatus(Long meetingId, String status) {
+        Optional<MeetingEntity> existing = meetingRepository.findById(meetingId);
+        if (existing.isPresent()) {
+            MeetingEntity meeting = existing.get();
+            meeting.setStatus(status);
+            return meetingRepository.save(meeting);
+        }
+        return null;
     }
 }

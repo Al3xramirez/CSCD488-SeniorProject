@@ -84,6 +84,11 @@ const passConditions = computed(() => {
 
 const meetingTimes = computed(() => syllabus.value?.classMeetingTimes ?? null);
 
+const officeHours = computed(() => {
+  const oh = syllabus.value?.officeHours;
+  return Array.isArray(oh) ? oh : [];
+});
+
 function formatTime(t) {
   if (!t) return "";
   const [hh, mm] = t.split(":").map(Number);
@@ -219,9 +224,25 @@ onMounted(async () => {
         </div>
 
         <!-- Office Hours -->
-        <div v-if="syllabus.officeHours" class="syllabus-section">
+        <div v-if="officeHours.length" class="syllabus-section">
           <div class="syllabus-section__title">Office Hours</div>
-          <p class="syllabus-text">{{ syllabus.officeHours }}</p>
+          <div v-for="(block, i) in officeHours" :key="i">
+            <hr v-if="i > 0" class="oh-divider" />
+            <div class="meeting-times">
+              <div v-if="block.days?.length" class="meeting-row">
+                <span class="meeting-label">Days</span>
+                <span class="meeting-value">{{ formatDays(block.days) }}</span>
+              </div>
+              <div v-if="block.startTime && block.endTime" class="meeting-row">
+                <span class="meeting-label">Time</span>
+                <span class="meeting-value">{{ formatTime(block.startTime) }} – {{ formatTime(block.endTime) }}</span>
+              </div>
+              <div v-if="block.location" class="meeting-row">
+                <span class="meeting-label">Location</span>
+                <span class="meeting-value">{{ block.location }}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Meeting Times -->
@@ -763,6 +784,12 @@ h3 {
   margin: 0;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.oh-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  margin: 6px 0;
 }
 
 .meeting-times {

@@ -69,6 +69,12 @@ public class MeetingController {
         return ResponseEntity.ok(meetings);
     }
 
+    @GetMapping("/classes/{classCode}/class-meetings")
+    public ResponseEntity<List<MeetingEntity>> getClassWideMeetings(@PathVariable String classCode) {
+        List<MeetingEntity> meetings = meetingService.getClassWideMeetings(classCode);
+        return ResponseEntity.ok(meetings);
+    }
+
     @GetMapping("/classes/{classCode}")
     public ResponseEntity<List<MeetingEntity>> getMeetingsByClassCode(@PathVariable String classCode) {
         List<MeetingEntity> meetings = meetingService.getMeetingsByClassCode(classCode);
@@ -115,12 +121,86 @@ public class MeetingController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/meetings/{meetingId}/status")
+    public ResponseEntity<MeetingEntity> updateMeetingStatus(
+            @PathVariable Long meetingId,
+            @RequestBody Map<String, String> body) {
+        String status = body.get("status");
+        if (status == null) return ResponseEntity.badRequest().build();
+        MeetingEntity updated = meetingService.updateMeetingStatus(meetingId, status);
+        return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
+    }
+
     @PostMapping("/meetings/recurring")
-    public ResponseEntity<List<MeetingEntity>> createRecurringMeetings(@RequestBody RecurringMeetingRequest request) {
-        List<MeetingEntity> createdMeetings = meetingService.createRecurringMeetings(request);
-        return ResponseEntity.ok(createdMeetings);
+    public ResponseEntity<?> createRecurringMeetings(@RequestBody RecurringMeetingRequest request) {
+        try {
+            System.err.println("RECURRING_MEETINGS_REQUEST: classCode=" + request.getClassCode()
+                + ", startDate=" + request.getStartDate()
+                + ", endDate=" + request.getEndDate()
+                + ", startTime=" + request.getStartTime()
+                + ", endTime=" + request.getEndTime()
+                + ", daysOfWeek=" + request.getDaysOfWeek()
+                + ", notes=" + request.getNotes());
+            List<MeetingEntity> createdMeetings = meetingService.createRecurringMeetings(request);
+            System.err.println("RECURRING_MEETINGS_CREATED: " + createdMeetings.size() + " meetings");
+            return ResponseEntity.ok(createdMeetings);
+        } catch (Exception e) {
+            System.err.println("RECURRING_MEETINGS_ERROR: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Meeting creation failed: " + e.getMessage());
+        }
     }
     
+    @GetMapping("/meetings/my")
+    public ResponseEntity<List<MeetingEntity>> getMyMeetings(Authentication auth) {
+        try {
+            if (auth == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            String email = auth.getName();
+
+            Set<Long> seen = new HashSet<>();
+            List<MeetingEntity> all = new ArrayList<>();
+
+            // Personal meetings (requester or recipient = this user's email)
+            for (MeetingEntity m : meetingService.getMeetingsByUserId(email)) {
+                if (seen.add(m.getMeetingId())) all.add(m);
+            }
+
+            // Class-wide meetings for every class the user is enrolled in or teaches
+            Optional<UserAccountEntity> userOpt = userAccountRepository.findByEmail(email);
+            if (userOpt.isPresent()) {
+                String uid = userOpt.get().getUserId();
+                Set<String> classCodes = new HashSet<>();
+                enrollRelationRepository.findByUserId(uid).forEach(e -> {
+                    if (e.getClassCode() != null) classCodes.add(e.getClassCode());
+                });
+                teachesRelationRepository.findAllByUserId(uid).forEach(t -> {
+                    if (t.getClassCode() != null) classCodes.add(t.getClassCode());
+                });
+                for (String classCode : classCodes) {
+                    for (MeetingEntity m : meetingService.getClassWideMeetings(classCode)) {
+                        if (seen.add(m.getMeetingId())) all.add(m);
+                    }
+                }
+            }
+
+            all.sort((a, b) -> {
+                if (a.getMeetingDate() == null) return 1;
+                if (b.getMeetingDate() == null) return -1;
+                int c = a.getMeetingDate().compareTo(b.getMeetingDate());
+                if (c != 0) return c;
+                if (a.getStartTime() == null) return 1;
+                if (b.getStartTime() == null) return -1;
+                return a.getStartTime().compareTo(b.getStartTime());
+            });
+            return ResponseEntity.ok(all);
+        } catch (Exception e) {
+            System.err.println("MY_MEETINGS_ERROR: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/meetings/user/{userEmail}/date/{date}")
     public ResponseEntity<List<MeetingEntity>> getMeetingsForUserByDate(
         @PathVariable String userEmail,

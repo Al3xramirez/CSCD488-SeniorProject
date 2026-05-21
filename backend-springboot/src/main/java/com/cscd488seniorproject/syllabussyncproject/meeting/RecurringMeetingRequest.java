@@ -10,18 +10,20 @@ public class RecurringMeetingRequest {
     private LocalTime startTime;
     private LocalTime endTime;
     private String classCode;
+    private String quarter;
+    private Integer year;
     private List<String> daysOfWeek;
-    private String Notes;
+    private String notes;
     private String recipientId;
 
     public RecurringMeetingRequest() {}
 
     // Getters and Setters
     public String getNotes(){
-        return Notes;
+        return notes;
     }
-    public void setNotes(String newNotes){
-        this.Notes = newNotes;
+    public void setNotes(String notes){
+        this.notes = notes;
     }
     public LocalDate getStartDate() {
         return startDate;
@@ -61,6 +63,22 @@ public class RecurringMeetingRequest {
 
     public void setClassCode(String classCode) {
         this.classCode = classCode;
+    }
+
+    public String getQuarter() {
+        return quarter;
+    }
+
+    public void setQuarter(String quarter) {
+        this.quarter = quarter;
+    }
+
+    public Integer getYear() {
+        return year;
+    }
+
+    public void setYear(Integer year) {
+        this.year = year;
     }
 
     public List<String> getDaysOfWeek() {

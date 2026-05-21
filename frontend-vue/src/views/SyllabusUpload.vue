@@ -147,8 +147,34 @@
             <span class="field-label">Office hours</span>
             <span class="conf-badge" :class="`conf-badge--${draft.officeHours.confidence}`">{{ draft.officeHours.confidence }}</span>
           </div>
-          <textarea class="edit-textarea" :class="{ 'edit-textarea--warn': draft.officeHours.confidence !== 'high' }"
-            v-model="draft.officeHours.value" rows="2" placeholder="Schedule and location..." />
+          <div class="field-section__body" :class="{ 'field-section__body--warn': draft.officeHours.confidence !== 'high' }">
+            <div v-if="!draft.officeHours.value.length" class="oh-empty-note">No office hours found — add a block below.</div>
+            <template v-for="(block, i) in draft.officeHours.value" :key="i">
+              <hr v-if="i > 0" class="oh-divider" />
+              <div class="day-picker">
+                <label v-for="d in ALL_DAYS" :key="d" class="day-chip" :class="{ 'day-chip--active': block.days.includes(d) }">
+                  <input type="checkbox" :value="d" v-model="block.days" hidden />
+                  {{ d }}
+                </label>
+              </div>
+              <div class="row">
+                <div class="select-group">
+                  <label class="select-label">Start</label>
+                  <input class="edit-input edit-input--time" type="time" v-model="block.startTime" />
+                </div>
+                <div class="select-group">
+                  <label class="select-label">End</label>
+                  <input class="edit-input edit-input--time" type="time" v-model="block.endTime" />
+                </div>
+                <div class="select-group" style="flex:1">
+                  <label class="select-label">Location</label>
+                  <input class="edit-input edit-input--grow" type="text" v-model="block.location" placeholder="Room / building" />
+                </div>
+                <button class="btn-remove-row" style="align-self:flex-end;margin-bottom:2px" @click="draft.officeHours.value.splice(i, 1)">✕</button>
+              </div>
+            </template>
+            <button class="btn-add-row" @click="draft.officeHours.value.push({ days: [], startTime: '', endTime: '', location: '' })">+ Add block</button>
+          </div>
         </section>
 
         <!-- Grade Scale -->
@@ -280,6 +306,9 @@
         <div class="saved-state__icon">✓</div>
         <h3 class="saved-state__title">Syllabus saved</h3>
         <p class="saved-state__sub">Students enrolled in this course can now view the syllabus information.</p>
+        <p v-if="meetingNotice" class="saved-state__meeting-notice" :class="{ 'notice--warn': !savedMeetingCount }">
+          {{ meetingNotice }}
+        </p>
         <button class="btn-ghost" @click="resetToUpload">Upload another</button>
       </div>
 
@@ -330,7 +359,10 @@ import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
   userRole: { type: String, default: 'professor' },
-  courseId: { type: [String, Number], required: false }
+  courseId: { type: [String, Number], required: false },
+  classCode: { type: String, default: '' },
+  quarter:   { type: String, default: '' },
+  year:      { type: [Number, String], default: null },
 })
 
 const emit = defineEmits(['saved'])
@@ -364,11 +396,13 @@ const pdfFile          = ref(null)
 const fileName         = ref('')
 const isDragging       = ref(false)
 const loading          = ref(false)
-const saving           = ref(false)
-const error            = ref('')
-const draft            = ref(null)
-const fetchingExisting = ref(false)
-const isEditing        = ref(false)
+const saving              = ref(false)
+const error               = ref('')
+const draft               = ref(null)
+const fetchingExisting    = ref(false)
+const isEditing           = ref(false)
+const savedMeetingCount   = ref(0)
+const meetingNotice       = ref('')
 
 const lowConfidenceCount = computed(() => {
   if (!draft.value) return 0
@@ -401,7 +435,7 @@ async function loadExistingSyllabus() {
 function wrapSavedData(saved) {
   return ensureDefaults({
     classMeetingTimes: { value: saved.classMeetingTimes, confidence: 'high' },
-    officeHours:       { value: saved.officeHours,       confidence: 'high' },
+    officeHours:       { value: Array.isArray(saved.officeHours) ? saved.officeHours : [], confidence: 'high' },
     gradeScale:        { value: saved.gradeScale,        confidence: 'high' },
     gradeBreakdown:    { value: saved.gradeBreakdown,    confidence: 'high' },
     passConditions:    { value: saved.passConditions,    confidence: 'high' },
@@ -518,7 +552,21 @@ function ensureDefaults(parsed) {
     else if (!Array.isArray(parsed[f].value)) parsed[f].value = []
   }
 
-  for (const f of ['officeHours', 'lateWorkPolicy', 'aiPolicy']) {
+  // officeHours is now an array of { days, startTime, endTime, location } blocks
+  if (!parsed.officeHours) {
+    parsed.officeHours = { value: [], confidence: 'low' }
+  } else if (!Array.isArray(parsed.officeHours.value)) {
+    parsed.officeHours.value = []
+  } else {
+    parsed.officeHours.value = parsed.officeHours.value.map(b => ({
+      days:      Array.isArray(b.days) ? b.days : [],
+      startTime: b.startTime ?? '',
+      endTime:   b.endTime   ?? '',
+      location:  b.location  ?? '',
+    }))
+  }
+
+  for (const f of ['lateWorkPolicy', 'aiPolicy']) {
     if (!parsed[f]) parsed[f] = { value: '', confidence: 'low' }
     else parsed[f].value ??= ''
   }
@@ -555,29 +603,6 @@ async function parseSyllabus() {
     loading.value = false
   }
 }
-async function loadClassRecipients(classCode) {
-  if (!classCode) {
-    classRecipients.value = [];
-    return;
-  }
-  try {
-    const res = await fetch(`/api/classes/${classCode}/members`, {
-      method: "GET",
-      credentials: "include"
-    });
-    if (res.ok) {
-      const data = await res.json();
-      classRecipients.value = (data || []).filter(
-        member => member.email?.toLowerCase() !== currentUserNormalized.value
-      );
-    } else {
-      classRecipients.value = [];
-    }
-  } catch (err) {
-    console.error("Error loading class recipients:", err);
-    classRecipients.value = [];
-  }
-}
 async function createRecurringMeetings(request) {
   const res = await fetch('/api/meetings/recurring', {
     method: 'POST',
@@ -592,6 +617,8 @@ async function createRecurringMeetings(request) {
 async function confirmSave() {
   saving.value = true
   error.value  = ''
+  savedMeetingCount.value = 0
+  meetingNotice.value = ''
   try {
     const payload = {
       courseId:          String(effectiveCourseId.value),
@@ -619,35 +646,82 @@ async function confirmSave() {
     }
 
     emit('saved', payload)
-
-    const courseId = String(effectiveCourseId.value)
-    const meetingTimes = draft.value.classMeetingTimes.value
-
-    if (meetingTimes.days?.length && meetingTimes.startTime && meetingTimes.endTime &&
-        meetingTimes.startDate && meetingTimes.endDate) {
-      const membersRes = await fetch(`/api/classes/${courseId}/members`, { credentials: 'include' })
-      const members = membersRes.ok ? await membersRes.json() : []
-
-      const DAY_MAP = { MON: 'MONDAY', TUE: 'TUESDAY', WED: 'WEDNESDAY', THU: 'THURSDAY', FRI: 'FRIDAY', SAT: 'SATURDAY', SUN: 'SUNDAY' }
-      const daysOfWeek = meetingTimes.days.map(d => DAY_MAP[d] || d)
-      const notes = `${courseId} Lecture${meetingTimes.location ? ' ' + meetingTimes.location : ''}`
-
-      for (const member of members) {
-        const request = {
-          startDate: meetingTimes.startDate,
-          endDate: meetingTimes.endDate,
-          startTime: meetingTimes.startTime,
-          endTime: meetingTimes.endTime,
-          classCode: courseId,
-          daysOfWeek,
-          notes,
-          recipientId: member.email
-        }
-        await createRecurringMeetings(request)
-      }
-    }
-
     step.value = 'saved'
+
+    // Attempt to auto-create recurring meetings (lectures + office hours) from the parsed schedule.
+    // The syllabus is already saved above — meeting failures are non-fatal.
+    const meetingTimes = draft.value.classMeetingTimes.value
+    // In standalone mode cls comes from the class picker; in embedded mode (courseId prop) use the
+    // classCode/quarter/year props passed down from ClassDetails instead.
+    const cls = selectedClass.value ?? (props.classCode ? {
+      classCode: props.classCode,
+      quarter:   props.quarter,
+      year:      props.year != null ? Number(props.year) : null,
+    } : null)
+    const DAY_MAP = { MON: 'MONDAY', TUE: 'TUESDAY', WED: 'WEDNESDAY', THU: 'THURSDAY', FRI: 'FRIDAY', SAT: 'SATURDAY', SUN: 'SUNDAY' }
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+    if (cls) {
+      const usedFallback = !ISO_DATE.test(meetingTimes.startDate) || !ISO_DATE.test(meetingTimes.endDate)
+      const today = new Date()
+      const twoWeeksOut = new Date(today)
+      twoWeeksOut.setDate(today.getDate() + 14)
+      const toISO = d => d.toISOString().split('T')[0]
+      const startDate = ISO_DATE.test(meetingTimes.startDate) ? meetingTimes.startDate : toISO(today)
+      const endDate   = ISO_DATE.test(meetingTimes.endDate)   ? meetingTimes.endDate   : toISO(twoWeeksOut)
+
+      let totalCreated = 0
+      let anyFailed    = false
+
+      // ── Lecture meetings ──
+      if (meetingTimes.days?.length && meetingTimes.startTime && meetingTimes.endTime) {
+        try {
+          const created = await createRecurringMeetings({
+            startDate, endDate,
+            startTime:  meetingTimes.startTime,
+            endTime:    meetingTimes.endTime,
+            classCode:  cls.classCode,
+            quarter:    cls.quarter,
+            year:       cls.year,
+            daysOfWeek: meetingTimes.days.map(d => DAY_MAP[d] || d),
+            notes:      `Lecture${meetingTimes.location ? ' — ' + meetingTimes.location : ''}`,
+          })
+          totalCreated += Array.isArray(created) ? created.length : 0
+        } catch { anyFailed = true }
+      }
+
+      // ── Office hours meetings ──
+      for (const block of (draft.value.officeHours.value || [])) {
+        if (block.days?.length && block.startTime && block.endTime) {
+          try {
+            const created = await createRecurringMeetings({
+              startDate, endDate,
+              startTime:  block.startTime,
+              endTime:    block.endTime,
+              classCode:  cls.classCode,
+              quarter:    cls.quarter,
+              year:       cls.year,
+              daysOfWeek: block.days.map(d => DAY_MAP[d] || d),
+              notes:      `Office Hours${block.location ? ' — ' + block.location : ''}`,
+            })
+            totalCreated += Array.isArray(created) ? created.length : 0
+          } catch { anyFailed = true }
+        }
+      }
+
+      savedMeetingCount.value = totalCreated
+      if (totalCreated > 0) {
+        meetingNotice.value = (usedFallback ? 'Next two weeks: ' : '') +
+          `${totalCreated} meeting${totalCreated === 1 ? '' : 's'} scheduled (lectures + office hours).` +
+          (anyFailed ? ' Some blocks failed — check the Meetings page.' : '')
+      } else if (anyFailed) {
+        meetingNotice.value = 'Syllabus saved, but automatic meeting scheduling failed. Set up the schedule from the Meetings page.'
+      } else {
+        meetingNotice.value = 'Syllabus saved. To auto-schedule meetings, add days and times in the Class Meeting Times and Office Hours sections and re-save.'
+      }
+    } else {
+      meetingNotice.value = 'Syllabus saved. To auto-schedule meetings, add days and times in the Class Meeting Times and Office Hours sections and re-save.'
+    }
   } catch (e) {
     error.value = 'Failed to save. Please try again.'
   } finally {
@@ -872,6 +946,17 @@ h1 { font-size: 18px; font-weight: 500; margin: 0; color: #f3f4f6; }
 }
 .edit-select:focus { border-color: #60a5fa; }
 
+/* ── Office hours blocks ── */
+.oh-empty-note {
+  font-size: 12px; color: #6b7280; font-style: italic;
+}
+
+.oh-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  margin: 2px 0;
+}
+
 /* ── row actions ── */
 .btn-remove-row {
   font-size: 10px; width: 20px; height: 20px; border-radius: 50%;
@@ -904,7 +989,21 @@ h1 { font-size: 18px; font-weight: 500; margin: 0; color: #f3f4f6; }
   font-size: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
 }
 .saved-state__title { font-size: 15px; font-weight: 500; margin: 0 0 5px; color: #f3f4f6; }
-.saved-state__sub   { font-size: 13px; color: #9ca3af; margin: 0 0 18px; }
+.saved-state__sub   { font-size: 13px; color: #9ca3af; margin: 0 0 8px; }
+.saved-state__meeting-notice {
+  font-size: 12px;
+  color: #4ade80;
+  margin: 0 0 18px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(74,222,128,0.08);
+  border: 1px solid rgba(74,222,128,0.2);
+}
+.saved-state__meeting-notice.notice--warn {
+  color: #fbbf24;
+  background: rgba(251,191,36,0.08);
+  border-color: rgba(251,191,36,0.2);
+}
 
 /* ── create class modal ── */
 .overlay {

@@ -7,7 +7,8 @@ public class SyllabusSaveRequest {
     /** { days: string[], startTime: string, endTime: string, location: string } */
     public Object classMeetingTimes;
 
-    public String officeHours;
+    /** [{ days: string[], startTime: string, endTime: string, location: string }] */
+    public Object officeHours;
 
     /** [{ letter: string, range: string }] */
     public Object gradeScale;

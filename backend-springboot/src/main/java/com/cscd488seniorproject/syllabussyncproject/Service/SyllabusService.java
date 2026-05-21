@@ -33,7 +33,7 @@ public class SyllabusService {
                         .build());
 
         entity.setClassMeetingTimes(toJson(req.classMeetingTimes));
-        entity.setOfficeHours(req.officeHours);
+        entity.setOfficeHours(toJson(req.officeHours));
         entity.setGradeScale(toJson(req.gradeScale));
         entity.setGradeBreakdown(toJson(req.gradeBreakdown));
         entity.setPassConditions(toJson(req.passConditions));
@@ -62,7 +62,7 @@ public class SyllabusService {
         response.put("courseId", entity.getJoinCode());
         response.put("uploadedBy", entity.getUploadedBy());
         response.put("classMeetingTimes", fromJson(entity.getClassMeetingTimes()));
-        response.put("officeHours", entity.getOfficeHours());
+        response.put("officeHours", fromJson(entity.getOfficeHours()));
         response.put("gradeScale", fromJson(entity.getGradeScale()));
         response.put("gradeBreakdown", fromJson(entity.getGradeBreakdown()));
         response.put("passConditions", fromJson(entity.getPassConditions()));

@@ -124,76 +124,71 @@ async function loadClassRecipients(classCode) {
 
 async function loadEvents() {
   try {
-    const res = await fetch("/api/meetings", { credentials: "include" });
+    // /api/meetings/my already returns only meetings relevant to the current user:
+    // personal meetings (requester or recipient) + class-wide meetings for every
+    // class the user is enrolled in or teaches. No client-side filtering needed.
+    const res = await fetch("/api/meetings/my", { credentials: "include" });
     if (!res.ok) {
       events.value = [];
       return;
     }
     const data = await res.json();
-    console.log("Raw meetings from API:", data);
-    
-    // Create a cache for user details to avoid duplicate API calls
-    const userCache = new Map();
-    
-    const getUserName = async (email) => {
-      if (userCache.has(email)) {
-        return userCache.get(email);
-      }
-      try {
-        const userRes = await fetch(`/api/users/by-email/${encodeURIComponent(email)}`, { credentials: "include" });
-        if (userRes.ok) {
-          const user = await userRes.json();
-          const name = `${user.firstName} ${user.lastName}`;
-          userCache.set(email, name);
-          console.log(`Cached user: ${email} -> ${name}`);
-          return name;
-        } else {
-          console.error(`User lookup failed for ${email}: ${userRes.status}`);
-        }
-      } catch (err) {
-        console.error("Error loading user:", err);
-      }
-      return email; // Fallback to email if lookup fails
-    };
-    
-    events.value = await Promise.all(
-      data
-        .filter(e => {
-          const isRequester = e.requesterID?.toLowerCase() === currentUserNormalized.value;
-          const isRecipient = e.recipientID?.toLowerCase() === currentUserNormalized.value;
-          console.log(`Meeting ${e.meetingID}: requester=${e.requesterID}, recipient=${e.recipientID}, isRequester=${isRequester}, isRecipient=${isRecipient}`);
-          return isRequester || isRecipient;
-        })
-        .map(async (e) => {
-          // Get the name of the other person
-          const otherEmail = e.requesterID?.toLowerCase() === currentUserNormalized.value 
-            ? e.recipientID 
-            : e.requesterID;
-          const otherName = await getUserName(otherEmail);
-          
-          // Determine role
-          const role = e.requesterID?.toLowerCase() === currentUserNormalized.value 
-            ? `To: ${otherName}` 
-            : `From: ${otherName}`;
-          
-          return {
-            id: e.meetingID,
-            requesterID: e.requesterID,
-            recipientID: e.recipientID,
-            otherPerson: otherName,
-            role: role,
-            start: `${e.meetingDate}T${e.startTime}`,
-            end: `${e.meetingDate}T${e.endTime}`,
-            date: e.meetingDate,
-            startTime: e.startTime,
-            endTime: e.endTime,
-            classCode: e.classCode,
-            notes: e.notes
-          };
-        })
-    );
 
-    console.log("Filtered events for current user:", events.value);
+    const userCache = new Map();
+    const getUserName = async (email) => {
+      if (!email) return null;
+      if (userCache.has(email)) return userCache.get(email);
+      try {
+        const r = await fetch(`/api/users/by-email/${encodeURIComponent(email)}`, { credentials: "include" });
+        if (r.ok) {
+          const u = await r.json();
+          const name = `${u.firstName} ${u.lastName}`;
+          userCache.set(email, name);
+          return name;
+        }
+      } catch {}
+      return email;
+    };
+
+    events.value = await Promise.all(
+      data.map(async (m) => {
+        // recipientId = "" means class-wide lecture/event, not a personal meeting
+        const isClassWide = !m.recipientId;
+
+        let title, role, otherPerson;
+        if (isClassWide) {
+          const isOfficeHours = m.notes?.startsWith('Office Hours');
+          title       = isOfficeHours ? 'Office Hours' : m.classCode;
+          role        = isOfficeHours ? 'Office Hours' : 'Class';
+          otherPerson = title;
+        } else {
+          const isRequester = m.requesterId?.toLowerCase() === currentUserNormalized.value;
+          const otherEmail  = isRequester ? m.recipientId : m.requesterId;
+          const otherName   = await getUserName(otherEmail) || otherEmail;
+          title       = otherName;
+          role        = isRequester ? `To: ${otherName}` : `From: ${otherName}`;
+          otherPerson = otherName;
+        }
+
+        return {
+          id:          m.meetingId,
+          requesterId: m.requesterId,
+          recipientId: m.recipientId,
+          isClassWide,
+          otherPerson,
+          title,
+          role,
+          start:     `${m.meetingDate}T${m.startTime}`,
+          end:       `${m.meetingDate}T${m.endTime}`,
+          date:      m.meetingDate,
+          startTime: m.startTime,
+          endTime:   m.endTime,
+          classCode: m.classCode,
+          notes:     m.notes,
+          status:    m.status,
+        };
+      })
+    );
   } catch (err) {
     console.error("Error loading events:", err);
     events.value = [];
@@ -439,16 +434,23 @@ onMounted(async () => {
       </div>
 
       <div v-else class="meetings-list">
-        <div v-for="e in dayEvents" :key="e.id" class="meeting-bubble">
+        <div
+          v-for="e in dayEvents"
+          :key="e.id"
+          class="meeting-bubble"
+          :class="{ 'meeting-bubble--class': e.isClassWide }"
+        >
           <div class="meeting-header">
-            <strong class="meeting-with">{{ e.otherPerson }}</strong>
+            <strong class="meeting-with">
+              {{ e.isClassWide ? e.classCode : e.otherPerson }}
+            </strong>
             <span class="meeting-role">{{ e.role }}</span>
           </div>
           <div class="meeting-details">
             <div class="meeting-time">
-              🕐 {{ e.startTime }} - {{ e.endTime }}
+              🕐 {{ e.startTime }} – {{ e.endTime }}
             </div>
-            <div class="meeting-class">
+            <div v-if="!e.isClassWide" class="meeting-class">
               📚 {{ e.classCode }}
             </div>
             <div v-if="e.notes" class="meeting-notes">
@@ -684,6 +686,17 @@ onMounted(async () => {
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(59, 130, 246, 0.2));
   border-color: rgba(37, 99, 235, 0.6);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.meeting-bubble--class {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.08));
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.meeting-bubble--class:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.16));
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
 .meeting-header {

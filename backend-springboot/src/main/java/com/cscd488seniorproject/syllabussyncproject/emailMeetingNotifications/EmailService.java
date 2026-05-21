@@ -47,12 +47,14 @@ public class EmailService {
 
     private String buildMeetingEmailBody(MeetingEntity meeting) {
         return String.format(
-            "A new meeting has been scheduled:\n\n" +
+            "A new meeting has been scheduled with the following details:\n\n" +
+            "Requested By: %s\n" +
             "Date: %s\n" +
             "Start Time: %s\n" +
             "End Time: %s\n" +
             "Class: %s\n\n" +
             "Please mark your calendar accordingly.",
+            meeting.getRequesterId(),
             meeting.getMeetingDate(),
             meeting.getStartTime(),
             meeting.getEndTime(),

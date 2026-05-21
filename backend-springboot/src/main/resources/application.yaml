@@ -37,3 +37,8 @@ spring:
           starttls:
             enable: true
             required: true
+
+server:
+  error:
+    include-message: always
+    include-binding-errors: always
