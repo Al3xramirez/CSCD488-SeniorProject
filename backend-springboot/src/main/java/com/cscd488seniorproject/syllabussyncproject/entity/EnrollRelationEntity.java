@@ -21,7 +21,7 @@ public class EnrollRelationEntity {
 
     @Id
     @Column(name = "Year")
-    private String year;
+    private int year;
 
     public EnrollRelationEntity() {
     }
@@ -51,11 +51,11 @@ public class EnrollRelationEntity {
         this.quarter = quarter;
     }
 
-    public String getYear() {
+    public int getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(int year) {
         this.year = year;
     }
 
