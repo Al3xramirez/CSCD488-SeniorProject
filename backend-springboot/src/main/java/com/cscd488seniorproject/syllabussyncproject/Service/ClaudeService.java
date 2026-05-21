@@ -30,7 +30,7 @@ public class ClaudeService {
 
     // Upper bound on how many tokens Claude may produce in its response
     // 1500 is enough for the JSON schema without wasting quota
-    private static final int MAX_TOKENS = 2000;
+    private static final int MAX_TOKENS = 1500;
 
     // The system prompt instructs Claude to act as a structured syllabus parser.
     // It defines the exact JSON shape to return, the confidence rubric, and edge-case rules.
@@ -42,8 +42,8 @@ public class ClaudeService {
             "medium" if implied or partially stated, "low" if absent or ambiguous.
             Return this exact shape:
             {
-              "classMeetingTimes": { "value": { "days": ["MON","WED","FRI"], "startTime": "09:00", "endTime": "09:50", "location": "CAT 220", "startDate": "YYYY-MM-DD or null", "endDate": "YYYY-MM-DD or null" }, "confidence": "high|medium|low" },
-              "officeHours": { "value": [{ "days": ["MON","WED"], "startTime": "14:00", "endTime": "15:00", "location": "CAT 240" }], "confidence": "high|medium|low" },
+              "classMeetingTimes": { "value": { "days": ["MON","WED","FRI"], "startTime": "09:00", "endTime": "09:50", "location": "CAT 220" }, "confidence": "high|medium|low" },
+              "officeHours": { "value": "...", "confidence": "high|medium|low" },
               "gradeScale": { "value": [{ "letter": "A", "range": "93-100%" }], "confidence": "high|medium|low" },
               "gradeBreakdown": { "value": [{ "component": "Assignments", "weight": "60%" }], "confidence": "high|medium|low" },
               "passConditions": { "value": ["Minimum 70% exam average required to pass"], "confidence": "high|medium|low" },
@@ -54,9 +54,7 @@ public class ClaudeService {
             }
             Notes: passConditions captures requirements beyond the grade scale. \
             dueDates: infer specific dates from week ranges + stated due-day patterns and set confidence to medium. \
-            aiPolicy: null + low confidence if not mentioned. \
-            classMeetingTimes.startDate/endDate: use the quarter/term start and end dates if stated (format YYYY-MM-DD); set to null if not found. \
-            officeHours: return as an array of blocks; each block has days (3-letter uppercase abbreviations), startTime/endTime (HH:MM 24-hour), location; return an empty array if office hours are not mentioned.""";
+            aiPolicy: null + low confidence if not mentioned.""";
 
     // Injected at startup from the "anthropic.api.key" property (e.g. in application.properties or env var)
     @Value("${anthropic.api.key}")

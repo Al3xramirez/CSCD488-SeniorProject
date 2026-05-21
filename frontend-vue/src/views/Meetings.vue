@@ -156,9 +156,13 @@ watch(selectedJoinCode, () => {
   fetchOfficeHours(cls.classCode);
 });
 
-onMounted(() => {
+onMounted(async () => {
   fetchMyClasses();
   fetchMyMeetings();
+  try {
+    const r = await fetch('/api/auth/current-user', { credentials: 'include' });
+    if (r.ok) currentUserEmail.value = (await r.json()).currentUser || '';
+  } catch {}
 });
 
 // ── Formatters ─────────────────────────────────────────────────────────────
@@ -175,6 +179,141 @@ function fmtDate(d) {
 }
 
 const OH_DAY_SHORT = { MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu', FRI: 'Fri', SAT: 'Sat', SUN: 'Sun' };
+
+// ── Week view: student meeting requests ────────────────────────────────────
+const weekStart = ref(getMonday(new Date()));
+const requestModal = ref({ show: false, personName: '', userId: '', date: '', startTime: '', endTime: '', notes: '' });
+const requestLoading = ref(false);
+const requestError = ref('');
+const currentUserEmail = ref('');
+const emailCache = {};
+
+function getMonday(d) {
+  const c = new Date(d); c.setHours(0, 0, 0, 0);
+  const diff = c.getDay() === 0 ? -6 : 1 - c.getDay();
+  c.setDate(c.getDate() + diff);
+  return c;
+}
+
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const weekDays = computed(() =>
+  Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(weekStart.value);
+    d.setDate(d.getDate() + i);
+    return {
+      dateStr: ymd(d),
+      label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    };
+  })
+);
+
+const weekLabel = computed(() => {
+  const s = weekDays.value[0].dateStr;
+  const e = weekDays.value[4].dateStr;
+  const fmt = str => new Date(str + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt(s)} – ${fmt(e)}, ${e.slice(0, 4)}`;
+});
+
+function prevWeek() { const d = new Date(weekStart.value); d.setDate(d.getDate() - 7); weekStart.value = d; }
+function nextWeek() { const d = new Date(weekStart.value); d.setDate(d.getDate() + 7); weekStart.value = d; }
+
+const DOW_TO_3 = { MONDAY: 'MON', TUESDAY: 'TUE', WEDNESDAY: 'WED', THURSDAY: 'THU', FRIDAY: 'FRI' };
+
+const CAL_START = 6;
+const PX_PER_HOUR = 60;
+const calHours = Array.from({ length: 17 }, (_, i) => i + CAL_START); // 6 am – 10 pm
+
+function timeToY(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return (h + m / 60 - CAL_START) * PX_PER_HOUR;
+}
+
+function timeToDuration(s, e) {
+  if (!s || !e) return PX_PER_HOUR;
+  const [sh, sm] = s.split(':').map(Number);
+  const [eh, em] = e.split(':').map(Number);
+  return Math.max(((eh + em / 60) - (sh + sm / 60)) * PX_PER_HOUR, 22);
+}
+
+function calEventStyle(ev) {
+  return { top: `${timeToY(ev.startTime)}px`, height: `${timeToDuration(ev.startTime, ev.endTime)}px` };
+}
+
+function eventsForDay(dateStr) {
+  const dow = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+  const key = DOW_TO_3[dow];
+  const out = [];
+
+  for (const m of classMeetings.value) {
+    if (m.meetingDate === dateStr)
+      out.push({ type: 'class', startTime: m.startTime, endTime: m.endTime });
+  }
+
+  for (const person of officeHours.value) {
+    for (const b of person.schedule ?? []) {
+      if (b.dayOfWeek === key)
+        out.push({ type: 'oh', startTime: b.startTime, endTime: b.endTime, personName: `${person.firstName} ${person.lastName}`, userId: person.userId, role: person.role, date: dateStr });
+    }
+  }
+
+  for (const m of myMeetings.value) {
+    if (m.meetingDate === dateStr && m.recipientId)
+      out.push({ type: 'personal', startTime: m.startTime, endTime: m.endTime, status: m.status });
+  }
+
+  return out.sort((a, b) => (a.startTime ?? '').localeCompare(b.startTime ?? ''));
+}
+
+function openRequestModal(ev) {
+  requestError.value = '';
+  requestModal.value = { show: true, personName: ev.personName, userId: ev.userId, date: ev.date, startTime: ev.startTime, endTime: ev.endTime, notes: '' };
+}
+
+async function submitMeetingRequest() {
+  requestLoading.value = true;
+  requestError.value = '';
+  try {
+    const cls = selectedClass.value;
+    if (!cls) throw new Error('No class selected');
+
+    let recipientEmail = emailCache[requestModal.value.userId];
+    if (!recipientEmail) {
+      const r = await fetch(`/api/users/${requestModal.value.userId}`, { credentials: 'include' });
+      if (!r.ok) throw new Error('Could not find recipient');
+      recipientEmail = (await r.json()).email;
+      emailCache[requestModal.value.userId] = recipientEmail;
+    }
+
+    const res = await fetch('/api/meetings/create-meeting', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        classCode: cls.classCode,
+        quarter: cls.quarter,
+        year: cls.year,
+        requesterId: currentUserEmail.value,
+        recipientId: recipientEmail,
+        meetingDate: requestModal.value.date,
+        startTime: requestModal.value.startTime,
+        endTime: requestModal.value.endTime,
+        status: 'PENDING',
+        notes: requestModal.value.notes,
+      }),
+    });
+    if (!res.ok) throw new Error(await res.text() || 'Failed to create meeting');
+    requestModal.value.show = false;
+    fetchMyMeetings();
+  } catch (e) {
+    requestError.value = e.message || 'Failed to send request';
+  } finally {
+    requestLoading.value = false;
+  }
+}
 </script>
 
 <template>
@@ -321,8 +460,114 @@ const OH_DAY_SHORT = { MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu', FRI: 'Fri
         </div>
       </section>
 
+      <!-- ── Request a Meeting: week view (students only) ── -->
+      <section v-if="!isProfessor" class="card">
+        <div class="section-header">
+          <h2>Request a Meeting</h2>
+          <div class="week-nav">
+            <button class="btn-ghost" @click="prevWeek">‹</button>
+            <span class="week-label">{{ weekLabel }}</span>
+            <button class="btn-ghost" @click="nextWeek">›</button>
+          </div>
+        </div>
+
+        <div v-if="!officeHours.length && !loadingOH" class="empty-note">
+          No office hours posted for this class yet — nothing to request a meeting with.
+        </div>
+
+        <template v-else>
+          <div class="cal-wrap">
+            <!-- Time labels -->
+            <div class="cal-time-col">
+              <div class="cal-hdr-spacer"></div>
+              <div v-for="h in calHours" :key="h" class="cal-hour-label">
+                {{ h === 12 ? '12 pm' : h < 12 ? `${h} am` : `${h - 12} pm` }}
+              </div>
+            </div>
+            <!-- Day columns -->
+            <div class="cal-days">
+              <div v-for="day in weekDays" :key="day.dateStr" class="cal-day-col">
+                <div class="cal-day-hdr">{{ day.label }}</div>
+                <div class="cal-day-body">
+                  <div v-for="h in calHours" :key="h" class="cal-hour-line"></div>
+                  <template v-for="ev in eventsForDay(day.dateStr)" :key="`${day.dateStr}-${ev.type}-${ev.startTime}`">
+                    <button
+                      v-if="ev.type === 'oh'"
+                      class="cal-event cal-event-oh"
+                      :style="calEventStyle(ev)"
+                      @click="openRequestModal(ev)"
+                    >
+                      <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                      <span class="cal-ev-name">{{ ev.personName }}</span>
+                    </button>
+                    <div v-else-if="ev.type === 'class'" class="cal-event cal-event-class" :style="calEventStyle(ev)">
+                      <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                      <span class="cal-ev-name">Class</span>
+                    </div>
+                    <div v-else-if="ev.type === 'personal'" class="cal-event cal-event-personal" :style="calEventStyle(ev)">
+                      <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                      <span class="cal-ev-name">My Meeting</span>
+                      <span class="cal-ev-status" :class="`status-${(ev.status||'').toLowerCase()}`">{{ ev.status }}</span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="legend">
+            <span class="leg leg-oh">Office Hours — click to request</span>
+            <span class="leg leg-class">Class</span>
+            <span class="leg leg-personal">My Meetings</span>
+          </div>
+        </template>
+      </section>
+
     </template>
   </div>
+
+  <!-- Request Meeting Modal -->
+  <teleport to="body">
+    <div v-if="requestModal.show" class="overlay" @click.self="requestModal.show = false">
+      <div class="modal">
+        <div class="modal-hdr">
+          <h3>Request a Meeting</h3>
+          <button class="close-btn" @click="requestModal.show = false">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="mfield">
+            <label>With</label>
+            <span class="mval">{{ requestModal.personName }}</span>
+          </div>
+          <div class="mfield">
+            <label>Date</label>
+            <input v-model="requestModal.date" type="date" class="input" />
+          </div>
+          <div class="mfield">
+            <label>Start</label>
+            <input v-model="requestModal.startTime" type="time" class="input" />
+          </div>
+          <div class="mfield">
+            <label>End</label>
+            <input v-model="requestModal.endTime" type="time" class="input" />
+          </div>
+          <div class="mfield mfield-col">
+            <label>Notes</label>
+            <textarea v-model="requestModal.notes" class="input" rows="3" placeholder="Optional agenda or questions" />
+          </div>
+          <div v-if="requestError" class="req-error">{{ requestError }}</div>
+          <div class="modal-actions">
+            <button class="btn-ghost" @click="requestModal.show = false">Cancel</button>
+            <button
+              class="btn"
+              :disabled="requestLoading || !requestModal.date || !requestModal.startTime || !requestModal.endTime"
+              @click="submitMeetingRequest"
+            >{{ requestLoading ? 'Sending…' : 'Send Request' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <style scoped>
@@ -701,5 +946,308 @@ h2 {
   border-radius: 10px;
   background: rgba(255,255,255,0.02);
   border: 1px dashed rgba(255,255,255,0.07);
+}
+
+/* ── Week nav ── */
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
+  min-width: 148px;
+  text-align: center;
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e5e7eb;
+  border-radius: 8px;
+  padding: 4px 11px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-ghost:hover { background: rgba(255,255,255,0.12); }
+
+/* ── Calendar grid ── */
+.cal-wrap {
+  display: flex;
+  overflow-x: auto;
+}
+
+.cal-time-col {
+  flex-shrink: 0;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-hdr-spacer {
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.cal-hour-label {
+  height: 60px;
+  font-size: 11px;
+  color: #6b7280;
+  text-align: right;
+  padding-right: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  transform: translateY(-7px);
+}
+
+.cal-days {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  min-width: 380px;
+}
+
+.cal-day-col {
+  border-left: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-day-hdr {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.cal-day-body {
+  position: relative;
+}
+
+.cal-hour-line {
+  height: 60px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.cal-event {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 6px;
+  padding: 3px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  text-align: left;
+  z-index: 1;
+  border: none;
+}
+
+.cal-event-oh {
+  background: rgba(74,222,128,0.18);
+  border: 1px solid rgba(74,222,128,0.45) !important;
+  color: #4ade80;
+  cursor: pointer;
+}
+
+.cal-event-oh:hover { background: rgba(74,222,128,0.3); }
+
+.cal-event-class {
+  background: rgba(37,99,235,0.22);
+  border: 1px solid rgba(37,99,235,0.45) !important;
+  color: #93c5fd;
+  cursor: default;
+}
+
+.cal-event-personal {
+  background: rgba(139,92,246,0.18);
+  border: 1px solid rgba(139,92,246,0.4) !important;
+  color: #c4b5fd;
+  cursor: default;
+}
+
+.cal-ev-time {
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.cal-ev-name {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-ev-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  align-self: flex-start;
+}
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.leg::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.leg-oh::before {
+  background: rgba(74,222,128,0.35);
+  border: 1px solid rgba(74,222,128,0.6);
+}
+
+.leg-class::before {
+  background: rgba(37,99,235,0.35);
+  border: 1px solid rgba(37,99,235,0.6);
+}
+
+.leg-personal::before {
+  background: rgba(139,92,246,0.3);
+  border: 1px solid rgba(139,92,246,0.5);
+}
+
+/* ── Request meeting modal ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #1a1d2e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.modal-hdr h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #f3f4f6;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.close-btn:hover { color: #e5e7eb; }
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mfield {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mfield label {
+  width: 48px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.mfield-col {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.mfield-col label { width: auto; }
+
+.mval {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.input {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 13px;
+  padding: 7px 10px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus { border-color: rgba(37,99,235,0.5); }
+
+.req-error {
+  font-size: 12px;
+  color: #f87171;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
 </style>
