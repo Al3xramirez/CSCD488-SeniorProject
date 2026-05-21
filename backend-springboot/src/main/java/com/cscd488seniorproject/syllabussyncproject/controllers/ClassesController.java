@@ -89,6 +89,13 @@ public class ClassesController {
         return ResponseEntity.ok(courseService.getTAsForCourse(email, joinCode));
     }
 
+    // Get the instructor (professor) for a class by join code (any enrolled user)
+    @GetMapping("/{joinCode}/instructor")
+    public ResponseEntity<StudentSummaryDTO> instructor(Authentication auth, @PathVariable String joinCode) {
+        String email = auth == null ? null : auth.getName();
+        return ResponseEntity.ok(courseService.getInstructorByJoinCode(email, joinCode));
+    }
+
     // Assign a TA to a class by their email (professors only)
     @PostMapping("/{joinCode}/ta")
     public ResponseEntity<StudentSummaryDTO> assignTA(Authentication auth, @PathVariable String joinCode, @RequestBody AddTARequestDTO req) {

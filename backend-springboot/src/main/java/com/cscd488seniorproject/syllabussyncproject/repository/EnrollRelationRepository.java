@@ -79,6 +79,4 @@ public interface EnrollRelationRepository extends JpaRepository<EnrollRelationEn
         @Param("quarter") String quarter,
         @Param("year") Integer year
     );
-
-    //void deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
 }

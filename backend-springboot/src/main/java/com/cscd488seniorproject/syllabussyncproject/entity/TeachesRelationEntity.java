@@ -23,7 +23,6 @@ public class TeachesRelationEntity {
     @Column(name = "Year")
     private Integer year;
 
-    // ✅ ADD THESE RELATIONSHIPS
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "UserID", insertable = false, updatable = false)
     private UserAccountEntity userEntity;
@@ -79,7 +78,6 @@ public class TeachesRelationEntity {
         this.year = year;
     }
 
-    // ✅ ADD THESE GETTERS/SETTERS
     public UserAccountEntity getUserEntity() {
         return userEntity;
     }

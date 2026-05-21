@@ -11,7 +11,7 @@ public class CourseId implements Serializable {
 
     private String classCode;  // PRIMARY KEY
     private String quarter;
-    private Integer year;      
+    private Integer year;
 
     // Constructors
     public CourseId() {}

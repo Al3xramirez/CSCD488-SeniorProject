@@ -12,34 +12,29 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface CourseRepository extends JpaRepository<CourseEntity, CourseId> {
 
-    // Custom query to find a course by its join code
     Optional<CourseEntity> findByJoinCode(String joinCode);
 
-    // Custom query to check if a course with a specific join code exists
     boolean existsByJoinCode(String joinCode);
 
-    // Custom query to find a course by its class code, quarter, and year
     Optional<CourseEntity> findByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
 
-    // Custom query to find courses taught by a specific user
     @Query("""
         SELECT c
         FROM CourseEntity c
         INNER JOIN TeachesRelationEntity t
-        ON c.classCode = t.classCode 
-        AND c.quarter = t.quarter 
+        ON c.classCode = t.classCode
+        AND c.quarter = t.quarter
         AND c.year = t.year
         WHERE t.userId = :userId
     """)
     List<CourseEntity> findCoursesTaughtBy(@Param("userId") String userId);
 
-    // Custom query to find courses enrolled by a specific user
     @Query("""
         SELECT c
         FROM CourseEntity c
         INNER JOIN EnrollRelationEntity e
-        ON c.classCode = e.id.classCode 
-        AND c.quarter = e.id.quarter 
+        ON c.classCode = e.id.classCode
+        AND c.quarter = e.id.quarter
         AND c.year = e.id.year
         WHERE e.id.userId = :userId
     """)

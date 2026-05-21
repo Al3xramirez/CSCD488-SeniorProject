@@ -1033,9 +1033,25 @@ h1 { font-size: 18px; font-weight: 500; margin: 0; color: #f3f4f6; }
 }
 .create-input:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,0.15); }
 
+/* placeholder kept so the read offset stays valid */
+.oh-day-toggle {
+  width: 32px; height: 20px; border-radius: 999px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer; display: flex; align-items: center; padding: 0 3px;
+  transition: background 0.15s, border-color 0.15s; flex-shrink: 0;
+}
+.oh-day-toggle.active { background: #2563eb; border-color: rgba(37,99,235,0.6); justify-content: flex-end; }
+.toggle-dot { width: 12px; height: 12px; border-radius: 50%; background: white; flex-shrink: 0; }
+
+.oh-day-label   { font-weight: 600; color: #e5e7eb; font-size: 14px; }
+.oh-sep         { color: #9ca3af; font-size: 13px; text-align: center; }
+.oh-unavailable { grid-column: 3 / 6; color: #6b7280; font-size: 13px; font-style: italic; }
+
 @media (max-width: 480px) {
   .row { flex-wrap: wrap; }
   .edit-input--date,
   .edit-input--time { width: 100%; }
+  .oh-day-row { grid-template-columns: 34px 1fr; }
+  .oh-day-row template { display: contents; }
 }
 </style>

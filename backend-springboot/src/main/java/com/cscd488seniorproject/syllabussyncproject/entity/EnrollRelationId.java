@@ -4,7 +4,7 @@ import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
 
-@Embeddable  // ✅ ADD THIS
+@Embeddable
 public class EnrollRelationId implements Serializable {
 
     private static final long serialVersionUID = 1L;

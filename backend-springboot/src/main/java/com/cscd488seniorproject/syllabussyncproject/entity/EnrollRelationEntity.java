@@ -68,24 +68,28 @@ public class EnrollRelationEntity {
     public Integer getYear() {
         return id != null ? id.getYear() : null;
     }
+
     public void setUserId(String userId) {
         if (id == null) {
             id = new EnrollRelationId();
         }
         id.setUserId(userId);
     }
+
     public void setClassCode(String classCode) {
         if (id == null) {
             id = new EnrollRelationId();
         }
         id.setClassCode(classCode);
     }
+
     public void setQuarter(String quarter) {
         if (id == null) {
             id = new EnrollRelationId();
         }
         id.setQuarter(quarter);
     }
+
     public void setYear(Integer year) {
         if (id == null) {
             id = new EnrollRelationId();

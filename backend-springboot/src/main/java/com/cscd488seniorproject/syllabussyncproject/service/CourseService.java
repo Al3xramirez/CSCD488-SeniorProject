@@ -156,7 +156,7 @@ public class CourseService {
         // Again, return a ClassSummaryDTO with the details of the course that was joined
         return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
     }
-    
+
     // getRosterByJoinCode allows a professor to retrieve the roster of students enrolled in a class using the class's join code. 
     // It checks if the user is a professor for that class and then returns a list of StudentSummaryDTOs representing the enrolled students.
     public List<StudentSummaryDTO> getRosterByJoinCode(String email, String joinCodeRaw) {
@@ -325,6 +325,36 @@ public class CourseService {
         courseRepo.delete(course);
 
         return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
+    }
+
+    public StudentSummaryDTO getInstructorByJoinCode(String email, String joinCodeRaw) {
+        UserAccountEntity me = requireUserByEmail(email);
+        String joinCode = normalizeRequired(joinCodeRaw, "joinCode");
+
+        CourseEntity course = courseRepo.findByJoinCode(joinCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
+
+        boolean hasAccess =
+                enrollRepo.existsByUserIdAndClassCodeAndQuarterAndYear(me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear()) ||
+                taRepo.existsByUserIdAndClassCodeAndQuarterAndYear(me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear()) ||
+                teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!hasAccess) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this class");
+        }
+
+        List<String> instructorIds = teachesRepo.findAllByClassCodeAndQuarterAndYear(
+                course.getClassCode(), course.getQuarter(), course.getYear())
+                .stream().map(TeachesRelationEntity::getUserId)
+                .distinct().toList();
+
+        if (instructorIds.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No instructor found for this class");
+        }
+
+        UserAccountEntity prof = userRepo.findById(instructorIds.get(0))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Instructor not found"));
+
+        return new StudentSummaryDTO(prof.getUserId(), prof.getEmail(), prof.getFirstName(), prof.getLastName(), "PROFESSOR");
     }
 
     // ============================================================================

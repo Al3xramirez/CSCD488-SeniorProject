@@ -10,17 +10,15 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface TeachesRelationRepository extends JpaRepository<TeachesRelationEntity, TeachesRelationId> {
-    
-    // Custom query to check if a teaching relation exists for a specific user and course
+
     boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, Integer year);
 
-    // Custom query to find all teaching relations for a specific user
     List<TeachesRelationEntity> findAllByUserId(String userId);
 
-    // Delete all teaching relations for a specific course
+    List<TeachesRelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
+
     long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, Integer year);
 
-    // Custom query to find all teaching relations for a specific class code
-    @Query("SELECT t FROM TeachesRelationEntity t WHERE t.id.classCode = :classCode")
+    @Query("SELECT t FROM TeachesRelationEntity t WHERE t.classCode = :classCode")
     List<TeachesRelationEntity> findByClassCode(@Param("classCode") String classCode);
 }
