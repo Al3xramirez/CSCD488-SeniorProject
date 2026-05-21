@@ -7,11 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TARelationRepository extends JpaRepository<TARelationEntity, TARelationId> {
 
-    boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, String year);
+    boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, int year);
 
     List<TARelationEntity> findAllByUserId(String userId);
 
-    List<TARelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+    List<TARelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, int year);
 
-    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, int year);
 }

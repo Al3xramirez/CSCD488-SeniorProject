@@ -8,12 +8,12 @@ public class EnrollRelationId implements Serializable {
     private String userId;
     private String classCode;
     private String quarter;
-    private String year;
+    private int year;
 
     public EnrollRelationId() {
     }
 
-    public EnrollRelationId(String userId, String classCode, String quarter, String year) {
+    public EnrollRelationId(String userId, String classCode, String quarter, int year) {
         this.userId = userId;
         this.classCode = classCode;
         this.quarter = quarter;
@@ -45,11 +45,11 @@ public class EnrollRelationId implements Serializable {
         this.quarter = quarter;
     }
 
-    public String getYear() {
+    public int getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(int year) {
         this.year = year;
     }
 

@@ -8,11 +8,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface TeachesRelationRepository extends JpaRepository<TeachesRelationEntity, TeachesRelationId> {
     
     // Custom query to check if a teaching relation exists for a specific user and course
-    boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, String year);
+    boolean existsByUserIdAndClassCodeAndQuarterAndYear(String userId, String classCode, String quarter, int year);
 
     // Custom query to find all teaching relations for a specific user
     List<TeachesRelationEntity> findAllByUserId(String userId);
 
+    List<TeachesRelationEntity> findAllByClassCodeAndQuarterAndYear(String classCode, String quarter, int year);
+
     // Delete all teaching relations for a specific course
-    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, String year);
+    long deleteAllByClassCodeAndQuarterAndYear(String classCode, String quarter, int year);
 }

@@ -16,7 +16,7 @@ public class CourseEntity {
 
     @Id
     @Column(name = "Year")
-    private String year;
+    private int year;
 
     @Column(name = "Title")
     private String title;
@@ -44,11 +44,11 @@ public class CourseEntity {
         this.quarter = quarter;
     }
 
-    public String getYear() {
+    public int getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(int year) {
         this.year = year;
     }
 

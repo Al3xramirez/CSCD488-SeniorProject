@@ -7,12 +7,12 @@ public class CourseId implements Serializable {
 
     private String classCode;
     private String quarter;
-    private String year;
+    private int year;
 
     public CourseId() {
     }
 
-    public CourseId(String classCode, String quarter, String year) {
+    public CourseId(String classCode, String quarter, int year) {
         this.classCode = classCode;
         this.quarter = quarter;
         this.year = year;
@@ -35,11 +35,11 @@ public class CourseId implements Serializable {
         this.quarter = quarter;
     }
 
-    public String getYear() {
+    public int getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(int year) {
         this.year = year;
     }
 

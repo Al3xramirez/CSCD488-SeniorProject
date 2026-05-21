@@ -28,6 +28,28 @@ const showCreate = ref(false);
 const createError = ref("");
 const creating = ref(false);
 
+// Student office hours modal
+const showOHModal = ref(false);
+const ohClass = ref(null);
+const ohLoading = ref(false);
+const ohError = ref("");
+const profOH = ref(null);
+const tasOH = ref([]);
+
+const DAY_LABELS = {
+  MON: "Monday", TUE: "Tuesday", WED: "Wednesday",
+  THU: "Thursday", FRI: "Friday", SAT: "Saturday", SUN: "Sunday",
+};
+
+function fmtTime(t) {
+  if (!t) return "";
+  const [h, m] = t.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour < 12 ? "AM" : "PM";
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h12}:${m} ${ampm}`;
+}
+
 const form = ref({classCode: "", quarter: "",year: "",title: "",});
 
 // ------- API call for loading classes, creating a class, and joining a class -------
@@ -183,10 +205,52 @@ async function safeErrorMessage(res) {
 }
 
 function openClassDetails(c) {
-  if (!isProfessor.value) return;
-  const jc = (c?.joinCode || "").toString().trim();
-  if (!jc) return;
-  router.push({ name: "class-details", params: { joinCode: jc } });
+  if (isProfessor.value) {
+    const jc = (c?.joinCode || "").toString().trim();
+    if (!jc) return;
+    router.push({ name: "class-details", params: { joinCode: jc } });
+  } else if (role.value === "STUDENT") {
+    openStudentOH(c);
+  }
+}
+
+async function openStudentOH(c) {
+  ohClass.value = c;
+  showOHModal.value = true;
+  ohLoading.value = true;
+  ohError.value = "";
+  profOH.value = null;
+  tasOH.value = [];
+
+  try {
+    const jc = (c?.joinCode || "").toString().trim();
+
+    const instrRes = await fetch(`/api/classes/${encodeURIComponent(jc)}/instructor`, { credentials: "include" });
+    if (!instrRes.ok) throw new Error("Failed to load instructor info");
+    const instructor = await instrRes.json();
+
+    const profRes = await fetch(`/api/office-hours/user/${encodeURIComponent(instructor.userId)}`, { credentials: "include" });
+    if (profRes.ok) profOH.value = await profRes.json();
+
+    const tas = classTAs.value[jc] || [];
+    const taResults = await Promise.allSettled(
+      tas.map(ta =>
+        fetch(`/api/office-hours/user/${encodeURIComponent(ta.userId)}`, { credentials: "include" })
+          .then(r => r.ok ? r.json() : null)
+      )
+    );
+    tasOH.value = taResults
+      .filter(r => r.status === "fulfilled" && r.value)
+      .map(r => r.value);
+  } catch (e) {
+    ohError.value = e?.message || "Failed to load office hours";
+  } finally {
+    ohLoading.value = false;
+  }
+}
+
+function closeOHModal() {
+  showOHModal.value = false;
 }
 
 /* onMounted is used to call the LoadMyclasses function when the component is first mounted.
@@ -245,9 +309,9 @@ onMounted(loadMyClasses);
         v-for="c in classes"
         :key="`${c.classCode}-${c.quarter}-${c.year}`"
         class="class-box"
-        :class="{ 'class-box--clickable': isProfessor }"
-        :role="isProfessor ? 'button' : undefined"
-        :tabindex="isProfessor ? 0 : undefined"
+        :class="{ 'class-box--clickable': isProfessor || role === 'STUDENT' }"
+        :role="isProfessor || role === 'STUDENT' ? 'button' : undefined"
+        :tabindex="isProfessor || role === 'STUDENT' ? 0 : undefined"
         @click="openClassDetails(c)"
         @keydown.enter.prevent="openClassDetails(c)"
         @keydown.space.prevent="openClassDetails(c)"
@@ -274,6 +338,65 @@ onMounted(loadMyClasses);
       </div>
     </div>
   </section>
+
+  <!-- Student: office hours modal -->
+  <teleport to="body">
+    <div v-if="showOHModal" class="overlay" @click.self="closeOHModal">
+      <div class="modal" role="dialog" aria-modal="true" :aria-label="`Office Hours — ${ohClass?.classCode}`">
+        <div class="modal-header">
+          <div>
+            <h3>Office Hours</h3>
+            <div class="oh-class-label">{{ ohClass?.classCode }} · {{ ohClass?.quarter }} {{ ohClass?.year }}</div>
+          </div>
+          <button class="close-btn" type="button" aria-label="Close" @click="closeOHModal">✕</button>
+        </div>
+
+        <div v-if="ohLoading" class="muted oh-loading">Loading…</div>
+        <div v-else-if="ohError" class="alert">{{ ohError }}</div>
+        <template v-else>
+          <!-- Professor -->
+          <div class="oh-section">
+            <div class="oh-section-title">Professor</div>
+            <div v-if="profOH">
+              <div class="oh-person-name">{{ profOH.firstName }} {{ profOH.lastName }}</div>
+              <div v-if="!profOH.schedule?.length" class="oh-none">No office hours posted.</div>
+              <div v-else class="oh-block-list">
+                <div v-for="b in profOH.schedule" :key="b.id" class="oh-block">
+                  <span class="oh-day">{{ DAY_LABELS[b.dayOfWeek] ?? b.dayOfWeek }}</span>
+                  <span class="oh-time">{{ fmtTime(b.startTime) }} – {{ fmtTime(b.endTime) }}</span>
+                  <span class="oh-qy">{{ b.quarter }} {{ b.year }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="oh-none">No professor info available.</div>
+          </div>
+
+          <!-- TAs -->
+          <div class="oh-section">
+            <div class="oh-section-title">Teaching Assistants</div>
+            <div v-if="!tasOH.length" class="oh-none">No TAs assigned.</div>
+            <template v-else>
+              <div v-for="ta in tasOH" :key="ta.userId" class="oh-ta">
+                <div class="oh-person-name">{{ ta.firstName }} {{ ta.lastName }}</div>
+                <div v-if="!ta.schedule?.length" class="oh-none">No office hours posted.</div>
+                <div v-else class="oh-block-list">
+                  <div v-for="b in ta.schedule" :key="b.id" class="oh-block">
+                    <span class="oh-day">{{ DAY_LABELS[b.dayOfWeek] ?? b.dayOfWeek }}</span>
+                    <span class="oh-time">{{ fmtTime(b.startTime) }} – {{ fmtTime(b.endTime) }}</span>
+                    <span class="oh-qy">{{ b.quarter }} {{ b.year }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <div class="modal-actions">
+          <button class="btn ghost" type="button" @click="closeOHModal">Close</button>
+        </div>
+      </div>
+    </div>
+  </teleport>
 
   <!-- Creates the overlay for creating a new class -->
   <div v-if="showCreate" class="overlay" @click.self="closeCreate">
@@ -502,6 +625,101 @@ h3 {
   border: 1px dashed rgba(255,255,255,0.10);
   color: #9ca3af;
   font-size: 13px;
+}
+
+/* Office hours modal */
+.close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #e5e7eb;
+  background: rgba(255,255,255,0.06);
+}
+
+.oh-class-label {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.oh-loading {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.oh-section {
+  margin-top: 18px;
+}
+
+.oh-section-title {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+.oh-person-name {
+  font-weight: 700;
+  color: #e5e7eb;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.oh-ta {
+  margin-bottom: 14px;
+}
+
+.oh-ta:last-child {
+  margin-bottom: 0;
+}
+
+.oh-block-list {
+  display: grid;
+  gap: 6px;
+}
+
+.oh-block {
+  display: grid;
+  grid-template-columns: 100px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.oh-day {
+  font-weight: 700;
+  color: #e5e7eb;
+  font-size: 13px;
+}
+
+.oh-time {
+  color: #e5e7eb;
+  font-size: 13px;
+}
+
+.oh-qy {
+  color: #9ca3af;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.oh-none {
+  color: #6b7280;
+  font-size: 13px;
+  font-style: italic;
 }
 
 
