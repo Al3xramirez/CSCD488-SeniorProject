@@ -21,10 +21,28 @@ public class TeachesRelationEntity {
 
     @Id
     @Column(name = "Year")
-    private int year;
+    private Integer year;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserID", insertable = false, updatable = false)
+    private UserAccountEntity userEntity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumns({
+        @JoinColumn(name = "ClassCode", insertable = false, updatable = false),
+        @JoinColumn(name = "Quarter", insertable = false, updatable = false),
+        @JoinColumn(name = "Year", insertable = false, updatable = false)
+    })
+    private CourseEntity courseEntity;
 
     public TeachesRelationEntity() {
+    }
+
+    public TeachesRelationEntity(String userId, String classCode, String quarter, Integer year) {
+        this.userId = userId;
+        this.classCode = classCode;
+        this.quarter = quarter;
+        this.year = year;
     }
 
     // Getters and Setters
@@ -52,12 +70,27 @@ public class TeachesRelationEntity {
         this.quarter = quarter;
     }
 
-    public int getYear() {
+    public Integer getYear() {
         return year;
     }
 
-    public void setYear(int year) {
+    public void setYear(Integer year) {
         this.year = year;
     }
 
+    public UserAccountEntity getUserEntity() {
+        return userEntity;
+    }
+
+    public void setUserEntity(UserAccountEntity userEntity) {
+        this.userEntity = userEntity;
+    }
+
+    public CourseEntity getCourseEntity() {
+        return courseEntity;
+    }
+
+    public void setCourseEntity(CourseEntity courseEntity) {
+        this.courseEntity = courseEntity;
+    }
 }

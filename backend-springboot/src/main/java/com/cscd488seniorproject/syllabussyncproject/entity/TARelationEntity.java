@@ -21,7 +21,7 @@ public class TARelationEntity {
 
     @Id
     @Column(name = "Year")
-    private int year;
+    private Integer year;
 
     public TARelationEntity() {}
 
@@ -34,6 +34,6 @@ public class TARelationEntity {
     public String getQuarter() { return quarter; }
     public void setQuarter(String quarter) { this.quarter = quarter; }
 
-    public int getYear() { return year; }
-    public void setYear(int year) { this.year = year; }
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 }

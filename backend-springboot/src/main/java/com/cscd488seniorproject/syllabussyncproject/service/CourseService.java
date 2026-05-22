@@ -1,6 +1,7 @@
 package com.cscd488seniorproject.syllabussyncproject.service;
 
 import com.cscd488seniorproject.syllabussyncproject.dto.ClassSummaryDTO;
+import com.cscd488seniorproject.syllabussyncproject.dto.CourseDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.CreateClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.StudentSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.entity.CourseEntity;
@@ -29,7 +30,6 @@ public class CourseService {
 
     // Payload for returning profile photos from endpoints
     public record PhotoPayload(byte[] bytes, String contentType) {}
-
 
     // Configuration for join code generation
     private static final String JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -74,7 +74,7 @@ public class CourseService {
         }
         //returns a list of ClassSummaryDTOs 
         return courses.stream()
-                .map(c -> new ClassSummaryDTO(c.getClassCode(), c.getQuarter(), String.valueOf(c.getYear()), c.getTitle(), c.getJoinCode()))
+                .map(c -> new ClassSummaryDTO(c.getClassCode(), c.getQuarter(), c.getYear(), c.getTitle(), c.getJoinCode()))
                 .toList();
     }
 
@@ -92,14 +92,21 @@ public class CourseService {
         // Normalize and validate the input parameters from the request DTO, ensuring they are not blank
         String classCode = normalizeRequired(req == null ? null : req.classCode, "classCode");
         String quarter = normalizeRequired(req == null ? null : req.quarter, "quarter");
-        String year = normalizeRequired(req == null ? null : req.year, "year");
+        Integer year = normalizeRequiredInt(req == null ? null : req.year, "year");
         String title = normalizeRequired(req == null ? null : req.title, "title");
 
         //Optional is used to handle the possibility that a course with the same class code, quarter, and year already exists.
         // If such a course exists, a 409 Conflict response is thrown to indicate that the course cannot be created. 
         // Lowkey didnt know that a 409 was a thing
-        Optional<CourseEntity> existing = courseRepo.findByClassCodeAndQuarterAndYear(classCode, quarter, Integer.parseInt(year));
+        Optional<CourseEntity> existing = courseRepo.findByClassCodeAndQuarterAndYear(classCode, quarter, year);
         if (existing.isPresent()) {
+            CourseEntity existingCourse = existing.get();
+            boolean alreadyTeaches = teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+                me.getUserId(), classCode, quarter, year);
+            if (alreadyTeaches) {
+                return new ClassSummaryDTO(existingCourse.getClassCode(), existingCourse.getQuarter(),
+                    existingCourse.getYear(), existingCourse.getTitle(), existingCourse.getJoinCode());
+            }
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Course already exists for that ClassCode/Quarter/Year");
         }
         // joinCode simply generates a unique join code for the new course
@@ -109,7 +116,7 @@ public class CourseService {
         CourseEntity course = new CourseEntity();
         course.setClassCode(classCode);
         course.setQuarter(quarter);
-        course.setYear(Integer.parseInt(year));
+        course.setYear(year);
         course.setTitle(title);
         course.setJoinCode(joinCode);
         courseRepo.save(course);
@@ -119,7 +126,7 @@ public class CourseService {
         teaches.setUserId(me.getUserId());
         teaches.setClassCode(classCode);
         teaches.setQuarter(quarter);
-        teaches.setYear(Integer.parseInt(year));
+        teaches.setYear(year);
         teachesRepo.save(teaches);
         // Finally, a ClassSummaryDTO is returned with the details of the newly created course
         return new ClassSummaryDTO(classCode, quarter, year, title, joinCode);
@@ -147,7 +154,7 @@ public class CourseService {
         enroll.setYear(course.getYear());
         enrollRepo.save(enroll);
         // Again, return a ClassSummaryDTO with the details of the course that was joined
-        return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), String.valueOf(course.getYear()), course.getTitle(), course.getJoinCode());
+        return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
     }
 
     // getRosterByJoinCode allows a professor to retrieve the roster of students enrolled in a class using the class's join code. 
@@ -200,7 +207,7 @@ public class CourseService {
         return fetchTASummaries(course.getClassCode(), course.getQuarter(), course.getYear());
     }
 
-    private List<StudentSummaryDTO> fetchTASummaries(String classCode, String quarter, int year) {
+    private List<StudentSummaryDTO> fetchTASummaries(String classCode, String quarter, Integer year) {
         List<String> taIds = taRepo.findAllByClassCodeAndQuarterAndYear(classCode, quarter, year)
                 .stream().map(TARelationEntity::getUserId).distinct().toList();
         if (taIds.isEmpty()) return List.of();
@@ -310,14 +317,14 @@ public class CourseService {
         //NOTE: Once we add other entities and repositories that depend on CourseEntity, we will need to delete them here
         String classCode = course.getClassCode();
         String quarter = course.getQuarter();
-        int year = course.getYear();
+        Integer year = course.getYear();
 
         teachesRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
         enrollRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
         taRepo.deleteAllByClassCodeAndQuarterAndYear(classCode, quarter, year);
         courseRepo.delete(course);
 
-        return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), String.valueOf(course.getYear()), course.getTitle(), course.getJoinCode());
+        return new ClassSummaryDTO(course.getClassCode(), course.getQuarter(), course.getYear(), course.getTitle(), course.getJoinCode());
     }
 
     public StudentSummaryDTO getInstructorByJoinCode(String email, String joinCodeRaw) {
@@ -350,6 +357,107 @@ public class CourseService {
         return new StudentSummaryDTO(prof.getUserId(), prof.getEmail(), prof.getFirstName(), prof.getLastName(), "PROFESSOR");
     }
 
+    // ============================================================================
+    // NEW FUNCTIONALITY - FROM REFACTORED SERVICE LAYER
+    // ============================================================================
+
+    /**
+     * Get a course by its composite key (classCode, quarter, year)
+     * @return CourseDTO or null if not found
+     */
+    public CourseDTO getCourseById(String classCode, String quarter, Integer year) {
+        Optional<CourseEntity> course = courseRepo.findByClassCodeAndQuarterAndYear(classCode, quarter, year);
+        return course.map(this::mapToDTO).orElse(null);
+    }
+
+    /**
+     * Get a course by its join code
+     * @return CourseDTO or null if not found
+     */
+    public CourseDTO getCourseByJoinCode(String joinCode) {
+        Optional<CourseEntity> course = courseRepo.findByJoinCode(joinCode);
+        return course.map(this::mapToDTO).orElse(null);
+    }
+
+    /**
+     * Get all course instances with a specific class code
+     * @return List of CourseDTOs
+     */
+    public List<CourseDTO> getCoursesByClassCode(String classCode) {
+        return courseRepo.findByClassCode(classCode).stream()
+            .map(this::mapToDTO)
+            .toList();
+    }
+
+    /**
+     * Get all courses taught by a specific user
+     * @return List of CourseDTOs
+     */
+    public List<CourseDTO> getCoursesTaughtBy(String userId) {
+        return courseRepo.findCoursesTaughtBy(userId).stream()
+            .map(this::mapToDTO)
+            .toList();
+    }
+
+    /**
+     * Get all courses a user is enrolled in
+     * @return List of CourseDTOs
+     */
+    public List<CourseDTO> getCoursesEnrolledBy(String userId) {
+        return courseRepo.findCoursesEnrolledBy(userId).stream()
+            .map(this::mapToDTO)
+            .toList();
+    }
+
+    /**
+     * Check if a course exists
+     * @return true if course exists, false otherwise
+     */
+    public boolean courseExists(String classCode, String quarter, Integer year) {
+        return courseRepo.findByClassCodeAndQuarterAndYear(classCode, quarter, year).isPresent();
+    }
+
+    /**
+     * Get the enrollment count for a specific course
+     * @return number of enrolled students
+     */
+    public long getCourseEnrollmentCount(String classCode, String quarter, Integer year) {
+        return enrollRepo.countByClassCodeAndQuarterAndYear(classCode, quarter, year);
+    }
+
+    /**
+     * Check if a user is enrolled in a course
+     * @return true if enrolled, false otherwise
+     */
+    public boolean isUserEnrolled(String userId, String classCode, String quarter, Integer year) {
+        return enrollRepo.existsByUserIdAndClassCodeAndQuarterAndYear(userId, classCode, quarter, year);
+    }
+
+    /**
+     * Check if a user teaches a course
+     * @return true if teaches, false otherwise
+     */
+    public boolean doesUserTeach(String userId, String classCode, String quarter, Integer year) {
+        return teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(userId, classCode, quarter, year);
+    }
+
+    /**
+     * Map CourseEntity to CourseDTO for API responses
+     */
+    private CourseDTO mapToDTO(CourseEntity entity) {
+        return CourseDTO.builder()
+            .classCode(entity.getClassCode())
+            .quarter(entity.getQuarter())
+            .year(entity.getYear())
+            .title(entity.getTitle())
+            .joinCode(entity.getJoinCode())
+            .build();
+    }
+
+    // ============================================================================
+    // HELPER METHODS
+    // ============================================================================
+
     // Helper method to retrieve a user by email and throw exception if the email is not provided or the user is not found.
     private UserAccountEntity requireUserByEmail(String emailRaw) {
         String email = emailRaw == null ? "" : emailRaw.trim().toLowerCase(Locale.ROOT);
@@ -380,6 +488,14 @@ public class CourseService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " required");
         }
         return v;
+    }
+
+    //Helper method to normalize required integer inputs
+    private static Integer normalizeRequiredInt(Integer value, String fieldName) {
+        if (value == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " required");
+        }
+        return value;
     }
 
     // This method checks if the generated join code is unique by checking the database, and if not, 

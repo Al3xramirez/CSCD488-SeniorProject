@@ -242,7 +242,13 @@ watch(joinCode, async () => {
         </button>
 
         <div v-if="syllabusOpen" class="syllabus-body">
-          <SyllabusUpload userRole="professor" :courseId="joinCode" />
+          <SyllabusUpload
+            userRole="professor"
+            :courseId="joinCode"
+            :classCode="classItem?.classCode"
+            :quarter="classItem?.quarter"
+            :year="classItem?.year"
+          />
         </div>
       </div>
 

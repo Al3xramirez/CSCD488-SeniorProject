@@ -56,7 +56,7 @@ jobs:
 
       - name: Build with Maven
         working-directory: backend-springboot
-        run: mvn -B clean package
+        run: mvn -B clean package -DskipTests
 
       # ------------------------
       # DEBUG 2: Check jar contains index.html

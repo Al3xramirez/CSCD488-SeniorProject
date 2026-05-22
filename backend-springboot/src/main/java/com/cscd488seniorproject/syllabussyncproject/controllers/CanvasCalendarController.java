@@ -6,6 +6,7 @@ import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscriptionE
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import com.cscd488seniorproject.syllabussyncproject.service.CanvasCalendarService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;

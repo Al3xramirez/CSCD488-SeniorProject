@@ -71,4 +71,11 @@ public class OfficeHoursController {
         String email = auth == null ? null : auth.getName();
         return ResponseEntity.ok(officeHoursService.getUserOfficeHours(email, userId));
     }
+
+    // ── All students/TAs/professors: view all office hours for a class ────────
+
+    @GetMapping("/class/{classCode}")
+    public ResponseEntity<List<OfficeHoursViewDTO>> getClassOfficeHours(@PathVariable String classCode) {
+        return ResponseEntity.ok(officeHoursService.getClassOfficeHours(classCode));
+    }
 }

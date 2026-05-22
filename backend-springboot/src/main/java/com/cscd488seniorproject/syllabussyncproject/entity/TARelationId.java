@@ -8,11 +8,11 @@ public class TARelationId implements Serializable {
     private String userId;
     private String classCode;
     private String quarter;
-    private int year;
+    private Integer year;
 
     public TARelationId() {}
 
-    public TARelationId(String userId, String classCode, String quarter, int year) {
+    public TARelationId(String userId, String classCode, String quarter, Integer year) {
         this.userId = userId;
         this.classCode = classCode;
         this.quarter = quarter;
@@ -28,8 +28,8 @@ public class TARelationId implements Serializable {
     public String getQuarter() { return quarter; }
     public void setQuarter(String quarter) { this.quarter = quarter; }
 
-    public int getYear() { return year; }
-    public void setYear(int year) { this.year = year; }
+    public Integer getYear() { return year; }
+    public void setYear(Integer year) { this.year = year; }
 
     @Override
     public boolean equals(Object o) {
