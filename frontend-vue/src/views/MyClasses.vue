@@ -1,6 +1,6 @@
 <script setup>
 // ------- Imports and retrieving user info -------
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, inject, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 const me = inject("me", null);
@@ -13,9 +13,9 @@ const role = computed(() => {
 const isProfessor = computed(() => role.value === "PROFESSOR");
 const isTA = computed(() => role.value === "TA");
 
-const classes = ref([]);
-const loading = ref(false);
-const error = ref("");
+const classes = inject('classes', ref([]));
+const loading = inject('classesLoading', ref(false));
+const error = inject('classesError', ref(""));
 
 // Maps joinCode -> array of TA summaries, fetched for student users
 const classTAs = ref({});
@@ -52,31 +52,15 @@ function fmtTime(t) {
 
 const form = ref({classCode: "", quarter: "",year: "",title: "",});
 
-// ------- API call for loading classes, creating a class, and joining a class -------
+// ------- API call for creating a class and joining a class -------
 //TODO Have another API call for leaving a class or for a professor to delete a class
-async function loadMyClasses() {
-  loading.value = true;
-  error.value = "";
 
-  try {
-    const res = await fetch("/api/classes/mine", { credentials: "include" });
-    if (!res.ok) {
-      const msg = await safeErrorMessage(res);
-      throw new Error(msg || `Failed to load classes (${res.status})`);
-    }
-
-    const data = await res.json();
-    classes.value = Array.isArray(data) ? data : [];
-
-    if (role.value === "STUDENT") {
-      fetchAllTAs(classes.value);
-    }
-  } catch (e) {
-    error.value = e?.message || "Failed to load classes";
-  } finally {
-    loading.value = false;
-  }
-}
+// Fetch TAs for all classes whenever the shared classes list is populated
+watch(
+  classes,
+  (val) => { if (role.value === "STUDENT" && val.length) fetchAllTAs(val); },
+  { immediate: true }
+);
 
 async function fetchAllTAs(courseList) {
   const entries = await Promise.all(
@@ -253,9 +237,6 @@ function closeOHModal() {
   showOHModal.value = false;
 }
 
-/* onMounted is used to call the LoadMyclasses function when the component is first mounted.
-just to make sure users classes are loaded when they open up the page */
-onMounted(loadMyClasses);
 </script>
 
 <template>

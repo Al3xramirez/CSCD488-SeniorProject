@@ -18,25 +18,18 @@ const role = computed(() => {
 });
 
 // ── Syllabus Overview ──────────────────────────────────────────────
-const myClasses = ref([]);
+const myClasses = inject('classes', ref([]));
 const selectedJoinCode = ref(null);
 const syllabus = ref(null);
 const loadingSyllabus = ref(false);
 const syllabusError = ref("");
 
-async function fetchMyClasses() {
-  try {
-    const res = await fetch("/api/classes/mine", { credentials: "include" });
-    if (res.ok) {
-      myClasses.value = await res.json();
-      if (myClasses.value.length > 0) {
-        selectedJoinCode.value = myClasses.value[0].joinCode;
-      }
-    }
-  } catch {
-    // silently ignore — calendar/syllabus are secondary
-  }
-}
+// Set the initial selected class once classes are available
+watch(
+  myClasses,
+  (val) => { if (val.length > 0 && !selectedJoinCode.value) selectedJoinCode.value = val[0].joinCode; },
+  { immediate: true }
+);
 
 async function fetchSyllabus(joinCode) {
   if (!joinCode) return;
@@ -165,8 +158,7 @@ const assignmentCountThisWeek = computed(() => assignmentsThisWeek.value.length)
 const workloadLevelThisWeek = computed(() => workloadLevelFromCount(assignmentCountThisWeek.value));
 const workloadMeterWidth = computed(() => Math.min(100, (assignmentCountThisWeek.value / 8) * 100));
 
-onMounted(async () => {
-  await fetchMyClasses();
+onMounted(() => {
   fetchEvents();
 });
 </script>
