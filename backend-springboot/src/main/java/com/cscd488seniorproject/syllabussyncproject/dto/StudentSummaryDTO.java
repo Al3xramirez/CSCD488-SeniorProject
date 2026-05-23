@@ -7,6 +7,7 @@ public class StudentSummaryDTO {
     public String firstName;
     public String lastName;
     public String role; // added this to distinguish between students and TAs in the roster
+    public String availabilityStatus;
 
     public StudentSummaryDTO() {}
 
@@ -16,5 +17,15 @@ public class StudentSummaryDTO {
         this.firstName = firstName;
         this.lastName = lastName;
         this.role = role;
+        this.availabilityStatus = null;
+    }
+
+    public StudentSummaryDTO(String userId, String email, String firstName, String lastName, String role, String availabilityStatus) {
+        this.userId = userId;
+        this.email = email;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.role = role;
+        this.availabilityStatus = availabilityStatus;
     }
 }

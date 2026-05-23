@@ -182,7 +182,7 @@ public class CourseService {
 
         if (!studentIds.isEmpty()) {
             userRepo.findAllById(studentIds).forEach(u ->
-                result.add(new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName(), "STUDENT"))
+                result.add(new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName(), "STUDENT", u.getAvailabilityStatus()))
             );
         }
         result.addAll(fetchTASummaries(course.getClassCode(), course.getQuarter(), course.getYear()));
@@ -212,7 +212,7 @@ public class CourseService {
                 .stream().map(TARelationEntity::getUserId).distinct().toList();
         if (taIds.isEmpty()) return List.of();
         return userRepo.findAllById(taIds).stream()
-                .map(u -> new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName(), "TA"))
+            .map(u -> new StudentSummaryDTO(u.getUserId(), u.getEmail(), u.getFirstName(), u.getLastName(), "TA", u.getAvailabilityStatus()))
                 .toList();
     }
 
@@ -252,7 +252,7 @@ public class CourseService {
         rel.setYear(course.getYear());
         taRepo.save(rel);
 
-        return new StudentSummaryDTO(ta.getUserId(), ta.getEmail(), ta.getFirstName(), ta.getLastName(), "TA");
+        return new StudentSummaryDTO(ta.getUserId(), ta.getEmail(), ta.getFirstName(), ta.getLastName(), "TA", ta.getAvailabilityStatus());
     }
 
     // getRosterUserPhoto allows a professor to retrieve the profile photo for a user enrolled in a class.
@@ -280,6 +280,46 @@ public class CourseService {
                 userId, course.getClassCode(), course.getQuarter(), course.getYear());
         if (!enrolled && !isTa) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found in this class");
+        }
+
+        UserAccountEntity user = userRepo.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        byte[] bytes = user.getProfilePhoto();
+        String ct = user.getProfilePhotoContentType();
+
+        if (bytes == null || bytes.length == 0 || ct == null || ct.isBlank()) {
+            return null;
+        }
+        return new PhotoPayload(bytes, ct);
+    }
+
+    // getClassStaffPhoto allows any class member (student/TA/professor) to retrieve the profile photo
+    // for a TA or instructor in that same class.
+    @Transactional(readOnly = true)
+    public PhotoPayload getClassStaffPhoto(String email, String joinCodeRaw, String userIdRaw) {
+        UserAccountEntity me = requireUserByEmail(email);
+
+        String joinCode = normalizeRequired(joinCodeRaw, "joinCode");
+        String userId = normalizeRequired(userIdRaw, "userId");
+
+        CourseEntity course = courseRepo.findByJoinCode(joinCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
+
+        boolean hasAccess =
+                enrollRepo.existsByUserIdAndClassCodeAndQuarterAndYear(me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear()) ||
+                taRepo.existsByUserIdAndClassCodeAndQuarterAndYear(me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear()) ||
+                teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!hasAccess) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not enrolled in this class");
+        }
+
+        boolean isInstructor = teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+                userId, course.getClassCode(), course.getQuarter(), course.getYear());
+        boolean isTa = taRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+                userId, course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!isInstructor && !isTa) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User is not staff for this class");
         }
 
         UserAccountEntity user = userRepo.findById(userId)
@@ -354,7 +394,7 @@ public class CourseService {
         UserAccountEntity prof = userRepo.findById(instructorIds.get(0))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Instructor not found"));
 
-        return new StudentSummaryDTO(prof.getUserId(), prof.getEmail(), prof.getFirstName(), prof.getLastName(), "PROFESSOR");
+        return new StudentSummaryDTO(prof.getUserId(), prof.getEmail(), prof.getFirstName(), prof.getLastName(), "PROFESSOR", prof.getAvailabilityStatus());
     }
 
     // ============================================================================

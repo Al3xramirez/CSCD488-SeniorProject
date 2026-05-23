@@ -11,6 +11,7 @@ const role = computed(() => {
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
 const isProfessor = computed(() => role.value === "PROFESSOR");
+const isStudentView = computed(() => !isProfessor.value);
 
 const route = useRoute();
 const router = useRouter();
@@ -25,6 +26,11 @@ const rosterLoading = ref(false);
 const rosterError = ref("");
 const rosterUsers = ref([]);
 const photoFailed = ref({});
+
+const staffLoading = ref(false);
+const staffError = ref("");
+const staffUsers = ref([]);
+const staffPhotoFailed = ref({});
 
 const addTaEmail = ref("");
 const addTaLoading = ref(false);
@@ -82,6 +88,11 @@ function rosterPhotoUrl(userId) {
   return `/api/classes/${encodeURIComponent(joinCode.value)}/users/${encodeURIComponent(userId)}/photo`;
 }
 
+function staffPhotoUrl(userId) {
+  if (!joinCode.value || !userId) return "";
+  return `/api/classes/${encodeURIComponent(joinCode.value)}/staff/${encodeURIComponent(userId)}/photo`;
+}
+
 function initials(u) {
   const first = (u?.firstName || "").trim();
   const last = (u?.lastName || "").trim();
@@ -94,6 +105,66 @@ function initials(u) {
 function markPhotoFailed(userId) {
   if (!userId) return;
   photoFailed.value = { ...photoFailed.value, [userId]: true };
+}
+
+// ---- Functions to get staff photos, and availability status ----
+
+function markStaffPhotoFailed(userId) {
+  if (!userId) return;
+  staffPhotoFailed.value = { ...staffPhotoFailed.value, [userId]: true };
+}
+
+function statusKey(u) {
+  return (u?.availabilityStatus || "HIDDEN").toString().trim().toUpperCase();
+}
+
+function statusDotClass(u) {
+  const s = statusKey(u).toLowerCase();
+  return `status-dot status-dot--${s}`;
+}
+
+// loadStaff fetches the instructor and TA information for the class, 
+// including their availability status and profile photos.
+
+async function loadStaff() {
+  if (!joinCode.value || !isStudentView.value) return;
+
+  staffUsers.value = [];
+  staffError.value = "";
+  staffLoading.value = true;
+  staffPhotoFailed.value = {};
+
+  try {
+    const [instrRes, tasRes] = await Promise.all([
+      fetch(`/api/classes/${encodeURIComponent(joinCode.value)}/instructor`, { credentials: "include" }),
+      fetch(`/api/classes/${encodeURIComponent(joinCode.value)}/tas`, { credentials: "include" }),
+    ]);
+
+    if (!instrRes.ok) {
+      const msg = await safeErrorMessage(instrRes);
+      throw new Error(msg || `Failed to load instructor (${instrRes.status})`);
+    }
+
+    const instructor = await instrRes.json();
+
+    const tas = tasRes.ok ? await tasRes.json() : [];
+    const taList = Array.isArray(tas) ? tas : [];
+
+    const combined = [instructor, ...taList]
+      .filter(Boolean);
+
+    const seen = new Set();
+    staffUsers.value = combined.filter(u => {
+      const id = (u?.userId || "").toString();
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  } catch (e) {
+    staffError.value = e?.message || "Failed to load staff";
+  } finally {
+    staffLoading.value = false;
+  }
 }
 
 async function loadRoster() {
@@ -193,11 +264,13 @@ function toggleSyllabus() {
 onMounted(async () => {
   await loadClass();
   await loadRoster();
+  await loadStaff();
 });
 
 watch(joinCode, async () => {
   await loadClass();
   await loadRoster();
+  await loadStaff();
 });
 </script>
 
@@ -216,9 +289,37 @@ watch(joinCode, async () => {
 
     <div v-if="error" class="alert">{{ error }}</div>
 
-    <div v-if="!isProfessor" class="muted">
-      This page is for professors.
-    </div>
+    <template v-if="isStudentView">
+      <div class="section">
+        <div class="section-title">Professor &amp; TAs</div>
+
+        <div v-if="staffError" class="alert">{{ staffError }}</div>
+        <div v-else-if="staffLoading" class="muted">Loading…</div>
+
+        <div v-else class="roster">
+          <div class="roster-list">
+            <div v-for="u in staffUsers" :key="u.userId" class="roster-row">
+              <div class="avatar" aria-label="Profile photo">
+                <img
+                  v-if="!staffPhotoFailed[u.userId]"
+                  class="avatar__img"
+                  :src="staffPhotoUrl(u.userId)"
+                  :alt="`${u.firstName} ${u.lastName}`"
+                  @error="markStaffPhotoFailed(u.userId)"
+                />
+                <div v-else class="avatar__fallback">{{ initials(u) }}</div>
+                <span v-if="statusKey(u) !== 'HIDDEN'" :class="statusDotClass(u)" aria-hidden="true" />
+              </div>
+
+              <div>
+                <div class="roster-row__name">{{ u.firstName }} {{ u.lastName }}</div>
+                <div class="roster-row__role">{{ (u.role || '').toString().toUpperCase() }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <template v-else>
       <div v-if="classItem" class="meta">
@@ -334,6 +435,40 @@ watch(joinCode, async () => {
     </template>
   </section>
 </template>
+
+<style scoped>
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 2;
+  pointer-events: none;
+  border: 2px solid rgba(15,23,42,0.95);
+}
+
+.status-dot--available {
+  background: #86efac;
+}
+
+.status-dot--idle {
+  background: #facc15;
+}
+
+.status-dot--dnd {
+  background: rgb(239, 68, 68);
+}
+
+.status-dot--hidden {
+  background: transparent;
+}
+
+.avatar {
+  position: relative;
+}
+</style>
 
 <style scoped>
 h2 {
