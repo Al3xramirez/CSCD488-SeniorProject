@@ -14,6 +14,8 @@ import MyClasses from "../views/MyClasses.vue";
 import OfficeHours from "../views/newofficehours.vue";
 import ClassDetails from "../views/ClassDetails.vue";
 
+const syllabusImportEnabled = (import.meta.env.VITE_SYLLABUS_IMPORT_ENABLED || "true").toString().toLowerCase() !== "false";
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -43,6 +45,11 @@ const router = createRouter({
 // This navigation guard checks if the route requires authentication and verifies the user's session by making a request to the backend.
 //  If the user is not authenticated, they are redirected to the login page.
 router.beforeEach(async (to, from, next) => {
+  if (to.name === 'syllabus-upload' && !syllabusImportEnabled) {
+    next('/app');
+    return;
+  }
+
   if (to.meta.requiresAuth) {
     try {
       const res = await fetch('/api/check-auth', {

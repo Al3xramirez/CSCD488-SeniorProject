@@ -121,5 +121,6 @@ public class AuthController {
     // This record class is used to represent the response from the /me endpoint, which includes the user's email, role, first name, and last name. 
     // Inline suggestions suggested making this a record.
     public record MeResponse(String email, String role, String firstName, String lastName) {}
-
 }
+
+

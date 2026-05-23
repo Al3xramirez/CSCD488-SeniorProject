@@ -25,6 +25,8 @@ jobs:
 
       - name: Install and build Vue
         working-directory: frontend-vue
+        env:
+          VITE_SYLLABUS_IMPORT_ENABLED: "false"
         run: |
           npm ci
           npm run build
@@ -96,6 +98,15 @@ jobs:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_EF2E571B217646A98C92CCD138B91672 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_446BC23E295B41A08802B992CCEBD962 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0BA6463238AF42BFAF8DA82F5559C523 }}
+
+      - name: Set production feature flags
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            RG=$(az webapp show --name syllabussync --query resourceGroup -o tsv)
+            az webapp config appsettings set --name syllabussync --resource-group "$RG" --settings SYLLABUS_IMPORT_ENABLED="$SYLLABUS_IMPORT_ENABLED"
+        env:
+          SYLLABUS_IMPORT_ENABLED: "false"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
