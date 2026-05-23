@@ -27,6 +27,9 @@ public class UserAccountEntity {
     @Column(name = "Role", length = 20, nullable = false)
     private String role; // STUDENT, TA, or PROFESSOR
 
+    @Column(name = "AvailabilityStatus", length = 20, nullable = false)
+    private String availabilityStatus; // AVAILABLE, IDLE, DND, HIDDEN
+
     @Column(name = "Department", length = 50)
     private String department;
 
@@ -59,6 +62,9 @@ public class UserAccountEntity {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public String getAvailabilityStatus() { return availabilityStatus; }
+    public void setAvailabilityStatus(String availabilityStatus) { this.availabilityStatus = availabilityStatus; }
 
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }

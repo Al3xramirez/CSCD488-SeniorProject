@@ -82,6 +82,29 @@ public class ClassesController {
             .body(payload.bytes());
     }
 
+    // Get a staff member (TA / Professor) profile photo for a class by join code (any enrolled/TA/professor user)
+    @GetMapping("/{joinCode}/staff/{userId}/photo")
+    public ResponseEntity<byte[]> classStaffPhoto(Authentication auth, @PathVariable String joinCode, @PathVariable String userId) {
+        String email = auth == null ? null : auth.getName();
+        CourseService.PhotoPayload payload = courseService.getClassStaffPhoto(email, joinCode, userId);
+        if (payload == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(payload.contentType());
+        } catch (Exception e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+            .contentType(mediaType)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+            .cacheControl(CacheControl.noStore())
+            .body(payload.bytes());
+    }
+
     // Get TAs for a class by join code (any enrolled/TA/professor user)
     @GetMapping("/{joinCode}/tas")
     public ResponseEntity<List<StudentSummaryDTO>> tas(Authentication auth, @PathVariable String joinCode) {
