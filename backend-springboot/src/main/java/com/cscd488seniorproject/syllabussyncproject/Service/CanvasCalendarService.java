@@ -31,8 +31,10 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.ByteArrayInputStream;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -45,6 +47,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -443,6 +446,91 @@ public class CanvasCalendarService {
         boolean allDay,
         boolean isCancelled
     ) {}
+
+    /**
+     * Creates ExternalEventEntity records for each class session between semesterStart and
+     * semesterEnd for the professor's Canvas subscription. No-ops if either date is null,
+     * if days/times are missing, or if the professor has no Canvas subscription.
+     *
+     * @param professorUserId the professor's userId
+     * @param courseTitle     used as the event summary
+     * @param days            day abbreviations, e.g. ["MON","WED","FRI"]
+     * @param startTime       session start time
+     * @param endTime         session end time
+     * @param location        room / location string (may be null)
+     * @param semesterStart   first day of the semester (inclusive)
+     * @param semesterEnd     last day of the semester (inclusive)
+     */
+    @Transactional
+    public void createClassSessionEvents(
+            String professorUserId,
+            String courseTitle,
+            List<String> days,
+            LocalTime startTime,
+            LocalTime endTime,
+            String location,
+            LocalDate semesterStart,
+            LocalDate semesterEnd) {
+
+        if (semesterStart == null || semesterEnd == null
+                || days == null || days.isEmpty()
+                || startTime == null || endTime == null) {
+            return;
+        }
+
+        Optional<CalendarSubscriptionEntity> subOpt =
+                subscriptionRepository.findByUserIdAndProvider(professorUserId, PROVIDER_CANVAS);
+        if (subOpt.isEmpty()) {
+            return;
+        }
+        CalendarSubscriptionEntity subscription = subOpt.get();
+
+        Map<String, DayOfWeek> dayMap = Map.of(
+                "MON", DayOfWeek.MONDAY,
+                "TUE", DayOfWeek.TUESDAY,
+                "WED", DayOfWeek.WEDNESDAY,
+                "THU", DayOfWeek.THURSDAY,
+                "FRI", DayOfWeek.FRIDAY,
+                "SAT", DayOfWeek.SATURDAY,
+                "SUN", DayOfWeek.SUNDAY
+        );
+
+        Set<DayOfWeek> meetingDays = days.stream()
+                .map(d -> dayMap.get(d.toUpperCase()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        String baseUid = "class-session-"
+                + courseTitle.toLowerCase().replaceAll("[^a-z0-9]+", "-") + "-";
+
+        LocalDate current = semesterStart;
+        while (!current.isAfter(semesterEnd)) {
+            if (meetingDays.contains(current.getDayOfWeek())) {
+                String uid = baseUid + current;
+                boolean exists = externalEventRepository
+                        .findBySubscription_SubscriptionIdAndIcalUidAndRecurrenceId(
+                                subscription.getSubscriptionId(), uid, "")
+                        .isPresent();
+                if (!exists) {
+                    ExternalEventEntity event = ExternalEventEntity.builder()
+                            .subscription(subscription)
+                            .icalUid(uid)
+                            .recurrenceId("")
+                            .summary(courseTitle)
+                            .location(location)
+                            .description("Class session")
+                            .startAt(LocalDateTime.of(current, startTime))
+                            .endAt(LocalDateTime.of(current, endTime))
+                            .allDay(false)
+                            .isCancelled(false)
+                            .updatedFromFeedAt(LocalDateTime.now())
+                            .build();
+                    externalEventRepository.save(event);
+                }
+            }
+            current = current.plusDays(1);
+        }
+    }
 
     private record EventKey(String icalUid, String recurrenceId) {
         EventKey {

@@ -1,11 +1,16 @@
 package com.cscd488seniorproject.syllabussyncproject.controllers;
 
+import com.cscd488seniorproject.syllabussyncproject.dto.AddTARequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.ClassSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.CreateClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.JoinClassRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.dto.StudentSummaryDTO;
 import com.cscd488seniorproject.syllabussyncproject.service.CourseService;
+
 import java.util.List;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,11 +52,79 @@ public class ClassesController {
         return ResponseEntity.ok(courseService.joinClassByCode(email, joinCode));
     }
     
-    // Get the roster of a class by its join code (professors only)
+    // Get the roster of a class by its join code (professors only). This gets the names of students
     @GetMapping("/{joinCode}/students")
     public ResponseEntity<List<StudentSummaryDTO>> students(Authentication auth, @PathVariable String joinCode) {
         String email = auth == null ? null : auth.getName();
         return ResponseEntity.ok(courseService.getRosterByJoinCode(email, joinCode));
+    }
+
+    // Get an enrolled user's profile photo for a class (professors only). This gets the profile photo of students
+    @GetMapping("/{joinCode}/users/{userId}/photo")
+    public ResponseEntity<byte[]> rosterUserPhoto(Authentication auth, @PathVariable String joinCode, @PathVariable String userId) {
+        String email = auth == null ? null : auth.getName();
+        CourseService.PhotoPayload payload = courseService.getRosterUserPhoto(email, joinCode, userId);
+        if (payload == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(payload.contentType());
+        } catch (Exception e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+            .contentType(mediaType)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+            .cacheControl(CacheControl.noStore())
+            .body(payload.bytes());
+    }
+
+    // Get a staff member (TA / Professor) profile photo for a class by join code (any enrolled/TA/professor user)
+    @GetMapping("/{joinCode}/staff/{userId}/photo")
+    public ResponseEntity<byte[]> classStaffPhoto(Authentication auth, @PathVariable String joinCode, @PathVariable String userId) {
+        String email = auth == null ? null : auth.getName();
+        CourseService.PhotoPayload payload = courseService.getClassStaffPhoto(email, joinCode, userId);
+        if (payload == null) {
+            return ResponseEntity.noContent().build();
+        }
+
+        MediaType mediaType;
+        try {
+            mediaType = MediaType.parseMediaType(payload.contentType());
+        } catch (Exception e) {
+            mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        }
+
+        return ResponseEntity.ok()
+            .contentType(mediaType)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+            .cacheControl(CacheControl.noStore())
+            .body(payload.bytes());
+    }
+
+    // Get TAs for a class by join code (any enrolled/TA/professor user)
+    @GetMapping("/{joinCode}/tas")
+    public ResponseEntity<List<StudentSummaryDTO>> tas(Authentication auth, @PathVariable String joinCode) {
+        String email = auth == null ? null : auth.getName();
+        return ResponseEntity.ok(courseService.getTAsForCourse(email, joinCode));
+    }
+
+    // Get the instructor (professor) for a class by join code (any enrolled user)
+    @GetMapping("/{joinCode}/instructor")
+    public ResponseEntity<StudentSummaryDTO> instructor(Authentication auth, @PathVariable String joinCode) {
+        String email = auth == null ? null : auth.getName();
+        return ResponseEntity.ok(courseService.getInstructorByJoinCode(email, joinCode));
+    }
+
+    // Assign a TA to a class by their email (professors only)
+    @PostMapping("/{joinCode}/ta")
+    public ResponseEntity<StudentSummaryDTO> assignTA(Authentication auth, @PathVariable String joinCode, @RequestBody AddTARequestDTO req) {
+        String email = auth == null ? null : auth.getName();
+        String taEmail = req == null ? null : req.taEmail;
+        return ResponseEntity.ok(courseService.assignTA(email, joinCode, taEmail));
     }
 
     // Delete a class by its join code (professors only)

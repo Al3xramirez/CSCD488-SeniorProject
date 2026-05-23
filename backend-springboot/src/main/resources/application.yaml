@@ -1,6 +1,15 @@
+anthropic:
+  api:
+    key: ${ANTHROPIC_API_KEY}
+
 spring:
   application:
     name: SyllabusSync
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
   
   datasource: 
     url: ${DB_URL}
@@ -15,4 +24,21 @@ spring:
       hibernate:
         physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
         implicit_naming_strategy: org.hibernate.boot.model.naming.ImplicitNamingStrategyLegacyJpaImpl
-    show-sql: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+server:
+  error:
+    include-message: always
+    include-binding-errors: always

@@ -1,21 +1,24 @@
 <script setup>
 // ------- Imports and retrieving user info -------
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, inject, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 
 const me = inject("me", null);
+const router = useRouter();
 
 const role = computed(() => {
   const r = me?.value?.role;
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
-
-//------ Setting variables and functions for class management per user role -------
 const isProfessor = computed(() => role.value === "PROFESSOR");
-const isStudentOrTa = computed(() => role.value === "STUDENT" || role.value === "TA");
+const isTA = computed(() => role.value === "TA");
 
-const classes = ref([]);
-const loading = ref(false);
-const error = ref("");
+const classes = inject('classes', ref([]));
+const loading = inject('classesLoading', ref(false));
+const error = inject('classesError', ref(""));
+
+// Maps joinCode -> array of TA summaries, fetched for student users
+const classTAs = ref({});
 
 const joinCode = ref("");
 const joining = ref(false);
@@ -25,28 +28,60 @@ const showCreate = ref(false);
 const createError = ref("");
 const creating = ref(false);
 
+// Student office hours modal
+const showOHModal = ref(false);
+const ohClass = ref(null);
+const ohLoading = ref(false);
+const ohError = ref("");
+const profOH = ref(null);
+const tasOH = ref([]);
+
+const DAY_LABELS = {
+  MON: "Monday", TUE: "Tuesday", WED: "Wednesday",
+  THU: "Thursday", FRI: "Friday", SAT: "Saturday", SUN: "Sunday",
+};
+
+function fmtTime(t) {
+  if (!t) return "";
+  const [h, m] = t.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour < 12 ? "AM" : "PM";
+  const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${h12}:${m} ${ampm}`;
+}
+
 const form = ref({classCode: "", quarter: "",year: "",title: "",});
 
-// ------- API call for loading classes, creating a class, and joining a class -------
+// ------- API call for creating a class and joining a class -------
 //TODO Have another API call for leaving a class or for a professor to delete a class
-async function loadMyClasses() {
-  loading.value = true;
-  error.value = "";
 
-  try {
-    const res = await fetch("/api/classes/mine", { credentials: "include" });
-    if (!res.ok) {
-      const msg = await safeErrorMessage(res);
-      throw new Error(msg || `Failed to load classes (${res.status})`);
-    }
+// Fetch TAs for all classes whenever the shared classes list is populated
+watch(
+  classes,
+  (val) => { if (role.value === "STUDENT" && val.length) fetchAllTAs(val); },
+  { immediate: true }
+);
 
-    const data = await res.json();
-    classes.value = Array.isArray(data) ? data : [];
-  } catch (e) {
-    error.value = e?.message || "Failed to load classes";
-  } finally {
-    loading.value = false;
+async function fetchAllTAs(courseList) {
+  const entries = await Promise.all(
+    courseList.map(async (c) => {
+      const jc = (c?.joinCode || "").toString().trim();
+      if (!jc) return null;
+      try {
+        const res = await fetch(`/api/classes/${encodeURIComponent(jc)}/tas`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          return [jc, Array.isArray(data) ? data : []];
+        }
+      } catch {}
+      return null;
+    })
+  );
+  const map = {};
+  for (const entry of entries) {
+    if (entry) map[entry[0]] = entry[1];
   }
+  classTAs.value = map;
 }
 // Function to open the create class modal
 function openCreate() {
@@ -73,7 +108,7 @@ async function submitCreate() {
     const payload = {
       classCode: form.value.classCode,
       quarter: form.value.quarter,
-      year: form.value.year,
+      year: parseInt(form.value.year, 10),
       title: form.value.title,
     };
     //finally fetch call to create class endpoint with jsonified payload and credentials included
@@ -104,7 +139,8 @@ async function submitCreate() {
 
 // Function that fetches the API to join a class using a join code,same error handling, and validation as other function
 async function submitJoin() {
-  if (!isStudentOrTa.value) return;
+  // Join is only allowed for students
+  if (role.value !== "STUDENT") return;
 
   joining.value = true;
   joinError.value = "";
@@ -141,50 +177,68 @@ async function submitJoin() {
 async function safeErrorMessage(res) {
   try {
     const text = await res.text();
-    return text || "";
+    try {
+      const json = JSON.parse(text);
+      return json.message || json.error || text;
+    } catch {
+      return text || "";
+    }
   } catch {
     return "";
   }
 }
 
-// Function to delete class, when class does delete, it filters out the deleted class from list
-async function submitDelete(joinCode) {
-  if (!isProfessor.value) return;
-
-  try {
-    const payload = { joinCode };
-    const res = await fetch("/api/classes/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const msg = await safeErrorMessage(res);
-      throw new Error(msg || `Failed to delete class (${res.status})`);
-    }
-
-    const deleted = await res.json();
-    classes.value = classes.value.filter(c => !(c.classCode === deleted.classCode && c.quarter === deleted.quarter && c.year === deleted.year));
-  } catch (e) {
-    error.value = e?.message || "Failed to delete class";
+function openClassDetails(c) {
+  if (isProfessor.value) {
+    const jc = (c?.joinCode || "").toString().trim();
+    if (!jc) return;
+    router.push({ name: "class-details", params: { joinCode: jc } });
+  } else if (role.value === "STUDENT") {
+    const jc = (c?.joinCode || "").toString().trim();
+    if (!jc) return;
+    router.push({ name: "class-details", params: { joinCode: jc } });
   }
 }
 
-function confirmAndDelete(c) {
-  if (!isProfessor.value) return;
-  const classLabel = `${c?.classCode || ""} ${c?.quarter || ""} ${c?.year || ""}`.trim();
-  const ok = window.confirm(
-    `Are you sure you want to delete this class${classLabel ? ` (${classLabel})` : ""}?`
-  );
-  if (!ok) return;
-  submitDelete(c.joinCode);
+async function openStudentOH(c) {
+  ohClass.value = c;
+  showOHModal.value = true;
+  ohLoading.value = true;
+  ohError.value = "";
+  profOH.value = null;
+  tasOH.value = [];
+
+  try {
+    const jc = (c?.joinCode || "").toString().trim();
+
+    const instrRes = await fetch(`/api/classes/${encodeURIComponent(jc)}/instructor`, { credentials: "include" });
+    if (!instrRes.ok) throw new Error("Failed to load instructor info");
+    const instructor = await instrRes.json();
+
+    const profRes = await fetch(`/api/office-hours/user/${encodeURIComponent(instructor.userId)}`, { credentials: "include" });
+    if (profRes.ok) profOH.value = await profRes.json();
+
+    const tas = classTAs.value[jc] || [];
+    const taResults = await Promise.allSettled(
+      tas.map(ta =>
+        fetch(`/api/office-hours/user/${encodeURIComponent(ta.userId)}`, { credentials: "include" })
+          .then(r => r.ok ? r.json() : null)
+      )
+    );
+    tasOH.value = taResults
+      .filter(r => r.status === "fulfilled" && r.value)
+      .map(r => r.value);
+  } catch (e) {
+    ohError.value = e?.message || "Failed to load office hours";
+  } finally {
+    ohLoading.value = false;
+  }
 }
 
-/* onMounted is used to call the LoadMyclasses function when the component is first mounted. 
-just to make sure users classes are loaded when they open up the page */
-onMounted(loadMyClasses);
+function closeOHModal() {
+  showOHModal.value = false;
+}
+
 </script>
 
 <template>
@@ -194,23 +248,22 @@ onMounted(loadMyClasses);
       <div>
         <h2>My Classes</h2>
         <p class="muted" v-if="isProfessor">
-          Classes you’ve created. Use + to add another.
+          Classes you’ve created. Use Create class to add another.
         </p>
-        <p class="muted" v-else-if="isStudentOrTa">
+        <p class="muted" v-else-if="isTA">
+          Classes you’re assigned to as TA.
+        </p>
+        <p class="muted" v-else>
           Classes you’ve joined.
         </p>
       </div>
-
-      <button v-if="isProfessor" class="btn" type="button" @click="openCreate">
-        +
-      </button>
     </div>
 
     <div v-if="error" class="alert">
       {{ error }}
     </div>
     <!-- If the user is a student or ta, show the join code input and button -->
-    <div v-if="isStudentOrTa">
+    <div v-if="role === 'STUDENT'">
       <div v-if="joinError" class="alert">{{ joinError }}</div>
       <div class="row">
         <input v-model="joinCode" class="input" placeholder="Join code (ex: 8H7K2M9Q)" />
@@ -223,28 +276,110 @@ onMounted(loadMyClasses);
     <div v-if="loading" class="muted">Loading…</div>
     <!-- If not loading and no error, show the classes or an empty state message -->
     <div v-else class="class-grid">
-      <div v-for="c in classes" :key="`${c.classCode}-${c.quarter}-${c.year}`" class="class-box">
+      <!-- If the user is a professor, show the create class button -->
+      <button
+        v-if="isProfessor"
+        type="button"
+        class="class-box create-class"
+        @click="openCreate"
+        aria-label="Create class"
+      >
+        <span class="create-class__plus" aria-hidden="true">+</span>
+        <span class="create-class__label">Create class</span>
+      </button>
+
+      <div
+        v-for="c in classes"
+        :key="`${c.classCode}-${c.quarter}-${c.year}`"
+        class="class-box"
+        :class="{ 'class-box--clickable': isProfessor || role === 'STUDENT' }"
+        :role="isProfessor || role === 'STUDENT' ? 'button' : undefined"
+        :tabindex="isProfessor || role === 'STUDENT' ? 0 : undefined"
+        @click="openClassDetails(c)"
+        @keydown.enter.prevent="openClassDetails(c)"
+        @keydown.space.prevent="openClassDetails(c)"
+      >
         <div class="class-top">
           <div class="class-code">{{ c.classCode }} · {{ c.quarter }} {{ c.year }}</div>
-          <button
-            v-if="isProfessor"
-            class="btn ghost btn-sm delete-btn"
-            type="button"
-            @click="confirmAndDelete(c)"
-          >
-            Delete
-          </button>
+          <span v-if="isTA" class="role-badge">TA</span>
         </div>
         <div class="class-title">{{ c.title }}</div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
+        <div v-if="role === 'STUDENT'" class="class-tas">
+          <template v-if="classTAs[c.joinCode] && classTAs[c.joinCode].length">
+            <span class="tas-label">TA:</span>
+            <span v-for="ta in classTAs[c.joinCode]" :key="ta.userId" class="ta-name">{{ ta.firstName }} {{ ta.lastName }}</span>
+          </template>
+          <span v-else-if="classTAs[c.joinCode]" class="tas-none">No TA assigned</span>
+        </div>
       </div>
 
       <div v-if="!classes.length" class="empty">
-        <span v-if="isProfessor">No classes yet — click + to create one.</span>
-        <span v-else-if="isStudentOrTa">No classes yet — enter a join code above.</span>
+        <span v-if="isProfessor">No classes yet — click Create class to add one.</span>
+        <span v-else-if="isTA">No classes yet — ask your professor to assign you.</span>
+        <span v-else>No classes yet — enter a join code above.</span>
       </div>
     </div>
   </section>
+
+  <!-- Student: office hours modal -->
+  <teleport to="body">
+    <div v-if="showOHModal" class="overlay" @click.self="closeOHModal">
+      <div class="modal" role="dialog" aria-modal="true" :aria-label="`Office Hours — ${ohClass?.classCode}`">
+        <div class="modal-header">
+          <div>
+            <h3>Office Hours</h3>
+            <div class="oh-class-label">{{ ohClass?.classCode }} · {{ ohClass?.quarter }} {{ ohClass?.year }}</div>
+          </div>
+          <button class="close-btn" type="button" aria-label="Close" @click="closeOHModal">✕</button>
+        </div>
+
+        <div v-if="ohLoading" class="muted oh-loading">Loading…</div>
+        <div v-else-if="ohError" class="alert">{{ ohError }}</div>
+        <template v-else>
+          <!-- Professor -->
+          <div class="oh-section">
+            <div class="oh-section-title">Professor</div>
+            <div v-if="profOH">
+              <div class="oh-person-name">{{ profOH.firstName }} {{ profOH.lastName }}</div>
+              <div v-if="!profOH.schedule?.length" class="oh-none">No office hours posted.</div>
+              <div v-else class="oh-block-list">
+                <div v-for="b in profOH.schedule" :key="b.id" class="oh-block">
+                  <span class="oh-day">{{ DAY_LABELS[b.dayOfWeek] ?? b.dayOfWeek }}</span>
+                  <span class="oh-time">{{ fmtTime(b.startTime) }} – {{ fmtTime(b.endTime) }}</span>
+                  <span class="oh-qy">{{ b.quarter }} {{ b.year }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="oh-none">No professor info available.</div>
+          </div>
+
+          <!-- TAs -->
+          <div class="oh-section">
+            <div class="oh-section-title">Teaching Assistants</div>
+            <div v-if="!tasOH.length" class="oh-none">No TAs assigned.</div>
+            <template v-else>
+              <div v-for="ta in tasOH" :key="ta.userId" class="oh-ta">
+                <div class="oh-person-name">{{ ta.firstName }} {{ ta.lastName }}</div>
+                <div v-if="!ta.schedule?.length" class="oh-none">No office hours posted.</div>
+                <div v-else class="oh-block-list">
+                  <div v-for="b in ta.schedule" :key="b.id" class="oh-block">
+                    <span class="oh-day">{{ DAY_LABELS[b.dayOfWeek] ?? b.dayOfWeek }}</span>
+                    <span class="oh-time">{{ fmtTime(b.startTime) }} – {{ fmtTime(b.endTime) }}</span>
+                    <span class="oh-qy">{{ b.quarter }} {{ b.year }}</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <div class="modal-actions">
+          <button class="btn ghost" type="button" @click="closeOHModal">Close</button>
+        </div>
+      </div>
+    </div>
+  </teleport>
 
   <!-- Creates the overlay for creating a new class -->
   <div v-if="showCreate" class="overlay" @click.self="closeCreate">
@@ -290,23 +425,6 @@ onMounted(loadMyClasses);
 </template>
 
 <style scoped>
-.card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 18px;
-  padding: 16px;
-  color: #e5e7eb;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.25);
-}
-
-.card-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
 h2 {
   margin: 0;
   font-size: 18px;
@@ -317,55 +435,10 @@ h3 {
   font-size: 16px;
 }
 
-.muted {
-  margin: 6px 0 0;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
 .row {
   margin-top: 12px;
   display: flex;
   gap: 10px;
-}
-
-.alert {
-  margin: 10px 0 14px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.10);
-  color: #e5e7eb;
-  font-size: 13px;
-}
-
-.btn {
-  border: none;
-  background: #2563eb;
-  color: white;
-  font-weight: 800;
-  padding: 10px 12px;
-  border-radius: 14px;
-  cursor: pointer;
-  min-width: 44px;
-}
-
-.btn:hover {
-  background: #1d4ed8;
-}
-
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.btn.ghost {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-
-.btn.ghost:hover {
-  background: rgba(255,255,255,0.09);
 }
 
 .class-grid {
@@ -380,6 +453,78 @@ h3 {
   border-radius: 18px;
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
+  position: relative;
+  overflow: hidden;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  --accent-rgb: 37, 99, 235;
+}
+
+.class-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--accent-rgb), 0.12),
+    rgba(255, 255, 255, 0.02)
+  );
+  pointer-events: none;
+}
+
+.class-box::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: rgba(var(--accent-rgb), 0.70);
+  pointer-events: none;
+}
+
+.class-box--clickable {
+  cursor: pointer;
+}
+
+.class-box--clickable:hover {
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: rgba(255,255,255,0.035);
+  transform: translateY(-1px);
+}
+
+.create-class {
+  min-height: 126px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  cursor: pointer;
+  background: rgba(37,99,235,0.14);
+  border: 1px dashed rgba(37,99,235,0.55);
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.create-class:hover {
+  background: rgba(37,99,235,0.18);
+  border-color: rgba(37,99,235,0.70);
+}
+
+.create-class:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.45);
+}
+
+.create-class__plus {
+  font-size: 46px;
+  line-height: 1;
+  font-weight: 900;
+  color: rgba(229,231,235,0.92);
+}
+
+.create-class__label {
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
 .class-top {
@@ -387,33 +532,67 @@ h3 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  position: relative;
 }
 
-.btn.btn-sm {
-  padding: 6px 10px;
-  border-radius: 12px;
-  min-width: auto;
-}
-
-.delete-btn {
-  white-space: nowrap;
-}
 
 .class-code {
   font-weight: 900;
   color: #e5e7eb;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  position: relative;
+}
+
+.role-badge {
+  font-size: 11px;
+  font-weight: 900;
+  color: #93c5fd;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: 6px;
+  padding: 2px 7px;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.class-tas {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #9ca3af;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  position: relative;
+}
+
+.tas-label {
+  font-weight: 900;
+}
+
+.ta-name {
+  color: #e5e7eb;
+}
+
+.tas-none {
+  font-style: italic;
 }
 
 .class-title {
   margin-top: 6px;
   color: #9ca3af;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.25;
+  position: relative;
 }
 
 .class-join {
   margin-top: 10px;
   font-size: 12px;
   color: #9ca3af;
+  position: relative;
 }
 
 .join-code {
@@ -431,34 +610,101 @@ h3 {
   font-size: 13px;
 }
 
-/* Modal */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  z-index: 50;
+/* Office hours modal */
+.close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  line-height: 1;
 }
 
-.modal {
-  width: 100%;
-  max-width: 520px;
-  background: rgba(15,23,42,0.95);
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 18px;
-  padding: 16px;
+.close-btn:hover {
   color: #e5e7eb;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  background: rgba(255,255,255,0.06);
 }
 
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.oh-class-label {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-top: 2px;
 }
+
+.oh-loading {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.oh-section {
+  margin-top: 18px;
+}
+
+.oh-section-title {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+.oh-person-name {
+  font-weight: 700;
+  color: #e5e7eb;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.oh-ta {
+  margin-bottom: 14px;
+}
+
+.oh-ta:last-child {
+  margin-bottom: 0;
+}
+
+.oh-block-list {
+  display: grid;
+  gap: 6px;
+}
+
+.oh-block {
+  display: grid;
+  grid-template-columns: 100px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+.oh-day {
+  font-weight: 700;
+  color: #e5e7eb;
+  font-size: 13px;
+}
+
+.oh-time {
+  color: #e5e7eb;
+  font-size: 13px;
+}
+
+.oh-qy {
+  color: #9ca3af;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.oh-none {
+  color: #6b7280;
+  font-size: 13px;
+  font-style: italic;
+}
+
 
 .form {
   display: grid;
@@ -477,23 +723,4 @@ h3 {
   color: #9ca3af;
 }
 
-.input {
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(15,23,42,0.6);
-  color: #e5e7eb;
-  outline: none;
-}
-
-.input:focus {
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.5);
-  border-color: rgba(37,99,235,0.6);
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 14px;
-}
 </style>

@@ -4,59 +4,96 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "enrollsrelation")
-@IdClass(EnrollRelationId.class)
 public class EnrollRelationEntity {
 
-    @Id
-    @Column(name = "UserID")
-    private String userId;
+    @EmbeddedId
+    private EnrollRelationId id;
 
-    @Id
-    @Column(name = "ClassCode")
-    private String classCode;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "UserID", insertable = false, updatable = false)
+    private UserAccountEntity userEntity;
 
-    @Id
-    @Column(name = "Quarter")
-    private String quarter;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumns({
+        @JoinColumn(name = "ClassCode", insertable = false, updatable = false),
+        @JoinColumn(name = "Quarter", insertable = false, updatable = false),
+        @JoinColumn(name = "Year", insertable = false, updatable = false)
+    })
+    private CourseEntity courseEntity;
 
-    @Id
-    @Column(name = "Year")
-    private String year;
+    // Constructors
+    public EnrollRelationEntity() {}
 
-    public EnrollRelationEntity() {
+    public EnrollRelationEntity(EnrollRelationId id) {
+        this.id = id;
     }
 
     // Getters and Setters
-    public String getUserId() {
-        return userId;
+    public EnrollRelationId getId() {
+        return id;
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
+    public void setId(EnrollRelationId id) {
+        this.id = id;
+    }
+
+    public UserAccountEntity getUserEntity() {
+        return userEntity;
+    }
+
+    public void setUserEntity(UserAccountEntity userEntity) {
+        this.userEntity = userEntity;
+    }
+
+    public CourseEntity getCourseEntity() {
+        return courseEntity;
+    }
+
+    public void setCourseEntity(CourseEntity courseEntity) {
+        this.courseEntity = courseEntity;
+    }
+
+    public String getUserId() {
+        return id != null ? id.getUserId() : null;
     }
 
     public String getClassCode() {
-        return classCode;
-    }
-
-    public void setClassCode(String classCode) {
-        this.classCode = classCode;
+        return id != null ? id.getClassCode() : null;
     }
 
     public String getQuarter() {
-        return quarter;
+        return id != null ? id.getQuarter() : null;
+    }
+
+    public Integer getYear() {
+        return id != null ? id.getYear() : null;
+    }
+
+    public void setUserId(String userId) {
+        if (id == null) {
+            id = new EnrollRelationId();
+        }
+        id.setUserId(userId);
+    }
+
+    public void setClassCode(String classCode) {
+        if (id == null) {
+            id = new EnrollRelationId();
+        }
+        id.setClassCode(classCode);
     }
 
     public void setQuarter(String quarter) {
-        this.quarter = quarter;
+        if (id == null) {
+            id = new EnrollRelationId();
+        }
+        id.setQuarter(quarter);
     }
 
-    public String getYear() {
-        return year;
+    public void setYear(Integer year) {
+        if (id == null) {
+            id = new EnrollRelationId();
+        }
+        id.setYear(year);
     }
-
-    public void setYear(String year) {
-        this.year = year;
-    }
-
 }

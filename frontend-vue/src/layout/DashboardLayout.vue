@@ -7,24 +7,37 @@ import AppHeader from "../components/AppHeader.vue";
 const route = useRoute();
 const hideHeader = computed(() => route.meta?.hideHeader === true);
 
-// me is a ref that will hold the current user's info after fetching from the /api/me endpoint. 
-// It starts as null and will be populated with the user's email, role, firstName, and lastName if the fetch is successful.
 const me = ref(null);
 provide('me', me);
 
-/* onMounted is a component that runs when the DashboardLayout component is mounted. 
-It fetches the current user's info from the /api/me endpoint and stores it in the me ref. 
-This allows child components to access the user's info via inject('me'). 
-This is the parent component to which child components can subscribe to get the current user's info.
-*/
+const classes = ref([]);
+const classesLoading = ref(false);
+const classesError = ref("");
+provide('classes', classes);
+provide('classesLoading', classesLoading);
+provide('classesError', classesError);
+
 onMounted(async () => {
   try {
     const res = await fetch('/api/me', { credentials: 'include' });
-    if (res.ok) {
-      me.value = await res.json();
-    }
+    if (res.ok) me.value = await res.json();
   } catch (e) {
     // ignore; nav guard will handle redirect if unauthenticated
+  }
+
+  classesLoading.value = true;
+  classesError.value = "";
+  try {
+    const res = await fetch('/api/classes/mine', { credentials: 'include' });
+    if (res.ok) {
+      classes.value = await res.json();
+    } else {
+      classesError.value = `Failed to load classes (${res.status})`;
+    }
+  } catch (e) {
+    classesError.value = e?.message || "Failed to load classes";
+  } finally {
+    classesLoading.value = false;
   }
 });
 </script>

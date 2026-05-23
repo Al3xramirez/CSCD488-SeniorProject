@@ -4,7 +4,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.LogoutConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -37,7 +36,13 @@ public class WebSecurityConfig {
     			.successHandler((req, res, auth) -> res.setStatus(200))
   		  		.failureHandler((req, res, ex) -> res.sendError(401))
 			)
-			.logout(LogoutConfigurer::permitAll);
+			.logout(logout -> logout
+				.permitAll()
+				.invalidateHttpSession(true)
+				.clearAuthentication(true)
+				.deleteCookies("JSESSIONID")
+				.logoutSuccessHandler((req, res, auth) -> res.setStatus(200))
+			);
 		// @formatter:on
 
 		return http.build();

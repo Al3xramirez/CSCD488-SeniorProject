@@ -1,19 +1,23 @@
 package com.cscd488seniorproject.syllabussyncproject.entity;
 
+import jakarta.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
 
+@Embeddable
 public class EnrollRelationId implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private String userId;
     private String classCode;
     private String quarter;
-    private String year;
+    private Integer year;
 
     public EnrollRelationId() {
     }
 
-    public EnrollRelationId(String userId, String classCode, String quarter, String year) {
+    public EnrollRelationId(String userId, String classCode, String quarter, Integer year) {
         this.userId = userId;
         this.classCode = classCode;
         this.quarter = quarter;
@@ -45,11 +49,11 @@ public class EnrollRelationId implements Serializable {
         this.quarter = quarter;
     }
 
-    public String getYear() {
+    public Integer getYear() {
         return year;
     }
 
-    public void setYear(String year) {
+    public void setYear(Integer year) {
         this.year = year;
     }
 
@@ -59,14 +63,13 @@ public class EnrollRelationId implements Serializable {
         if (o == null || getClass() != o.getClass()) return false;
         EnrollRelationId that = (EnrollRelationId) o;
         return Objects.equals(userId, that.userId) &&
-                Objects.equals(classCode, that.classCode) &&
-                Objects.equals(quarter, that.quarter) &&
-                Objects.equals(year, that.year);
+               Objects.equals(classCode, that.classCode) &&
+               Objects.equals(quarter, that.quarter) &&
+               Objects.equals(year, that.year);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(userId, classCode, quarter, year);
     }
-    
 }

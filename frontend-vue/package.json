@@ -11,8 +11,10 @@
   "dependencies": {
     "latest": "^0.2.0",
     "npm": "^11.10.0",
+    "pdfjs-dist": "^5.6.205",
     "vue": "^3.5.25",
-    "vue-router": "^5.0.3"
+    "vue-router": "^5.0.3",
+    "vuetify": "^4.0.7"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.2",
