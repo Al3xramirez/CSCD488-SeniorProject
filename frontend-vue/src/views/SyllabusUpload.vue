@@ -9,10 +9,17 @@
     </div>
 
     <template v-else>
-      <div class="uploader-header">
-        <h1>Syllabus Upload</h1>
-        <span class="role-badge">Professor</span>
+      <div v-if="!syllabusImportEnabled" class="role-gate">
+        <div class="role-gate__icon">🔒</div>
+        <p class="role-gate__msg">Syllabus import is disabled.</p>
+        <p class="role-gate__sub">This is turned off in production to prevent credit usage.</p>
       </div>
+
+      <template v-else>
+        <div class="uploader-header">
+          <h1>Syllabus Upload</h1>
+          <span class="role-badge">Professor</span>
+        </div>
 
       <!-- Step 0: Select class (standalone mode — no courseId prop) -->
       <div v-if="step === 'select'" class="select-step">
@@ -301,17 +308,18 @@
         </div>
       </div>
 
-      <!-- Step 3: Saved -->
-      <div v-if="step === 'saved'" class="saved-state">
-        <div class="saved-state__icon">✓</div>
-        <h3 class="saved-state__title">Syllabus saved</h3>
-        <p class="saved-state__sub">Students enrolled in this course can now view the syllabus information.</p>
-        <p v-if="meetingNotice" class="saved-state__meeting-notice" :class="{ 'notice--warn': !savedMeetingCount }">
-          {{ meetingNotice }}
-        </p>
-        <button class="btn-ghost" @click="resetToUpload">Upload another</button>
-      </div>
+        <!-- Step 3: Saved -->
+        <div v-if="step === 'saved'" class="saved-state">
+          <div class="saved-state__icon">✓</div>
+          <h3 class="saved-state__title">Syllabus saved</h3>
+          <p class="saved-state__sub">Students enrolled in this course can now view the syllabus information.</p>
+          <p v-if="meetingNotice" class="saved-state__meeting-notice" :class="{ 'notice--warn': !savedMeetingCount }">
+            {{ meetingNotice }}
+          </p>
+          <button class="btn-ghost" @click="resetToUpload">Upload another</button>
+        </div>
 
+      </template>
     </template>
 
     <!-- Create class popup (standalone mode) -->
@@ -369,6 +377,8 @@ const emit = defineEmits(['saved'])
 
 const isProfessor = computed(() => props.userRole === 'professor')
 
+const syllabusImportEnabled = (import.meta.env.VITE_SYLLABUS_IMPORT_ENABLED || 'true').toString().toLowerCase() !== 'false'
+
 // When no courseId prop is provided, we're in standalone (route) mode and need class selection
 const standaloneMode = computed(() => !props.courseId)
 const effectiveCourseId = computed(() => props.courseId || selectedClassId.value)
@@ -410,6 +420,7 @@ const lowConfidenceCount = computed(() => {
 })
 
 onMounted(() => {
+  if (!syllabusImportEnabled) return
   if (standaloneMode.value && isProfessor.value) fetchMyClasses()
   else if (props.courseId) loadExistingSyllabus()
 })
@@ -575,6 +586,10 @@ function ensureDefaults(parsed) {
 }
 
 async function parseSyllabus() {
+  if (!syllabusImportEnabled) {
+    error.value = 'Syllabus import is disabled.'
+    return
+  }
   if (!pdfFile.value) return
   loading.value = true
   error.value   = ''

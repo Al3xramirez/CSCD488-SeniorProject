@@ -16,17 +16,24 @@ This is basically a local variable that based on the user's role, will render th
 */
 const normalizedRole = computed(() => (props.role || "STUDENT").trim().toUpperCase()); 
 
+const syllabusImportEnabled = (import.meta.env.VITE_SYLLABUS_IMPORT_ENABLED || "true").toString().toLowerCase() !== "false";
+
 const links = computed(() => {
   if (normalizedRole.value === 'PROFESSOR') {
-    return [
+    const base = [
       { to: "/app", label: "Dashboard" },
       { to: "/app/classes", label: "My Classes" },
       { to: "/app/meetings", label: "Meeting Times" },
       { to: "/app/calendar", label: "Calendar" },
-      { to: "/app/syllabus-upload", label: "Syllabus Upload" },
       { to: "/app/workload-projections", label: "Workload Projections" },
       { to: "/app/my-office-hours", label: "My Office Hours" },
     ];
+
+    if (syllabusImportEnabled) {
+      base.splice(4, 0, { to: "/app/syllabus-upload", label: "Syllabus Upload" });
+    }
+
+    return base;
   }
 
   if (normalizedRole.value === 'TA') {

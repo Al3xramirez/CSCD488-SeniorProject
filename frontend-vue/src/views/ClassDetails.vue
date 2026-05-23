@@ -39,6 +39,8 @@ const addTaSuccess = ref("");
 
 const syllabusOpen = ref(false);
 
+const syllabusImportEnabled = (import.meta.env.VITE_SYLLABUS_IMPORT_ENABLED || "true").toString().toLowerCase() !== "false";
+
 const rosterTAs = computed(() => rosterUsers.value.filter(u => (u?.role || "").toString().toUpperCase() === "TA"));
 const rosterStudents = computed(() => rosterUsers.value.filter(u => (u?.role || "").toString().toUpperCase() === "STUDENT"));
 
@@ -336,7 +338,7 @@ watch(joinCode, async () => {
         </div>
       </div>
 
-      <div class="section">
+      <div v-if="syllabusImportEnabled" class="section">
         <div class="section-title">Syllabus</div>
         <button class="btn ghost" type="button" @click="toggleSyllabus">
           {{ syllabusOpen ? "Hide syllabus upload" : "Manage syllabus" }}

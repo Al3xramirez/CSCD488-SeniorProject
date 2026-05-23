@@ -125,3 +125,5 @@ public class AuthController {
     public record MeResponse(String email, String role, String firstName, String lastName, String availabilityStatus) {}
 
 }
+
+
