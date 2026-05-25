@@ -259,31 +259,7 @@ function fmtTime(s) {
     />
   </v-container>
   
-  <form @submit.prevent="createMeeting">
-    <label>
-      <span>Class Code</span>
-      <input type="text" name="classCode" />
-      <!-- hoping we can get user info and no request year/quater from user data 
-       still need class code in case of multi enrollment-->
-    </label>
-    <label>
-      <span>Meeting Date</span>
-      <input type="date" name="meetingDate" />
-    </label>
-    <label>
-      <span>Start Time</span>
-      <input type="time" name="startTime" />
-    </label>
-    <label>
-      <span>End Time</span>
-      <input type="time" name="endTime" />
-    </label>
-    <label>
-      <span>With Who?</span>
-      <input type="text" name="recipient" />
-    </label>
-    <button type="submit">Request Meeting</button>
-  </form>
+        
 </template>
 
 <script>
