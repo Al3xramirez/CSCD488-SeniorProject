@@ -96,7 +96,11 @@ async function fetchMyMeetings() {
 
 const upcomingMyMeetings = computed(() => {
   const today = new Date().toISOString().split('T')[0];
-  return myMeetings.value.filter(m => m.meetingDate >= today);
+  return myMeetings.value.filter(m => {
+    if (m.meetingDate < today) return false;
+    const notes = (m.notes ?? '').toLowerCase();
+    return !notes.includes('lecture') && !notes.includes('office hours');
+  });
 });
 
 // ── Confirm / Decline actions ──────────────────────────────────────────────
