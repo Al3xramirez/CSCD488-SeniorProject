@@ -2,6 +2,12 @@
 import { computed } from "vue";
 import { useRoute } from "vue-router";
 
+/** This Vue page represents the About Us page and manages the active tab state based on the current route.
+ * It uses the `useRoute` hook to access the current route and a computed property `activeTab` to determine
+ * which tab should be highlighted as active. 
+ * The template includes navigation links for Home, About Us, and Login
+ */
+
 const route = useRoute();
 
 const activeTab = computed(() => {
