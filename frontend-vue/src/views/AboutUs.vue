@@ -48,7 +48,7 @@ const teamMembers = [
     photo: BenPFP,
   },
   {
-    name: "Raul Reno",
+    name: "Raul Reano",
     role: "Role / Focus",
     summary: "Short summary",
     photo: RaulPFP,
