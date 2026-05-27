@@ -82,8 +82,25 @@ const submitForm = async () => {
   justify-content: center;
   align-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, #ffffff, #f5f5f5);
+  background: #ffffff;
   font-family: system-ui, -apple-system, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Fixed bubbly background (blue circles) */
+.container::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 10% 18%, rgba(37, 99, 235, 0.16) 0 170px, rgba(37, 99, 235, 0) 171px),
+    radial-gradient(circle at 86% 16%, rgba(147, 51, 234, 0.12) 0 140px, rgba(147, 51, 234, 0) 141px),
+    radial-gradient(circle at 92% 78%, rgba(37, 99, 235, 0.12) 0 190px, rgba(37, 99, 235, 0) 191px),
+    radial-gradient(circle at 18% 84%, rgba(147, 51, 234, 0.10) 0 160px, rgba(147, 51, 234, 0) 161px),
+    radial-gradient(circle at 52% 94%, rgba(37, 99, 235, 0.10) 0 120px, rgba(37, 99, 235, 0) 121px);
 }
 .card {
   background: #111827;
@@ -94,6 +111,8 @@ const submitForm = async () => {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   color: white;
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
 header h2 {
@@ -169,5 +188,7 @@ h1 {
   width: min(320px, 80vw);   
   height: auto;
   margin-bottom: 20px; /* space above the login box */
+  position: relative;
+  z-index: 1;
 }
 </style>
