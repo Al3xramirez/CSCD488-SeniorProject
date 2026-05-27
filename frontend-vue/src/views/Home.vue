@@ -89,7 +89,7 @@ const activeTab = computed(() => {
       </section>
 
       <section class="section" aria-label="How it works">
-        <div class="split">
+        <div class="split split--how">
           <div class="split__side split__side--title">
             <h2 class="split__title">How it works</h2>
           </div>
@@ -539,14 +539,26 @@ const activeTab = computed(() => {
 }
 
 .split--who .split__side--title {
-  justify-self: end;
-  justify-content: flex-end;
-  text-align: right;
+  justify-self: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .split--who .split__title::after {
-  left: auto;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.split--how .split__side--title {
+  justify-self: center;
+  justify-content: center;
+  text-align: center;
+  transform: translateX(-30px);
+}
+
+.split--how .split__title::after {
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .split__title {
