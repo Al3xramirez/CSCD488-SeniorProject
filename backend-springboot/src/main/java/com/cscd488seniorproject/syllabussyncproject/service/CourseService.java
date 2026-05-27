@@ -72,10 +72,25 @@ public class CourseService {
         } else {
             courses = courseRepo.findCoursesEnrolledBy(me.getUserId());
         }
-        //returns a list of ClassSummaryDTOs 
-        return courses.stream()
-                .map(c -> new ClassSummaryDTO(c.getClassCode(), c.getQuarter(), c.getYear(), c.getTitle(), c.getJoinCode()))
-                .toList();
+
+        // For professors, they are the instructor; for students/TAs, look up the instructor per course
+        String myFullName = me.getFirstName() + " " + me.getLastName();
+        return courses.stream().map(c -> {
+            String instructorName;
+            if (role.equals("PROFESSOR")) {
+                instructorName = myFullName;
+            } else {
+                instructorName = teachesRepo
+                        .findAllByClassCodeAndQuarterAndYear(c.getClassCode(), c.getQuarter(), c.getYear())
+                        .stream()
+                        .map(t -> userRepo.findById(t.getUserId()).orElse(null))
+                        .filter(u -> u != null)
+                        .map(u -> u.getFirstName() + " " + u.getLastName())
+                        .findFirst()
+                        .orElse(null);
+            }
+            return new ClassSummaryDTO(c.getClassCode(), c.getQuarter(), c.getYear(), c.getTitle(), c.getJoinCode(), instructorName);
+        }).toList();
     }
 
     /* createClass allows a professor to create a new class with the specified details. 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, inject, onMounted } from 'vue';
 import CreatingClassMeetings from '../components/CreatingClassMeetings.vue';
+import MyOfficeHours from './MyOfficeHours.vue';
 
 const me = inject('me', null);
 const role = computed(() => (me?.value?.role || 'STUDENT').toString().trim().toUpperCase());
@@ -322,7 +323,7 @@ async function submitMeetingRequest() {
     <!-- Header + class selector -->
     <div class="page-header">
       <div>
-        <h1>Meeting Times</h1>
+        <h1>Schedule</h1>
         <p class="muted">Lecture schedule and office hours for your class.</p>
       </div>
       <select v-if="myClasses.length > 1" class="class-select" v-model="selectedJoinCode">
@@ -524,6 +525,10 @@ async function submitMeetingRequest() {
       </section>
 
     </template>
+
+    <!-- ── My Office Hours (prof / TA only) ── -->
+    <MyOfficeHours v-if="isProfessor || role === 'TA'" />
+
   </div>
 
   <!-- Request Meeting Modal -->

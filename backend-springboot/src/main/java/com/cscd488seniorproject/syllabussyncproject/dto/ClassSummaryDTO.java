@@ -7,6 +7,7 @@ public class ClassSummaryDTO {
     public Integer year;
     public String title;
     public String joinCode;
+    public String instructorName;
 
     public ClassSummaryDTO() {}
 
@@ -16,5 +17,14 @@ public class ClassSummaryDTO {
         this.year = year;
         this.title = title;
         this.joinCode = joinCode;
+    }
+
+    public ClassSummaryDTO(String classCode, String quarter, Integer year, String title, String joinCode, String instructorName) {
+        this.classCode = classCode;
+        this.quarter = quarter;
+        this.year = year;
+        this.title = title;
+        this.joinCode = joinCode;
+        this.instructorName = instructorName;
     }
 }

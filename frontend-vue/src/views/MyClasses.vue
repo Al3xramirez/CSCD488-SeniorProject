@@ -304,6 +304,9 @@ function closeOHModal() {
           <span v-if="isTA" class="role-badge">TA</span>
         </div>
         <div class="class-title">{{ c.title }}</div>
+        <div v-if="c.instructorName" class="class-instructor">
+          <span class="instructor-label">Prof:</span> {{ c.instructorName }}
+        </div>
         <div v-if="isProfessor" class="class-join">Join code: <span class="join-code">{{ c.joinCode }}</span></div>
         <div v-if="role === 'STUDENT'" class="class-tas">
           <template v-if="classTAs[c.joinCode] && classTAs[c.joinCode].length">
@@ -586,6 +589,18 @@ h3 {
   font-size: 14px;
   line-height: 1.25;
   position: relative;
+}
+
+.class-instructor {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #9ca3af;
+  position: relative;
+}
+
+.instructor-label {
+  font-weight: 700;
+  color: #cbd5e1;
 }
 
 .class-join {

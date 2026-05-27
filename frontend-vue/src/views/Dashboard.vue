@@ -140,6 +140,39 @@ async function fetchEvents() {
   }
 }
 
+// ── Upcoming personal meetings (professor / TA) ───────────────────
+const myMeetings        = ref([]);
+const myMeetingsLoading = ref(false);
+
+async function fetchMyMeetings() {
+  myMeetingsLoading.value = true;
+  try {
+    const res = await fetch("/api/meetings/my", { credentials: "include" });
+    if (res.ok) myMeetings.value = await res.json();
+  } finally {
+    myMeetingsLoading.value = false;
+  }
+}
+
+const upcomingPersonalMeetings = computed(() => {
+  const today = new Date().toISOString().split("T")[0];
+  return myMeetings.value
+    .filter(m => m.recipientId && m.meetingDate >= today)
+    .sort((a, b) => a.meetingDate.localeCompare(b.meetingDate) || a.startTime.localeCompare(b.startTime))
+    .slice(0, 6);
+});
+
+function fmtMeetingDate(d) {
+  if (!d) return "";
+  return new Date(d + "T00:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function fmtMeetingTime(t) {
+  if (!t) return "";
+  const [hh, mm] = t.split(":").map(Number);
+  return `${hh % 12 || 12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
+}
+
 // ── Workload This Week (overall Sun–Sat) ──────────────────────────
 const weekStart = computed(() => startOfWeekSunday(new Date()));
 const weekEnd = computed(() => endOfWeekSaturday(new Date()));
@@ -160,6 +193,7 @@ const workloadMeterWidth = computed(() => Math.min(100, (assignmentCountThisWeek
 
 onMounted(() => {
   fetchEvents();
+  if (role.value !== "STUDENT") fetchMyMeetings();
 });
 </script>
 <template>
@@ -329,8 +363,8 @@ onMounted(() => {
         </div>
       </section>
 
-      <!-- Workload This Week  -->
-      <section class="card">
+      <!-- Workload This Week (students only) -->
+      <section v-if="role === 'STUDENT'" class="card">
         <div class="card-header">
           <div>
             <h2>Workload This Week</h2>
@@ -352,6 +386,32 @@ onMounted(() => {
         <div v-if="!assignmentCountThisWeek" class="empty-note">
           {{ hasEvents ? 'No due assignments detected this week.' : 'No Canvas feed connected yet.' }}
         </div>
+      </section>
+
+      <!-- Upcoming Meetings (professor / TA only) -->
+      <section v-else class="card">
+        <div class="card-header">
+          <div>
+            <h2>Upcoming Meetings</h2>
+            <p class="muted" style="margin:6px 0 0">Scheduled student meetings.</p>
+          </div>
+          <button class="btn" @click="router.push('/app/meetings')">View all</button>
+        </div>
+
+        <div v-if="myMeetingsLoading" class="empty-note">Loading…</div>
+
+        <div v-else-if="upcomingPersonalMeetings.length" class="list">
+          <div v-for="m in upcomingPersonalMeetings" :key="m.meetingId" class="item">
+            <div class="badge">{{ new Date(m.meetingDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' }) }}</div>
+            <div class="info">
+              <div class="title">{{ m.requesterId }}</div>
+              <div class="sub">{{ fmtMeetingDate(m.meetingDate) }} · {{ fmtMeetingTime(m.startTime) }} – {{ fmtMeetingTime(m.endTime) }}</div>
+            </div>
+            <span class="status-chip" :class="`status-${(m.status || '').toLowerCase()}`">{{ m.status }}</span>
+          </div>
+        </div>
+
+        <div v-else class="empty-note">No upcoming meetings scheduled.</div>
       </section>
     </div>
 
@@ -646,6 +706,30 @@ h3 {
   font-size: 13px;
   color: #9ca3af;
   font-weight: 800;
+}
+
+.status-chip {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.status-confirmed {
+  background: rgba(74,222,128,0.12);
+  border: 1px solid rgba(74,222,128,0.3);
+  color: #4ade80;
+}
+.status-pending {
+  background: rgba(251,191,36,0.12);
+  border: 1px solid rgba(251,191,36,0.3);
+  color: #fbbf24;
+}
+.status-cancelled {
+  background: rgba(248,113,113,0.12);
+  border: 1px solid rgba(248,113,113,0.3);
+  color: #f87171;
 }
 
 .row {
