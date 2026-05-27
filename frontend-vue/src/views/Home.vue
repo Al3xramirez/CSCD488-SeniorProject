@@ -41,13 +41,12 @@ const activeTab = computed(() => {
       <section class="hero" aria-label="Intro">
         <div class="hero__grid">
           <div class="hero__copy">
-            <div class="kicker">Academic planning, simplified</div>
+            <div class="kicker">Academic planning simplified</div>
             <h1 class="hero__title">SyllabusSync</h1>
-            <p class="hero__subtitle">Turn your syllabus into a clear plan for the quarter.</p>
+            <p class="hero__subtitle">Turn your classes into a structured plan.</p>
 
             <p class="hero__body">
-              Upload a course syllabus and SyllabusSync helps organize key dates, meetings, and deadlines so you can stay on track
-              without digging through PDFs.
+              Syllabus Sync was created to help three main groups: Students, TA's and professors. We want to make it easy for students to keep track of their course deadlines and meetings, for TA's to have a clear view of their office hours and meetings, and for Professors to have meetings and syllabi organized.
             </p>
 
             <div class="hero__actions">
@@ -66,70 +65,83 @@ const activeTab = computed(() => {
       </section>
 
       <section class="section" aria-label="Features">
-        <div class="section__header">
-          <h2 class="section__title">What you can do</h2>
-          <p class="section__muted">A quick overview of the core workflow.</p>
+        <div class="section__header section__header--center">
+          <h2 class="section__title section__title--splitSize">What you can do</h2>
+          <p class="section__muted section__muted--features">A quick overview of the core workflow.</p>
         </div>
 
         <div class="grid3">
-          <article class="panel">
-            <div class="panel__title">Syllabus → Schedule</div>
-            <div class="panel__text">Extract important course information and keep it accessible in one place.</div>
+          <article class="panel panel--dashboard">
+            <div class="panel__title">Syllabus</div>
+            <div class="panel__text">Professors can upload their syllabus to their course instances which allows students and TAs to stay organized and informed.</div>
           </article>
 
-          <article class="panel">
+          <article class="panel panel--dashboard">
             <div class="panel__title">Meetings &amp; Office Hours</div>
-            <div class="panel__text">View class meetings and office hours at a glance so you never miss a session.</div>
+            <div class="panel__text">All roles can view class meetings and office hours at a glance so you never miss a session.</div>
           </article>
 
-          <article class="panel">
+          <article class="panel panel--dashboard">
             <div class="panel__title">Workload Projections</div>
-            <div class="panel__text">See what your week could look like and plan ahead for busy stretches.</div>
+            <div class="panel__text">Students and TA's can see what their week could look like and plan ahead for busy stretches ahead.</div>
           </article>
         </div>
       </section>
 
       <section class="section" aria-label="How it works">
-        <div class="section__header">
-          <h2 class="section__title">How it works</h2>
-          <p class="section__muted">Simple steps, fast setup.</p>
-        </div>
+        <div class="split">
+          <div class="split__side split__side--title">
+            <h2 class="split__title">How it works</h2>
+          </div>
 
-        <div class="steps">
-          <div class="panel">
-            <div class="panel__kicker">Step 1</div>
-            <div class="panel__title">Upload your syllabus</div>
-          </div>
-          <div class="panel">
-            <div class="panel__kicker">Step 2</div>
-            <div class="panel__title">Review extracted details</div>
-          </div>
-          <div class="panel">
-            <div class="panel__kicker">Step 3</div>
-            <div class="panel__title">Track events and plan ahead</div>
+          <div class="split__side split__side--content">
+            <p class="split__lede">Simple steps, fast setup.</p>
+
+            <ol class="splitList" aria-label="How it works steps">
+              <li class="splitList__item">
+                <div class="splitList__num">1</div>
+                <div class="splitList__text"><strong>Professor creates a class instance</strong> to start a course workspace.</div>
+              </li>
+              <li class="splitList__item">
+                <div class="splitList__num">2</div>
+                <div class="splitList__text"><strong>Professor uploads the syllabus</strong> for that class.</div>
+              </li>
+              <li class="splitList__item">
+                <div class="splitList__num">3</div>
+                <div class="splitList__text"><strong>Students join via a join code</strong> and get access to the class.</div>
+              </li>
+              <li class="splitList__item">
+                <div class="splitList__num">4</div>
+                <div class="splitList__text">
+                  <strong>Syllabus info populates automatically</strong> into calendars, workload projections, and office hours. Students and TAs can also
+                  import workload through <strong>iCal links</strong> provided via the Canvas app.
+                </div>
+              </li>
+              <li class="splitList__item">
+                <div class="splitList__num">5</div>
+                <div class="splitList__text">
+                  <strong>Students and TAs track events and plan ahead</strong> by requesting meetings with TAs or professors, tracking deadlines, and viewing
+                  workload calculations.
+                </div>
+              </li>
+            </ol>
           </div>
         </div>
       </section>
 
       <section class="section" aria-label="Who it's for">
-        <div class="section__header">
-          <h2 class="section__title">Who it’s for</h2>
-          <p class="section__muted">Designed for real course workflows.</p>
-        </div>
+        <div class="split split--reverse split--who">
+          <div class="split__side split__side--content">
+            <p class="split__lede">Designed for real course workflows.</p>
+            <p class="split__body">
+              SyllabusSync is built for <strong>Students</strong> who want syllabus organization, the ability to request one on one meetings with professors, and have a general school organizer. <strong>TAs</strong> who need meetings and office hours organized while also helping students stay on top of their work.
+              <strong>Professors</strong> who want course structure shared in a consistent format, and also want to streamline communication and scheduling with students and TAs.
+            </p>
+          </div>
 
-        <div class="grid3">
-          <article class="panel">
-            <div class="panel__title">Students</div>
-            <div class="panel__text">Stay ahead of deadlines and see your schedule clearly.</div>
-          </article>
-          <article class="panel">
-            <div class="panel__title">TAs</div>
-            <div class="panel__text">Keep sections, office hours, and responsibilities organized.</div>
-          </article>
-          <article class="panel">
-            <div class="panel__title">Professors</div>
-            <div class="panel__text">Share course structure and meeting info in a consistent format.</div>
-          </article>
+          <div class="split__side split__side--title">
+            <h2 class="split__title">Who it’s for</h2>
+          </div>
         </div>
       </section>
 
@@ -147,6 +159,28 @@ const activeTab = computed(() => {
   flex-direction: column;
   background: #f8fafc;
   color: #111827;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Stagnant (fixed) bubbly background */
+.shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 10% 18%, rgba(37, 99, 235, 0.20), rgba(37, 99, 235, 0) 46%),
+    radial-gradient(circle at 86% 16%, rgba(147, 51, 234, 0.16), rgba(147, 51, 234, 0) 44%),
+    radial-gradient(circle at 92% 78%, rgba(37, 99, 235, 0.14), rgba(37, 99, 235, 0) 48%),
+    radial-gradient(circle at 18% 84%, rgba(147, 51, 234, 0.12), rgba(147, 51, 234, 0) 50%);
+}
+
+.header,
+.content {
+  position: relative;
+  z-index: 1;
 }
 
 .header {
@@ -250,6 +284,7 @@ const activeTab = computed(() => {
   overflow: hidden;
 }
 
+/* Hero card bubbles */
 .hero__grid::before,
 .hero__grid::after {
   content: "";
@@ -257,8 +292,9 @@ const activeTab = computed(() => {
   width: 520px;
   height: 520px;
   border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, rgba(37, 99, 235, 0.22), rgba(37, 99, 235, 0));
   pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(37, 99, 235, 0.22), rgba(37, 99, 235, 0));
 }
 
 .hero__grid::before {
@@ -380,17 +416,63 @@ const activeTab = computed(() => {
 }
 
 .section {
-  padding: 16px 0;
+  padding: 40px 0;
+}
+
+/* Extra separation between major sections */
+.section + .section {
+  margin-top: 18px;
+}
+
+/* Make the two split sections breathe more */
+.split {
+  margin-top: 10px;
 }
 
 .section__header {
   margin-bottom: 12px;
 }
 
+.section__header--center {
+  max-width: 1040px;
+  margin: 0 auto 12px;
+  text-align: center;
+}
+
 .section__title {
   margin: 0;
   font-size: 18px;
   letter-spacing: -0.01em;
+}
+
+/* Match the big split headings (e.g., "How it works") */
+.section__title--splitSize {
+  font-size: 44px;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  position: relative;
+  display: inline-block;
+}
+
+/* Title underline so headings feel anchored (blue → purple) */
+.section__title--splitSize::after,
+.split__title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -10px;
+  width: 62%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.90), rgba(147, 51, 234, 0.90));
+  opacity: 0.95;
+}
+
+/* Centered titles should have centered underline */
+.section__header--center .section__title--splitSize::after {
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, 78%);
 }
 
 .section__muted {
@@ -400,16 +482,128 @@ const activeTab = computed(() => {
   font-weight: 600;
 }
 
+.section__muted--features {
+  margin-top: 25px;
+  color: rgba(17, 24, 39, 0.78);
+  font-size: 15px;
+  font-weight: 800;
+}
+
 .grid3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
-.steps {
+
+.split {
+  max-width: 1040px;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.split--reverse {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+}
+
+.split--reverse .split__side--title {
+  order: 2;
+}
+
+.split--reverse .split__side--content {
+  order: 1;
+}
+
+/* Vertically center split titles relative to their content */
+.split__side--title {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+
+.split__side--content {
+  align-self: start;
+}
+
+.split--who {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 56px;
+}
+
+.split--who .split__side--content {
+  max-width: 520px;
+  justify-self: start;
+}
+
+.split--who .split__side--title {
+  justify-self: end;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.split--who .split__title::after {
+  left: auto;
+  right: 0;
+}
+
+.split__title {
+  margin: 0;
+  font-size: 44px;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  position: relative;
+  display: inline-block;
+}
+
+.split__lede {
+  margin: 6px 0 0;
+  color: rgba(31, 41, 55, 0.78);
+  font-weight: 800;
+}
+
+.split__body {
+  margin: 10px 0 0;
+  color: rgba(31, 41, 55, 0.78);
+  line-height: 1.6;
+}
+
+.splitList {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.splitList__item {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+}
+
+.splitList__num {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.10);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.splitList__text {
+  color: rgba(31, 41, 55, 0.82);
+  line-height: 1.55;
 }
 
 .panel {
@@ -417,6 +611,25 @@ const activeTab = computed(() => {
   border: 1px solid rgba(17, 24, 39, 0.10);
   border-radius: 18px;
   padding: 14px;
+}
+
+.panel--dashboard {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(37, 99, 235, 0.45) 0%,
+      rgba(147, 51, 234, 0.26) 34%,
+      rgba(11, 18, 32, 0.00) 72%
+    ),
+    rgba(11, 18, 32, 0.98);
+  border-color: rgba(37, 99, 235, 0.22);
+  box-shadow: 0 18px 40px rgba(11, 18, 32, 0.45);
+}
+
+.panel--dashboard .panel__kicker,
+.panel--dashboard .panel__title,
+.panel--dashboard .panel__text {
+  color: #ffffff;
 }
 
 .panel__kicker {
@@ -454,8 +667,17 @@ const activeTab = computed(() => {
 
 @media (max-width: 900px) {
   .grid3,
-  .steps {
+  .split {
     grid-template-columns: 1fr;
+  }
+
+  .split--reverse {
+    grid-template-columns: 1fr;
+  }
+
+  .split--reverse .split__side--title,
+  .split--reverse .split__side--content {
+    order: initial;
   }
 
   .hero__grid {
