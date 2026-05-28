@@ -35,17 +35,20 @@ async function fetchSyllabus(joinCode) {
   if (!joinCode) return;
   loadingSyllabus.value = true;
   syllabusError.value = "";
-  syllabus.value = null;
+  // Do NOT clear syllabus.value here — keep existing content visible while loading
   try {
     const res = await fetch(`/api/courses/${joinCode}/syllabus`, { credentials: "include" });
     if (res.ok) {
       syllabus.value = await res.json();
     } else if (res.status === 404) {
+      syllabus.value = null;
       syllabusError.value = "No syllabus uploaded yet for this course.";
     } else {
+      syllabus.value = null;
       syllabusError.value = "Could not load syllabus.";
     }
   } catch {
+    syllabus.value = null;
     syllabusError.value = "Could not load syllabus.";
   } finally {
     loadingSyllabus.value = false;
@@ -191,9 +194,15 @@ const assignmentCountThisWeek = computed(() => assignmentsThisWeek.value.length)
 const workloadLevelThisWeek = computed(() => workloadLevelFromCount(assignmentCountThisWeek.value));
 const workloadMeterWidth = computed(() => Math.min(100, (assignmentCountThisWeek.value / 8) * 100));
 
+// Watch me reactively — children mount before parents so me is null at onMounted time
+watch(
+  me,
+  (val) => { if (val && val.role !== "STUDENT") fetchMyMeetings(); },
+  { immediate: true }
+);
+
 onMounted(() => {
   fetchEvents();
-  if (role.value !== "STUDENT") fetchMyMeetings();
 });
 </script>
 <template>
