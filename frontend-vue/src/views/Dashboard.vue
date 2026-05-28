@@ -55,7 +55,7 @@ async function fetchSyllabus(joinCode) {
   }
 }
 
-watch(selectedJoinCode, (val) => fetchSyllabus(val));
+watch(selectedJoinCode, (val) => fetchSyllabus(val), { immediate: true });
 
 const selectedClass = computed(() =>
   myClasses.value.find(c => c.joinCode === selectedJoinCode.value) ?? null
