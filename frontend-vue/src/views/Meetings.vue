@@ -357,7 +357,7 @@ async function submitMeetingRequest() {
             {{ m.status }}
           </span>
           <span v-if="m.notes" class="my-notes">{{ m.notes }}</span>
-          <template v-if="m.recipientId && m.status !== 'CONFIRMED'">
+          <template v-if="m.recipientId && m.status !== 'CONFIRMED' && currentUserEmail === m.recipientId">
             <div class="my-actions">
               <button
                 class="btn-confirm"

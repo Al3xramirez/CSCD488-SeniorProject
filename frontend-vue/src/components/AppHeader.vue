@@ -1,4 +1,5 @@
 <script setup>
+<<<<<<< Updated upstream
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue"; 
 import { useRouter } from "vue-router";
 const router = useRouter();
@@ -6,19 +7,26 @@ const router = useRouter();
 const me = inject('me', null);
 
 const props = defineProps({ // props is an object containing role, firstName, and lastName
+=======
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+const router = useRouter();
+
+const props = defineProps({
+>>>>>>> Stashed changes
   role: { type: String, default: null },
   firstName: { type: String, default: null },
   lastName: { type: String, default: null },
 });
 
-const roleLabel = computed(() => { // roleLabel is a computed property that returns a user-friendly role name based on the role prop; defaults to Student.
+const roleLabel = computed(() => {
   const r = (props.role || 'STUDENT').trim().toUpperCase();
   if (r === 'PROFESSOR') return 'Professor';
   if (r === 'TA') return 'TA';
   return 'Student';
 });
 
-const displayName = computed(() => { // displayName is a computed property that returns the user's full name if available, otherwise falls back to the role label.
+const displayName = computed(() => {
   const parts = [props.firstName, props.lastName].filter(Boolean);
   return parts.length ? parts.join(' ') : roleLabel.value;
 });
@@ -26,9 +34,7 @@ const displayName = computed(() => { // displayName is a computed property that 
 const initials = computed(() => {
   const f = (props.firstName || "").trim();
   const l = (props.lastName || "").trim();
-  const first = f ? f[0].toUpperCase() : "";
-  const last = l ? l[0].toUpperCase() : "";
-  return (first + last) || "?";
+  return ((f ? f[0].toUpperCase() : "") + (l ? l[0].toUpperCase() : "")) || "?";
 });
 
 const photoUrl = ref(null);
@@ -51,16 +57,66 @@ async function refreshPhoto() {
   const prev = photoUrl.value;
   photoUrl.value = null;
   if (prev) URL.revokeObjectURL(prev);
-
   try {
     const res = await fetch("/api/me/photo", { credentials: "include" });
-    if (res.status === 204) return;
-    if (!res.ok) return;
-    const blob = await res.blob();
-    photoUrl.value = URL.createObjectURL(blob);
-  } catch (e) {
-    // ignore
+    if (res.status === 204 || !res.ok) return;
+    photoUrl.value = URL.createObjectURL(await res.blob());
+  } catch {}
+}
+
+// ── Notifications ──────────────────────────────────────────────────────────
+const notifications = ref([]);
+const showDropdown = ref(false);
+const bellRef = ref(null);
+let pollInterval = null;
+
+const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
+
+const TYPE_META = {
+  MEETING_REQUEST:  { label: 'Meeting Request', color: '#60a5fa' },
+  MEETING_CONFIRMED: { label: 'Confirmed',       color: '#4ade80' },
+  MEETING_DECLINED:  { label: 'Declined',        color: '#f87171' },
+};
+
+async function fetchNotifications() {
+  try {
+    const res = await fetch('/api/notifications/my', { credentials: 'include' });
+    if (res.ok) notifications.value = await res.json();
+  } catch {}
+}
+
+async function markRead(n) {
+  if (n.read) return;
+  try {
+    await fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH', credentials: 'include' });
+    n.read = true;
+  } catch {}
+}
+
+async function markAllRead() {
+  try {
+    await fetch('/api/notifications/read-all', { method: 'PATCH', credentials: 'include' });
+    notifications.value.forEach(n => n.read = true);
+  } catch {}
+}
+
+function toggleDropdown() {
+  showDropdown.value = !showDropdown.value;
+}
+
+function onClickOutside(e) {
+  if (bellRef.value && !bellRef.value.contains(e.target)) {
+    showDropdown.value = false;
   }
+}
+
+function relativeTime(iso) {
+  if (!iso) return '';
+  const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 const roleViewLabel = computed(() => `${roleLabel.value} View`);
@@ -69,6 +125,7 @@ function goProfile() {
   router.push("/app/profile");
 }
 
+<<<<<<< Updated upstream
 //  ------  Functions for handling avatar click, menu interactions, and setting availability status ----
 function onAvatarClick() {
   if (!canSetAvailability.value) {
@@ -119,11 +176,22 @@ onMounted(() => window.addEventListener("click", onWindowClick));
 onBeforeUnmount(() => {
   if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
   window.removeEventListener("click", onWindowClick);
+=======
+onMounted(() => {
+  refreshPhoto();
+  fetchNotifications();
+  pollInterval = setInterval(fetchNotifications, 30000);
+  document.addEventListener('click', onClickOutside);
+});
+
+onBeforeUnmount(() => {
+  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
+  clearInterval(pollInterval);
+  document.removeEventListener('click', onClickOutside);
+>>>>>>> Stashed changes
 });
 </script>
 
-<!-- AppHeader.vue: Top header bar with title, notifications, and profile -->
- 
 <template>
   <header class="header">
     <div class="left">
@@ -133,16 +201,48 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="center" aria-hidden="true">
-        <div class="brand-text">
-          <span class="brand-syllabus">Syllabus</span>
-          <span class="brand-sync">Sync</span>
-        </div>
+      <div class="brand-text">
+        <span class="brand-syllabus">Syllabus</span>
+        <span class="brand-sync">Sync</span>
+      </div>
     </div>
 
     <div class="right">
-      <button class="icon-btn" title="Notifications (placeholder)">
-        🔔
-      </button>
+      <!-- Notification bell -->
+      <div class="notif-wrap" ref="bellRef">
+        <button class="icon-btn" title="Notifications" @click="toggleDropdown">
+          🔔
+          <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
+        </button>
+
+        <div v-if="showDropdown" class="notif-dropdown">
+          <div class="notif-hdr">
+            <span class="notif-title">Notifications</span>
+            <button v-if="unreadCount > 0" class="mark-all-btn" @click="markAllRead">Mark all read</button>
+          </div>
+
+          <div v-if="notifications.length === 0" class="notif-empty">No notifications yet.</div>
+
+          <div v-else class="notif-list">
+            <div
+              v-for="n in notifications"
+              :key="n.id"
+              class="notif-item"
+              :class="{ unread: !n.read }"
+              @click="markRead(n)"
+            >
+              <div class="notif-dot" :style="{ background: TYPE_META[n.type]?.color ?? '#9ca3af' }"></div>
+              <div class="notif-body">
+                <div class="notif-label" :style="{ color: TYPE_META[n.type]?.color ?? '#9ca3af' }">
+                  {{ TYPE_META[n.type]?.label ?? n.type }}
+                </div>
+                <div class="notif-msg">{{ n.message }}</div>
+                <div class="notif-time">{{ relativeTime(n.createdAt) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="profile" @click="goProfile" type="button" title="Open profile">
         <div class="avatar" aria-label="Profile photo" @click.stop="onAvatarClick" :title="canSetAvailability ? 'Set availability' : 'Open profile'">
@@ -197,6 +297,7 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
+<<<<<<< Updated upstream
 .profile {
   position: relative;
 }
@@ -294,18 +395,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
 }
+=======
+.left { display: flex; align-items: center; }
+>>>>>>> Stashed changes
 
-.title-wrap {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
+.title-wrap { display: flex; flex-direction: column; line-height: 1.1; }
 
-.role {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #9ca3af;
-}
+.role { margin-top: 4px; font-size: 12px; color: #9ca3af; }
 
 .center {
   position: absolute;
@@ -328,21 +424,18 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.brand-syllabus {
-  color: #e5e7eb;
-}
+.brand-syllabus { color: #e5e7eb; }
+.brand-sync { color: #3b82f6; }
 
-.brand-sync {
-  color: #3b82f6;
-}
+.right { display: flex; align-items: center; gap: 12px; }
 
-.right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+/* ── Bell + dropdown wrapper ── */
+.notif-wrap {
+  position: relative;
 }
 
 .icon-btn {
+  position: relative;
   height: 40px;
   width: 40px;
   border-radius: 14px;
@@ -350,12 +443,135 @@ onBeforeUnmount(() => {
   background: rgba(255,255,255,0.04);
   color: #e5e7eb;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
-.icon-btn:hover {
-  background: rgba(255,255,255,0.07);
+.icon-btn:hover { background: rgba(255,255,255,0.07); }
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
+.notif-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: #1a1d2e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 200;
+  overflow: hidden;
+}
+
+.notif-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.notif-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f3f4f6;
+}
+
+.mark-all-btn {
+  background: none;
+  border: none;
+  font-size: 11px;
+  color: #60a5fa;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mark-all-btn:hover { text-decoration: underline; }
+
+.notif-empty {
+  padding: 20px 16px;
+  font-size: 13px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.notif-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.notif-item:last-child { border-bottom: none; }
+
+.notif-item:hover { background: rgba(255,255,255,0.04); }
+
+.notif-item.unread { background: rgba(255,255,255,0.03); }
+
+.notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.notif-msg {
+  font-size: 12px;
+  color: #d1d5db;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.notif-time {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+/* ── Profile ── */
 .profile {
   display: flex;
   align-items: center;
@@ -367,9 +583,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.profile:hover {
-  background: rgba(255,255,255,0.07);
-}
+.profile:hover { background: rgba(255,255,255,0.07); }
 
 .avatar {
   width: 36px;
@@ -381,28 +595,11 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
+.avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-.avatar-fallback {
-  font-weight: 900;
-  color: #e5e7eb;
-  font-size: 12px;
-}
+.avatar-fallback { font-weight: 900; color: #e5e7eb; font-size: 12px; }
 
-.name {
-  font-weight: 800;
-  font-size: 13px;
-  color: #e5e7eb;
-}
+.name { font-weight: 800; font-size: 13px; color: #e5e7eb; }
 
-.sub {
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 2px;
-}
+.sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
 </style>
