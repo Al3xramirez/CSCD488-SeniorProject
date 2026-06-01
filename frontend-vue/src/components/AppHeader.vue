@@ -1,19 +1,12 @@
 <script setup>
-<<<<<<< Updated upstream
-import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue"; 
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+
 const router = useRouter();
 
-const me = inject('me', null);
-
-const props = defineProps({ // props is an object containing role, firstName, and lastName
-=======
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
-const router = useRouter();
+const me = inject("me", null);
 
 const props = defineProps({
->>>>>>> Stashed changes
   role: { type: String, default: null },
   firstName: { type: String, default: null },
   lastName: { type: String, default: null },
@@ -125,8 +118,6 @@ function goProfile() {
   router.push("/app/profile");
 }
 
-<<<<<<< Updated upstream
-//  ------  Functions for handling avatar click, menu interactions, and setting availability status ----
 function onAvatarClick() {
   if (!canSetAvailability.value) {
     goProfile();
@@ -171,24 +162,21 @@ function onWindowClick() {
   if (menuOpen.value) closeMenu();
 }
 
-onMounted(refreshPhoto);
-onMounted(() => window.addEventListener("click", onWindowClick));
-onBeforeUnmount(() => {
-  if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
-  window.removeEventListener("click", onWindowClick);
-=======
 onMounted(() => {
   refreshPhoto();
   fetchNotifications();
   pollInterval = setInterval(fetchNotifications, 30000);
-  document.addEventListener('click', onClickOutside);
+
+  window.addEventListener("click", onWindowClick);
+  document.addEventListener("click", onClickOutside);
 });
 
 onBeforeUnmount(() => {
   if (photoUrl.value) URL.revokeObjectURL(photoUrl.value);
-  clearInterval(pollInterval);
-  document.removeEventListener('click', onClickOutside);
->>>>>>> Stashed changes
+  if (pollInterval) clearInterval(pollInterval);
+
+  window.removeEventListener("click", onWindowClick);
+  document.removeEventListener("click", onClickOutside);
 });
 </script>
 
@@ -297,7 +285,6 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-<<<<<<< Updated upstream
 .profile {
   position: relative;
 }
@@ -395,9 +382,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
 }
-=======
-.left { display: flex; align-items: center; }
->>>>>>> Stashed changes
 
 .title-wrap { display: flex; flex-direction: column; line-height: 1.1; }
 
