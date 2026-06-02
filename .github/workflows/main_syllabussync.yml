@@ -103,8 +103,15 @@ jobs:
         uses: azure/CLI@v2
         with:
           inlineScript: |
-            RG=$(az webapp show --name syllabussync --query resourceGroup -o tsv)
-            az webapp config appsettings set --name syllabussync --resource-group "$RG" --settings SYLLABUS_IMPORT_ENABLED="$SYLLABUS_IMPORT_ENABLED"
+            APP_NAME="syllabussync"
+            RG=$(az webapp list --query "[?name=='${APP_NAME}'] | [0].resourceGroup" -o tsv)
+            if [ -z "$RG" ]; then
+              echo "Failed to resolve resource group for web app: $APP_NAME"
+              echo "Try setting the resource group explicitly in the workflow."
+              exit 1
+            fi
+            echo "Resolved resource group: $RG"
+            az webapp config appsettings set --name "$APP_NAME" --resource-group "$RG" --settings SYLLABUS_IMPORT_ENABLED="$SYLLABUS_IMPORT_ENABLED"
         env:
           SYLLABUS_IMPORT_ENABLED: "false"
 

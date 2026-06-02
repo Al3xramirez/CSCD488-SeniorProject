@@ -45,6 +45,22 @@ public class EmailService {
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
     }
 
+    public void sendMeetingStatusNotification(MeetingEntity meeting, String newStatus) {
+        if (meeting == null || meeting.getRequesterId() == null) return;
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(SENDER_EMAIL);
+        message.setTo(meeting.getRequesterId());
+
+        boolean confirmed = "CONFIRMED".equalsIgnoreCase(newStatus);
+        message.setSubject(confirmed
+            ? "Meeting Confirmed: " + meeting.getMeetingDate()
+            : "Meeting Declined: " + meeting.getMeetingDate());
+        message.setText(buildStatusEmailBody(meeting, confirmed));
+
+        mailSender.send(message);
+    }
+
     private String buildMeetingEmailBody(MeetingEntity meeting) {
         return String.format(
             "A new meeting has been scheduled with the following details:\n\n" +
@@ -60,5 +76,35 @@ public class EmailService {
             meeting.getEndTime(),
             meeting.getClassCode()
         );
+    }
+
+    private String buildStatusEmailBody(MeetingEntity meeting, boolean confirmed) {
+        if (confirmed) {
+            return String.format(
+                "Good news! Your meeting request has been confirmed.\n\n" +
+                "Date: %s\n" +
+                "Start Time: %s\n" +
+                "End Time: %s\n" +
+                "Class: %s\n\n" +
+                "Please mark your calendar accordingly.",
+                meeting.getMeetingDate(),
+                meeting.getStartTime(),
+                meeting.getEndTime(),
+                meeting.getClassCode()
+            );
+        } else {
+            return String.format(
+                "Unfortunately, your meeting request has been declined.\n\n" +
+                "Date: %s\n" +
+                "Start Time: %s\n" +
+                "End Time: %s\n" +
+                "Class: %s\n\n" +
+                "Please reach out to schedule a different time if needed.",
+                meeting.getMeetingDate(),
+                meeting.getStartTime(),
+                meeting.getEndTime(),
+                meeting.getClassCode()
+            );
+        }
     }
 }
