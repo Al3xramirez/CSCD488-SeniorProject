@@ -2,6 +2,13 @@
 import { computed } from "vue"; // computed is used to create reactive computed properties that automatically update when their dependencies change.
 import { useRoute } from "vue-router";
 import pureLogoUrl from '../assets/SyllabusSyncPureLogo.png'
+import dashboardIconUrl from "../assets/Dashboard.png";
+import myClassesIconUrl from "../assets/My Classes.png";
+import scheduleIconUrl from "../assets/Schedule.png";
+import calendarIconUrl from "../assets/Calandar.png";
+import syllabusUploadIconUrl from "../assets/Syllabus Upload.png";
+import workloadIconUrl from "../assets/Workload.png";
+import officeHoursIconUrl from "../assets/Office Hours.png";
 
 /* props is an object containing role, firstName, and lastName, 
 which have been passed down from the parent component (DashboardLayout) */
@@ -18,6 +25,22 @@ const normalizedRole = computed(() => (props.role || "STUDENT").trim().toUpperCa
 
 const syllabusImportEnabled = (import.meta.env.VITE_SYLLABUS_IMPORT_ENABLED || "true").toString().toLowerCase() !== "false";
 
+const iconByRoute = {
+  "/app": dashboardIconUrl,
+  "/app/classes": myClassesIconUrl,
+  "/app/meetings": scheduleIconUrl,
+  "/app/calendar": calendarIconUrl,
+  "/app/syllabus-upload": syllabusUploadIconUrl,
+  "/app/workload-projections": workloadIconUrl,
+  "/app/office-hours": officeHoursIconUrl,
+};
+
+const withIcons = (items) =>
+  items.map((item) => ({
+    ...item,
+    icon: iconByRoute[item.to] || null,
+  }));
+
 const links = computed(() => {
   if (normalizedRole.value === 'PROFESSOR') {
     const base = [
@@ -31,26 +54,26 @@ const links = computed(() => {
       base.splice(3, 0, { to: "/app/syllabus-upload", label: "Syllabus Upload" });
     }
 
-    return base;
+    return withIcons(base);
   }
 
   if (normalizedRole.value === 'TA') {
-    return [
+    return withIcons([
       { to: "/app", label: "Dashboard" },
       { to: "/app/classes", label: "My Classes" },
       { to: "/app/meetings", label: "Schedule" },
       { to: "/app/calendar", label: "Calendar" },
-    ];
+    ]);
   }
 
   // STUDENT (default)
-  return [
+  return withIcons([
     { to: "/app", label: "Dashboard" },
     { to: "/app/classes", label: "My Classes" },
     { to: "/app/calendar", label: "Calendar" },
     { to: "/app/workload-projections", label: "Workload Projections" },
     { to: "/app/office-hours", label: "Office Hours" },
-  ];
+  ]);
 });
 
 const isActive = (to) => route.path === to;
@@ -74,7 +97,14 @@ const isActive = (to) => route.path === to;
         class="link"
         :class="{ active: isActive(l.to) }"
       >
-        <span class="dot" />
+        <img
+          v-if="l.icon"
+          class="icon"
+          :src="l.icon"
+          alt=""
+          aria-hidden="true"
+        />
+        <span v-else class="dot" />
         <span class="label">{{ l.label }}</span>
       </router-link>
     </nav>
@@ -160,6 +190,14 @@ const isActive = (to) => route.path === to;
   flex-shrink: 0;
 }
 
+.icon {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
 .active {
   color: white;
   background: rgba(37, 99, 235, 0.22);
@@ -168,5 +206,9 @@ const isActive = (to) => route.path === to;
 
 .active .dot {
   background: #60a5fa;
+}
+
+.active .icon {
+  opacity: 1;
 }
 </style>
