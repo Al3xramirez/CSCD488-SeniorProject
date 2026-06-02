@@ -97,7 +97,7 @@ async function fetchMyMeetings() {
 
 const upcomingMyMeetings = computed(() => {
   const today = new Date().toISOString().split('T')[0];
-  return myMeetings.value.filter(m => m.meetingDate >= today);
+  return myMeetings.value.filter(m => m.meetingDate >= today && !!m.recipientId);
 });
 
 // ── Confirm / Decline actions ──────────────────────────────────────────────
@@ -180,6 +180,14 @@ function fmtDate(d) {
 }
 
 const OH_DAY_SHORT = { MON: 'Mon', TUE: 'Tue', WED: 'Wed', THU: 'Thu', FRI: 'Fri', SAT: 'Sat', SUN: 'Sun' };
+const OH_DAY_ORDER = { MON: 0, TUE: 1, WED: 2, THU: 3, FRI: 4, SAT: 5, SUN: 6 };
+function sortedSchedule(schedule) {
+  return [...(schedule ?? [])].sort((a, b) => {
+    const dayDiff = (OH_DAY_ORDER[a.dayOfWeek] ?? 7) - (OH_DAY_ORDER[b.dayOfWeek] ?? 7);
+    if (dayDiff !== 0) return dayDiff;
+    return (a.startTime ?? '').localeCompare(b.startTime ?? '');
+  });
+}
 
 // ── Week view: student meeting requests ────────────────────────────────────
 const weekStart = ref(getMonday(new Date()));
@@ -244,6 +252,11 @@ function calEventStyle(ev) {
   return { top: `${timeToY(ev.startTime)}px`, height: `${timeToDuration(ev.startTime, ev.endTime)}px` };
 }
 
+// "HH:MM" string comparison works correctly for overlap checks
+function timesOverlap(startA, endA, startB, endB) {
+  return startA < endB && endA > startB;
+}
+
 function eventsForDay(dateStr) {
   const dow = new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
   const key = DOW_TO_3[dow];
@@ -255,9 +268,25 @@ function eventsForDay(dateStr) {
   }
 
   for (const person of officeHours.value) {
+    const dayExceptions = (person.exceptions ?? []).filter(e => e.exceptionDate === dateStr);
     for (const b of person.schedule ?? []) {
-      if (b.dayOfWeek === key)
-        out.push({ type: 'oh', startTime: b.startTime, endTime: b.endTime, personName: `${person.firstName} ${person.lastName}`, userId: person.userId, role: person.role, date: dateStr });
+      if (b.dayOfWeek !== key) continue;
+      const base = { type: 'oh', personName: `${person.firstName} ${person.lastName}`, userId: person.userId, role: person.role, date: dateStr };
+      // An unavailable exception covers this block if it has no time range (whole day)
+      // or its time range overlaps the block's time range.
+      const unavailEx = dayExceptions.find(e =>
+        e.unavailable && (!e.startTime || timesOverlap(b.startTime, b.endTime, e.startTime, e.endTime))
+      );
+      const modifiedEx = !unavailEx && dayExceptions.find(e =>
+        !e.unavailable && e.startTime && timesOverlap(b.startTime, b.endTime, e.startTime, e.endTime)
+      );
+      if (unavailEx) {
+        out.push({ ...base, startTime: b.startTime, endTime: b.endTime, unavailable: true, unavailableNote: unavailEx.note });
+      } else if (modifiedEx) {
+        out.push({ ...base, startTime: modifiedEx.startTime, endTime: modifiedEx.endTime });
+      } else {
+        out.push({ ...base, startTime: b.startTime, endTime: b.endTime });
+      }
     }
   }
 
@@ -447,7 +476,7 @@ async function submitMeetingRequest() {
               </span>
             </div>
             <div v-if="person.schedule?.length" class="oh-schedule">
-              <div v-for="block in person.schedule" :key="block.id" class="oh-row">
+              <div v-for="block in sortedSchedule(person.schedule)" :key="block.id" class="oh-row">
                 <span class="oh-day">{{ OH_DAY_SHORT[block.dayOfWeek] ?? block.dayOfWeek }}</span>
                 <span class="oh-time">{{ fmtTime(block.startTime) }} – {{ fmtTime(block.endTime) }}</span>
               </div>
@@ -492,8 +521,18 @@ async function submitMeetingRequest() {
                 <div class="cal-day-body">
                   <div v-for="h in calHours" :key="h" class="cal-hour-line"></div>
                   <template v-for="ev in eventsForDay(day.dateStr)" :key="`${day.dateStr}-${ev.type}-${ev.startTime}`">
+                    <div
+                      v-if="ev.type === 'oh' && ev.unavailable"
+                      class="cal-event cal-event-oh-unavailable"
+                      :style="calEventStyle(ev)"
+                      :title="ev.unavailableNote || 'Unavailable'"
+                    >
+                      <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                      <span class="cal-ev-name">{{ ev.personName }}</span>
+                      <span class="cal-ev-unavail-label">Unavailable</span>
+                    </div>
                     <button
-                      v-if="ev.type === 'oh'"
+                      v-else-if="ev.type === 'oh'"
                       class="cal-event cal-event-oh"
                       :style="calEventStyle(ev)"
                       @click="openRequestModal(ev)"
@@ -518,6 +557,7 @@ async function submitMeetingRequest() {
 
           <div class="legend">
             <span class="leg leg-oh">Office Hours — click to request</span>
+            <span class="leg leg-oh-unavailable">Unavailable</span>
             <span class="leg leg-class">Class</span>
             <span class="leg leg-personal">My Meetings</span>
           </div>
@@ -1069,6 +1109,22 @@ h2 {
 
 .cal-event-oh:hover { background: rgba(74,222,128,0.3); }
 
+.cal-event-oh-unavailable {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.35) !important;
+  color: #f87171;
+  cursor: default;
+  opacity: 0.75;
+}
+
+.cal-ev-unavail-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
 .cal-event-class {
   background: rgba(37,99,235,0.22);
   border: 1px solid rgba(37,99,235,0.45) !important;
@@ -1132,6 +1188,11 @@ h2 {
 .leg-oh::before {
   background: rgba(74,222,128,0.35);
   border: 1px solid rgba(74,222,128,0.6);
+}
+
+.leg-oh-unavailable::before {
+  background: rgba(239,68,68,0.2);
+  border: 1px solid rgba(239,68,68,0.5);
 }
 
 .leg-class::before {
