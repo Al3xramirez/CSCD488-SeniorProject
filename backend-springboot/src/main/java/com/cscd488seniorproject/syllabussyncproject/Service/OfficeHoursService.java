@@ -151,13 +151,19 @@ public class OfficeHoursService {
         List<OfficeHoursViewDTO> result = new ArrayList<>();
         Set<String> seen = new HashSet<>();
 
+        LocalDate today = LocalDate.now();
+        LocalDate horizon = today.plusDays(90);
+
         for (TARelationEntity ta : taRepo.findByClassCode(classCode)) {
             if (seen.add(ta.getUserId())) {
                 userRepo.findById(ta.getUserId()).ifPresent(user -> {
                     List<OfficeHoursScheduleDTO> schedule = scheduleRepo.findAllByUserId(ta.getUserId())
                             .stream().map(this::toScheduleDTO).toList();
+                    List<OfficeHoursExceptionDTO> exceptions = exceptionRepo
+                            .findAllByUserIdAndExceptionDateBetween(ta.getUserId(), today, horizon)
+                            .stream().map(this::toExceptionDTO).toList();
                     result.add(new OfficeHoursViewDTO(ta.getUserId(), user.getFirstName(),
-                            user.getLastName(), "TA", schedule, List.of()));
+                            user.getLastName(), "TA", schedule, exceptions));
                 });
             }
         }
@@ -167,8 +173,11 @@ public class OfficeHoursService {
                 userRepo.findById(prof.getUserId()).ifPresent(user -> {
                     List<OfficeHoursScheduleDTO> schedule = scheduleRepo.findAllByUserId(prof.getUserId())
                             .stream().map(this::toScheduleDTO).toList();
+                    List<OfficeHoursExceptionDTO> exceptions = exceptionRepo
+                            .findAllByUserIdAndExceptionDateBetween(prof.getUserId(), today, horizon)
+                            .stream().map(this::toExceptionDTO).toList();
                     result.add(new OfficeHoursViewDTO(prof.getUserId(), user.getFirstName(),
-                            user.getLastName(), "PROFESSOR", schedule, List.of()));
+                            user.getLastName(), "PROFESSOR", schedule, exceptions));
                 });
             }
         }

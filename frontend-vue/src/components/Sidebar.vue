@@ -23,14 +23,12 @@ const links = computed(() => {
     const base = [
       { to: "/app", label: "Dashboard" },
       { to: "/app/classes", label: "My Classes" },
-      { to: "/app/meetings", label: "Meeting Times" },
+      { to: "/app/meetings", label: "Schedule" },
       { to: "/app/calendar", label: "Calendar" },
-      { to: "/app/workload-projections", label: "Workload Projections" },
-      { to: "/app/my-office-hours", label: "My Office Hours" },
     ];
 
     if (syllabusImportEnabled) {
-      base.splice(4, 0, { to: "/app/syllabus-upload", label: "Syllabus Upload" });
+      base.splice(3, 0, { to: "/app/syllabus-upload", label: "Syllabus Upload" });
     }
 
     return base;
@@ -40,10 +38,8 @@ const links = computed(() => {
     return [
       { to: "/app", label: "Dashboard" },
       { to: "/app/classes", label: "My Classes" },
-      { to: "/app/meetings", label: "Meeting Times" },
+      { to: "/app/meetings", label: "Schedule" },
       { to: "/app/calendar", label: "Calendar" },
-      { to: "/app/workload-projections", label: "Workload Projections" },
-      { to: "/app/my-office-hours", label: "My Office Hours" },
     ];
   }
 
@@ -51,7 +47,6 @@ const links = computed(() => {
   return [
     { to: "/app", label: "Dashboard" },
     { to: "/app/classes", label: "My Classes" },
-    { to: "/app/meetings", label: "Meeting Times" },
     { to: "/app/calendar", label: "Calendar" },
     { to: "/app/workload-projections", label: "Workload Projections" },
     { to: "/app/office-hours", label: "Office Hours" },

@@ -1,840 +1,830 @@
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
-import CalendarGrid from "../components/CalendarGrid.vue";
+import { ref, reactive, computed, watch, inject, onMounted } from "vue";
+import TimePicker from "../components/TimePicker.vue";
 
-const events = ref([]);
-const selectedDay = ref("");
-const dayEvents = ref([]);
+// ── Shared state from layout ──────────────────────────────────────────────
+const classes = inject("classes", ref([]));
+const me      = inject("me", null);
 
-const currentUser = ref("");
+// ── Data ──────────────────────────────────────────────────────────────────
+// officeHours: [{ userId, firstName, lastName, role, schedule:[{dayOfWeek,startTime,endTime}] }]
+const officeHours     = ref([]);
+const ohLoading       = ref(false);
+
+// classMeetings: all meeting-time entries across enrolled classes (specific dates)
+const classMeetings   = ref([]);
+
+// myMeetings: personal meetings (specific dates + recipientId set)
+const myMeetings      = ref([]);
+
 const currentUserEmail = ref("");
-const userClasses = ref([]);
-const selectedClass = ref("");
-const classRecipients = ref([]);
 
-const meetingWith = ref("");
-const date = ref('');
-const start = ref('');
-const end = ref('');
-const notes = ref('');
+// ── Week navigation ───────────────────────────────────────────────────────
+const weekStart = ref(getMonday(new Date()));
 
-const errors = ref([]);
-const success = ref(false);
-const showSuccessToast = ref(false);
-const showErrorToast = ref(false);
-
-const minDate = computed(() => {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-});
-
-const currentUserNormalized = computed(() => currentUserEmail.value.trim().toLowerCase());
-
-const canSubmit = computed(() => {
-  if (!selectedClass.value || !date.value || !start.value || !end.value) return false;
-  if (!meetingWith.value) return false;
-  if (start.value >= end.value) return false;
-  return true;
-});
-
-function toYmd(d) {
-  if (typeof d === "string") return d;
-  return d.toISOString().split("T")[0];
-}
-
-function getOtherPerson(meeting) {
-  if (meeting.requesterID?.toLowerCase() === currentUserNormalized.value) {
-    return meeting.recipientID;
-  } else {
-    return meeting.requesterID;
-  }
-}
-
-function getRole(meeting) {
-  if (meeting.requesterID?.toLowerCase() === currentUserNormalized.value) {
-    return "To: " + meeting.recipientID;
-  } else {
-    return "From: " + meeting.requesterID;
-  }
-}
-
-function truncateNotes(notes, maxLength = 60) {
-  if (!notes) return "";
-  if (notes.length <= maxLength) return notes;
-  return notes.substring(0, maxLength) + "...";
-}
-
-async function loadCurrentUser() {
-  try {
-    const res = await fetch("/api/auth/current-user", {
-      method: "GET",
-      credentials: "include"
-    });
-    if (res.ok) {
-      const data = await res.json();
-      currentUserEmail.value = data.currentUser || "";
-    }
-  } catch (err) {
-    console.error("Error loading current user:", err);
-  }
-}
-
-async function loadUserClasses() {
-  if (!currentUserEmail.value) return;
-  try {
-    const res = await fetch("/api/classes/user-classes", {
-      method: "GET",
-      credentials: "include"
-    });
-    if (res.ok) {
-      const data = await res.json();
-      userClasses.value = data || [];
-    }
-  } catch (err) {
-    console.error("Error loading user classes:", err);
-  }
-}
-
-async function loadClassRecipients(classCode) {
-  if (!classCode) {
-    classRecipients.value = [];
-    return;
-  }
-  try {
-    const res = await fetch(`/api/classes/${classCode}/members`, {
-      method: "GET",
-      credentials: "include"
-    });
-    if (res.ok) {
-      const data = await res.json();
-      classRecipients.value = (data || []).filter(
-        member => member.email?.toLowerCase() !== currentUserNormalized.value
-      );
-    } else {
-      classRecipients.value = [];
-    }
-  } catch (err) {
-    console.error("Error loading class recipients:", err);
-    classRecipients.value = [];
-  }
-}
-
-async function loadEvents() {
-  try {
-    // /api/meetings/my already returns only meetings relevant to the current user:
-    // personal meetings (requester or recipient) + class-wide meetings for every
-    // class the user is enrolled in or teaches. No client-side filtering needed.
-    const res = await fetch("/api/meetings/my", { credentials: "include" });
-    if (!res.ok) {
-      events.value = [];
-      return;
-    }
-    const data = await res.json();
-
-    const userCache = new Map();
-    const getUserName = async (email) => {
-      if (!email) return null;
-      if (userCache.has(email)) return userCache.get(email);
-      try {
-        const r = await fetch(`/api/users/by-email/${encodeURIComponent(email)}`, { credentials: "include" });
-        if (r.ok) {
-          const u = await r.json();
-          const name = `${u.firstName} ${u.lastName}`;
-          userCache.set(email, name);
-          return name;
-        }
-      } catch {}
-      return email;
+const weekDays = computed(() =>
+  Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(weekStart.value);
+    d.setDate(d.getDate() + i);
+    return {
+      dateStr: ymd(d),
+      label:   d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
     };
+  })
+);
 
-    events.value = await Promise.all(
-      data.map(async (m) => {
-        // recipientId = "" means class-wide lecture/event, not a personal meeting
-        const isClassWide = !m.recipientId;
-
-        let title, role, otherPerson;
-        if (isClassWide) {
-          const isOfficeHours = m.notes?.startsWith('Office Hours');
-          title       = isOfficeHours ? 'Office Hours' : m.classCode;
-          role        = isOfficeHours ? 'Office Hours' : 'Class';
-          otherPerson = title;
-        } else {
-          const isRequester = m.requesterId?.toLowerCase() === currentUserNormalized.value;
-          const otherEmail  = isRequester ? m.recipientId : m.requesterId;
-          const otherName   = await getUserName(otherEmail) || otherEmail;
-          title       = otherName;
-          role        = isRequester ? `To: ${otherName}` : `From: ${otherName}`;
-          otherPerson = otherName;
-        }
-
-        return {
-          id:          m.meetingId,
-          requesterId: m.requesterId,
-          recipientId: m.recipientId,
-          isClassWide,
-          otherPerson,
-          title,
-          role,
-          start:     `${m.meetingDate}T${m.startTime}`,
-          end:       `${m.meetingDate}T${m.endTime}`,
-          date:      m.meetingDate,
-          startTime: m.startTime,
-          endTime:   m.endTime,
-          classCode: m.classCode,
-          notes:     m.notes,
-          status:    m.status,
-        };
-      })
-    );
-  } catch (err) {
-    console.error("Error loading events:", err);
-    events.value = [];
-  }
-}
-
-async function getMeetingsForUserOnDate(userEmail, dateStr) {
-  try {
-    const res = await fetch(
-      `/api/meetings/user/${encodeURIComponent(userEmail)}/date/${dateStr}`,
-      { credentials: "include" }
-    );
-    if (!res.ok) return [];
-    return await res.json();
-  } catch (e) {
-    console.error("Error loading meetings:", e);
-    return [];
-  }
-}
-
-function timeToMinutes(timeStr) {
-  const [hours, minutes] = timeStr.split(":").map(Number); 
-  return (hours * 60) + minutes; } 
-function hasTimeConflict(requestedStart, requestedEnd, meetings) { 
-  const reqStart = timeToMinutes(requestedStart); 
-  const reqEnd = timeToMinutes(requestedEnd); 
-  return meetings.some(m => { 
-      const meetStart = timeToMinutes(m.startTime); 
-      const meetEnd = timeToMinutes(m.endTime); // overlap check 
-      
-      return reqStart < meetEnd && reqEnd > meetStart; }
-); }
-
-function handleDaySelect(day) {
-  const selected = toYmd(day);
-  selectedDay.value = selected;
-  date.value = selected;
-  dayEvents.value = events.value.filter(e => e.start.startsWith(selected));
-}
-
-watch([events, selectedDay], ([eventsVal, selected]) => {
-  if (selected) {
-    dayEvents.value = eventsVal.filter(e => e.start.startsWith(selected));
-  }
+const weekLabel = computed(() => {
+  const s = weekDays.value[0].dateStr;
+  const e = weekDays.value[4].dateStr;
+  const fmt = str => new Date(str + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${fmt(s)} – ${fmt(e)}, ${e.slice(0, 4)}`;
 });
 
-watch(currentUserEmail, () => {
-  loadEvents();
-  loadUserClasses();
-});
+function prevWeek() { const d = new Date(weekStart.value); d.setDate(d.getDate() - 7); weekStart.value = d; }
+function nextWeek() { const d = new Date(weekStart.value); d.setDate(d.getDate() + 7); weekStart.value = d; }
+function goThisWeek() { weekStart.value = getMonday(new Date()); }
 
-watch(selectedClass, (newClassId) => {
-  meetingWith.value = "";
-  if (newClassId) {
-    loadClassRecipients(newClassId);
-  } else {
-    classRecipients.value = [];
-  }
-});
+// ── Calendar geometry ─────────────────────────────────────────────────────
+const CAL_START    = 7;   // 7 am
+const PX_PER_HOUR  = 64;
+const calHours     = Array.from({ length: 14 }, (_, i) => i + CAL_START); // 7 am – 8 pm
 
-async function createMeeting(meetingData) {
-  const res = await fetch("/api/meetings/create-meeting", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(meetingData)
+function timeToY(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(":").map(Number);
+  return (h + m / 60 - CAL_START) * PX_PER_HOUR;
+}
+
+function timeToDuration(s, e) {
+  if (!s || !e) return PX_PER_HOUR;
+  const [sh, sm] = s.split(":").map(Number);
+  const [eh, em] = e.split(":").map(Number);
+  return Math.max(((eh + em / 60) - (sh + sm / 60)) * PX_PER_HOUR, 24);
+}
+
+function calEventStyle(ev) {
+  const totalLanes = ev.totalLanes || 1;
+  const lane       = ev.lane       || 0;
+  const pct        = 100 / totalLanes;
+  return {
+    top:    `${timeToY(ev.startTime)}px`,
+    height: `${timeToDuration(ev.startTime, ev.endTime)}px`,
+    left:   `calc(2px + ${lane * pct}%)`,
+    width:  `calc(${pct}% - 4px)`,
+    right:  "auto",
+  };
+}
+
+// Assigns non-overlapping lanes to events so they sit side-by-side instead of stacking.
+function layoutEvents(events) {
+  if (!events.length) return [];
+  const sorted = [...events].sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
+  const laneEnds = []; // laneEnds[i] = endTime of last event placed in lane i
+
+  const withLanes = sorted.map(ev => {
+    const laneIdx = laneEnds.findIndex(end => !end || (ev.startTime ?? "") >= end);
+    const lane = laneIdx === -1 ? laneEnds.push(null) - 1 : laneIdx;
+    laneEnds[lane] = ev.endTime ?? "23:59";
+    return { ...ev, lane };
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to create meeting");
-  }
-  return await res.json();
+
+  // Second pass: each event's totalLanes = max lanes among its overlapping group
+  return withLanes.map(ev => {
+    const overlapping = withLanes.filter(o =>
+      o !== ev &&
+      (o.startTime ?? "") < (ev.endTime ?? "23:59") &&
+      (o.endTime   ?? "23:59") > (ev.startTime ?? "")
+    );
+    const totalLanes = overlapping.length ? Math.max(ev.lane, ...overlapping.map(o => o.lane)) + 1 : 1;
+    return { ...ev, totalLanes };
+  });
 }
 
-function validate() {
-  errors.value = [];
-  if (!selectedClass.value) errors.value.push('Please select a class.');
-  if (!meetingWith.value) errors.value.push('Please select a recipient.');
-  if (!date.value) errors.value.push('Date is required.');
-  if (!start.value) errors.value.push('Start time is required.');
-  if (!end.value) errors.value.push('End time is required.');
-  if (start.value && end.value && start.value >= end.value) errors.value.push('End time must be after start time.');
-  return errors.value.length === 0;
-}
+// ── Events per day ────────────────────────────────────────────────────────
+const DOW_TO_3 = { MONDAY:"MON", TUESDAY:"TUE", WEDNESDAY:"WED", THURSDAY:"THU", FRIDAY:"FRI" };
 
-async function onSubmit() {
-  success.value = false;
-  errors.value = [];
-  showSuccessToast.value = false;
-  showErrorToast.value = false;
+function eventsForDay(dateStr) {
+  const dow = new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+  const key = DOW_TO_3[dow];
+  const out = [];
 
-  if (!validate()) {
-    showErrorToast.value = true;
-    return;
+  // Class meeting times (specific date)
+  for (const m of classMeetings.value) {
+    if (m.meetingDate === dateStr)
+      out.push({ type: "class", startTime: m.startTime, endTime: m.endTime, label: m.classCode || "Class" });
   }
 
+  // Office hours blocks (recurring, matched by day of week)
+  for (const person of officeHours.value) {
+    const dayExceptions = (person.exceptions ?? []).filter(e => e.exceptionDate === dateStr);
+    for (const b of person.schedule ?? []) {
+      if (b.dayOfWeek !== key) continue;
+      const base = {
+        type:       "oh",
+        personName: `${person.firstName} ${person.lastName}`,
+        userId:     person.userId,
+        role:       person.role,
+        date:       dateStr,
+      };
+      const unavailEx = dayExceptions.find(e =>
+        e.unavailable && (!e.startTime || (b.startTime < e.endTime && b.endTime > e.startTime))
+      );
+      const modifiedEx = !unavailEx && dayExceptions.find(e =>
+        !e.unavailable && e.startTime && (b.startTime < e.endTime && b.endTime > e.startTime)
+      );
+      if (unavailEx) {
+        out.push({ ...base, startTime: b.startTime, endTime: b.endTime, unavailable: true, unavailableNote: unavailEx.note });
+      } else if (modifiedEx) {
+        out.push({ ...base, startTime: modifiedEx.startTime, endTime: modifiedEx.endTime });
+      } else {
+        out.push({ ...base, startTime: b.startTime, endTime: b.endTime });
+      }
+    }
+  }
+
+  // My personal meetings (specific date)
+  for (const m of myMeetings.value) {
+    if (m.meetingDate === dateStr && m.recipientId)
+      out.push({ type: "personal", startTime: m.startTime, endTime: m.endTime, status: m.status, label: "My Meeting" });
+  }
+
+  return out.sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? ""));
+}
+
+// ── Data fetching ─────────────────────────────────────────────────────────
+async function fetchOHAndMeetings(courseList) {
+  if (!courseList.length) { officeHours.value = []; classMeetings.value = []; return; }
+  ohLoading.value = true;
+
+  const seen = new Set();
+  const allOH = [];
+  const allMtg = [];
+
+  await Promise.allSettled(courseList.map(async c => {
+    try {
+      const [ohRes, mtgRes] = await Promise.all([
+        fetch(`/api/office-hours/class/${c.classCode}`,             { credentials: "include" }),
+        fetch(`/api/classes/${c.classCode}/class-meetings`,          { credentials: "include" }),
+      ]);
+      if (ohRes.ok) {
+        for (const p of await ohRes.json()) {
+          // Store classCode/quarter/year so we know which class each person belongs to
+          if (!seen.has(p.userId)) {
+            seen.add(p.userId);
+            allOH.push({ ...p, classCode: c.classCode, quarter: c.quarter, year: c.year });
+          }
+        }
+      }
+      if (mtgRes.ok) allMtg.push(...await mtgRes.json());
+    } catch {}
+  }));
+
+  officeHours.value   = allOH;
+  classMeetings.value = allMtg;
+  ohLoading.value     = false;
+}
+
+async function fetchMyMeetings() {
   try {
-    // Get current user's meetings for the selected date
-    const currentUserMeetings = await getMeetingsForUserOnDate(currentUserEmail.value, date.value);
-    
-    // Get recipient's meetings for the selected date
-    const recipientMeetings = await getMeetingsForUserOnDate(meetingWith.value, date.value);
+    const res = await fetch("/api/meetings/my", { credentials: "include" });
+    if (res.ok) myMeetings.value = await res.json();
+  } catch {}
+}
 
-    // Check for conflicts with current user's meetings
-    if (hasTimeConflict(start.value, end.value, currentUserMeetings)) {
-      errors.value = ["The selected time conflicts with your existing meeting."];
-      showErrorToast.value = true;
+// Re-fetch when shared classes list is ready
+watch(classes, val => { if (val.length) fetchOHAndMeetings(val); }, { immediate: true });
+
+// ── Request meeting modal ─────────────────────────────────────────────────
+// Using reactive (not ref) so property mutations always trigger cleanly
+const modal = reactive({ show: false, mode: "oh", personName: "", userId: "", classCode: "", quarter: "", year: "", date: "", startTime: "", endTime: "", notes: "" });
+const modalLoading = ref(false);
+const modalError   = ref("");
+const emailCache   = {};
+
+// Open from an office-hours block click (pre-filled)
+function openModal(ev) {
+  const person = officeHours.value.find(p => p.userId === ev.userId);
+  modalError.value = "";
+  Object.assign(modal, {
+    show: true, mode: "oh",
+    personName: ev.personName, userId: ev.userId,
+    classCode: person?.classCode || classes.value[0]?.classCode || "",
+    quarter:   person?.quarter   || classes.value[0]?.quarter   || "",
+    year:      person?.year      || classes.value[0]?.year      || "",
+    date: ev.date, startTime: ev.startTime, endTime: ev.endTime, notes: "",
+  });
+}
+
+// Open free-form (header button)
+function openCustomModal() {
+  modalError.value = "";
+  Object.assign(modal, { show: true, mode: "custom", personName: "", userId: "", classCode: "", quarter: "", year: "", date: "", startTime: "12:00", endTime: "13:00", notes: "" });
+}
+
+// Called when the person dropdown changes in custom mode
+function onSelectPerson(userId) {
+  const person = officeHours.value.find(p => p.userId === userId);
+  if (!person) return;
+  modal.userId     = person.userId;
+  modal.personName = `${person.firstName} ${person.lastName}`;
+  modal.classCode  = person.classCode || "";
+  modal.quarter    = person.quarter   || "";
+  modal.year       = person.year      || "";
+}
+
+// Returns true if the given time window overlaps any class meeting on that date
+function hasInstructionConflict(date, startTime, endTime) {
+  return classMeetings.value.some(m =>
+    m.meetingDate === date &&
+    startTime < m.endTime &&
+    endTime   > m.startTime
+  );
+}
+
+async function submitRequest() {
+  modalLoading.value = true;
+  modalError.value   = "";
+  try {
+    // ── Instruction-time guard ───────────────────────────────────────────
+    if (hasInstructionConflict(modal.date, modal.startTime, modal.endTime)) {
+      modalError.value = "The professor is in instruction time during this slot. Please choose a different time.";
       return;
     }
 
-    // Check for conflicts with recipient's meetings
-    if (hasTimeConflict(start.value, end.value, recipientMeetings)) {
-      errors.value = ["The selected time conflicts with the recipient's schedule."];
-      showErrorToast.value = true;
-      return;
+    const requesterId = me?.value?.email || currentUserEmail.value;
+
+    // Resolve the class for this meeting
+    const cls = classes.value.find(c => c.classCode === modal.classCode) || classes.value[0];
+    if (!cls) throw new Error("No class found");
+
+    let recipientEmail = emailCache[modal.userId];
+    if (!recipientEmail) {
+      const r = await fetch(`/api/users/${modal.userId}`, { credentials: "include" });
+      if (!r.ok) throw new Error("Could not find recipient");
+      recipientEmail = (await r.json()).email;
+      emailCache[modal.userId] = recipientEmail;
     }
 
-    // Find the selected class details
-    const selectedClassObj = userClasses.value.find(c => c.classID === selectedClass.value);
-    if (!selectedClassObj) {
-      errors.value = ["Selected class not found"];
-      showErrorToast.value = true;
-      return;
-    }
-
-    const payload = {
-      classCode: selectedClass.value,
-      quarter: selectedClassObj.quarter,
-      year: selectedClassObj.year,
-      requesterId: currentUserEmail.value,
-      recipientId: meetingWith.value,
-      meetingDate: date.value,
-      startTime: start.value,
-      endTime: end.value,
-      status: "PENDING",
-      notes: notes.value
-    };
-
-    const data = await createMeeting(payload);
-    console.log("Meeting created:", data);
-    
-    const meeting = { 
-          classCode: selectedClass.value, 
-          quarter: selectedClassObj.quarter,
-          year: selectedClassObj.year,
-          requesterId: currentUserEmail.value,  
-          meetingDate: date.value,
-          startTime: start.value,
-          endTime: end.value,  
-          notes: notes.value};
-    
-    const res = await fetch(`/api/emails/send-meeting-notification?recipientUserId=${meetingWith.value}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(meeting)
-    })
-    if (!res.ok) {
-      console.error("Failed to send email notification:", await res.text());
-    } else {
-      console.log("Email notification sent successfully");
-    }
-    success.value = true;
-    errors.value = [];
-    showSuccessToast.value = true;
-
-    // Reset form
-    selectedClass.value = "";
-    meetingWith.value = "";
-    date.value = "";
-    start.value = "";
-    end.value = "";
-    notes.value = "";
-    classRecipients.value = [];
-
-    // Refresh events
-    await loadEvents();
-    
-    if (selectedDay.value) {
-      //await loadMeetingsForDate(selectedDay.value);
-      dayEvents.value = events.value.filter(e => e.start.startsWith(selectedDay.value));
-    }
-
-    setTimeout(() => {
-      showSuccessToast.value = false;
-    }, 3000);
-  } catch (err) {
-    errors.value = [err.message || "Failed to create meeting."];
-    showErrorToast.value = true;
-    success.value = false;
-    console.error("Error creating meeting:", err);
+    const res = await fetch("/api/meetings/create-meeting", {
+      method:  "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classCode:   cls.classCode,
+        quarter:     cls.quarter,
+        year:        cls.year,
+        requesterId: requesterId,
+        recipientId: recipientEmail,
+        meetingDate: modal.date,
+        startTime:   modal.startTime,
+        endTime:     modal.endTime,
+        status:      "PENDING",
+        notes:       modal.notes,
+      }),
+    });
+    if (!res.ok) throw new Error((await res.text()) || "Failed to create meeting");
+    modal.show = false;
+    fetchMyMeetings();
+  } catch (e) {
+    modalError.value = e.message || "Failed to send request";
+  } finally {
+    modalLoading.value = false;
   }
 }
 
 onMounted(async () => {
-  await loadCurrentUser();
+  try {
+    const r = await fetch("/api/auth/current-user", { credentials: "include" });
+    if (r.ok) currentUserEmail.value = (await r.json()).currentUser || "";
+  } catch {}
+  fetchMyMeetings();
 });
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+function getMonday(d) {
+  const c = new Date(d); c.setHours(0, 0, 0, 0);
+  const diff = c.getDay() === 0 ? -6 : 1 - c.getDay();
+  c.setDate(c.getDate() + diff);
+  return c;
+}
+
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function fmtTime(t) {
+  if (!t) return "";
+  const [hh, mm] = t.split(":").map(Number);
+  const ampm = hh < 12 ? "AM" : "PM";
+  return `${hh % 12 || 12}:${String(mm).padStart(2, "0")} ${ampm}`;
+}
 </script>
 
 <template>
   <div class="wrap">
-    <h2>Office Hours</h2>
 
-    <div class="user-info" v-if="currentUserEmail">
-      <p>Logged in as: <strong>{{ currentUserEmail }}</strong></p>
-    </div>
-
-    <!-- Success Toast Notification -->
-    <Transition name="slide-fade">
-      <div v-if="showSuccessToast" class="success-toast">
-        <div class="toast-content">
-          <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>Meeting request submitted successfully!</span>
-        </div>
-        <button @click="showSuccessToast = false" class="toast-close">×</button>
+    <!-- Header + week nav -->
+    <div class="page-header">
+      <div>
+        <h1>Office Hours</h1>
+        <p class="muted">Click a green block to request during office hours, or use the button to request at any time.</p>
       </div>
-    </Transition>
-
-    <!-- Error Toast Notification -->
-    <Transition name="slide-fade">
-      <div v-if="showErrorToast && errors.length > 0" class="error-toast">
-        <div class="toast-content">
-          <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <span>{{ errors[0] }}</span>
-        </div>
-        <button @click="showErrorToast = false" class="toast-close">×</button>
-      </div>
-    </Transition>
-
-    <CalendarGrid :events="events" @select-day="handleDaySelect" />
-
-    <div class="agenda">
-      <h3>{{ selectedDay || "Select a day" }}</h3>
-
-      <div v-if="dayEvents.length === 0" class="no-meetings">
-        No meetings scheduled
-      </div>
-
-      <div v-else class="meetings-list">
-        <div
-          v-for="e in dayEvents"
-          :key="e.id"
-          class="meeting-bubble"
-          :class="{ 'meeting-bubble--class': e.isClassWide }"
-        >
-          <div class="meeting-header">
-            <strong class="meeting-with">
-              {{ e.isClassWide ? e.classCode : e.otherPerson }}
-            </strong>
-            <span class="meeting-role">{{ e.role }}</span>
-          </div>
-          <div class="meeting-details">
-            <div class="meeting-time">
-              🕐 {{ e.startTime }} – {{ e.endTime }}
-            </div>
-            <div v-if="!e.isClassWide" class="meeting-class">
-              📚 {{ e.classCode }}
-            </div>
-            <div v-if="e.notes" class="meeting-notes">
-              📝 {{ truncateNotes(e.notes) }}
-            </div>
-          </div>
+      <div class="header-right">
+        <button class="btn" @click="openCustomModal">+ Request Meeting</button>
+        <div class="week-nav">
+          <button class="btn-ghost" @click="prevWeek">‹</button>
+          <button class="btn-ghost today-btn" @click="goThisWeek">This week</button>
+          <span class="week-label">{{ weekLabel }}</span>
+          <button class="btn-ghost" @click="nextWeek">›</button>
         </div>
       </div>
     </div>
 
-    <div class="card form-card">
-      <div class="card-header">
-        <div>
-          <h2>Request a Meeting</h2>
-          <p class="muted">Fill out the form to request a meeting.</p>
+    <!-- Empty state -->
+    <div v-if="!classes.length" class="empty-card">
+      You are not enrolled in any classes yet.
+    </div>
+
+    <!-- Loading -->
+    <div v-else-if="ohLoading" class="empty-card">Loading schedule…</div>
+
+    <!-- No office hours -->
+    <div v-else-if="!officeHours.length" class="empty-card">
+      No office hours have been posted for your classes yet.
+    </div>
+
+    <!-- Week calendar -->
+    <template v-else>
+      <div class="card">
+        <div class="cal-wrap">
+
+          <!-- Time labels -->
+          <div class="cal-time-col">
+            <div class="cal-hdr-spacer"></div>
+            <div v-for="h in calHours" :key="h" class="cal-hour-label">
+              {{ h === 12 ? "12 pm" : h < 12 ? `${h} am` : `${h - 12} pm` }}
+            </div>
+          </div>
+
+          <!-- Day columns -->
+          <div class="cal-days">
+            <div
+              v-for="day in weekDays"
+              :key="day.dateStr"
+              class="cal-day-col"
+              :class="{ today: day.dateStr === ymd(new Date()) }"
+            >
+              <div class="cal-day-hdr">{{ day.label }}</div>
+              <div class="cal-day-body">
+                <div v-for="h in calHours" :key="h" class="cal-hour-line"></div>
+                <template v-for="ev in layoutEvents(eventsForDay(day.dateStr))" :key="`${day.dateStr}-${ev.type}-${ev.startTime}-${ev.lane}`">
+                  <!-- Office hours: unavailable -->
+                  <div
+                    v-if="ev.type === 'oh' && ev.unavailable"
+                    class="cal-event cal-event-oh-unavailable"
+                    :style="calEventStyle(ev)"
+                    :title="ev.unavailableNote || 'Unavailable'"
+                  >
+                    <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                    <span class="cal-ev-name">{{ ev.personName }}</span>
+                    <span class="cal-ev-unavail-label">Unavailable</span>
+                  </div>
+
+                  <!-- Office hours: clickable -->
+                  <button
+                    v-else-if="ev.type === 'oh'"
+                    class="cal-event cal-event-oh"
+                    :style="calEventStyle(ev)"
+                    @click="openModal(ev)"
+                  >
+                    <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                    <span class="cal-ev-name">{{ ev.personName }}</span>
+                    <span class="cal-ev-role">{{ ev.role === 'PROFESSOR' ? 'Prof' : 'TA' }}</span>
+                  </button>
+
+                  <!-- Class meeting time -->
+                  <div v-else-if="ev.type === 'class'" class="cal-event cal-event-class" :style="calEventStyle(ev)">
+                    <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                    <span class="cal-ev-name">{{ ev.label }}</span>
+                  </div>
+
+                  <!-- Personal meeting -->
+                  <div v-else-if="ev.type === 'personal'" class="cal-event cal-event-personal" :style="calEventStyle(ev)">
+                    <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                    <span class="cal-ev-name">My Meeting</span>
+                    <span class="cal-ev-status" :class="`status-${(ev.status || '').toLowerCase()}`">{{ ev.status }}</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+          <span class="leg leg-oh">Office Hours — click to request</span>
+          <span class="leg leg-oh-unavailable">Unavailable</span>
+          <span class="leg leg-class">Class</span>
+          <span class="leg leg-personal">My Meetings</span>
         </div>
       </div>
-
-      <div class="content">
-        <form @submit.prevent="onSubmit" novalidate>
-          <label class="field">
-            Class
-            <select v-model="selectedClass" class="input">
-              <option value="">-- Select a class --</option>
-              <option v-for="cls in userClasses" :key="cls.classID" :value="cls.classID">
-                {{ cls.courseCode }} - {{ cls.className }}
-              </option>
-            </select>
-          </label>
-
-          <label class="field" v-if="selectedClass">
-            Recipient
-            <select v-model="meetingWith" class="input">
-              <option value="">-- Select a person --</option>
-              <option v-for="person in classRecipients" :key="person.userID" :value="person.email">
-                {{ person.name }} ({{ person.role }})
-              </option>
-            </select>
-          </label>
-
-          <div class="row">
-            <label class="field" style="flex:1;">
-              Date
-              <input v-model="date" class="input" type="date" required :min="minDate" />
-            </label>
-            <label class="field">
-              Start
-              <input v-model="start" class="input" type="time" required />
-            </label>
-            <label class="field">
-              End
-              <input v-model="end" class="input" type="time" required />
-            </label>
-          </div>
-
-          <label class="field">
-            Notes (optional)
-            <textarea v-model="notes" class="input" rows="3" placeholder="Agenda or questions"></textarea>
-          </label>
-
-          <div class="row" style="align-items:center; margin-top:12px;">
-            <button type="submit" :disabled="!canSubmit" class="btn" style="padding:8px 12px; border-radius:8px;">
-              Request Meeting
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    </template>
   </div>
+
+  <!-- Request meeting modal -->
+  <teleport to="body">
+    <div v-if="modal.show" class="overlay" @click.self="() => { modal.show = false; }">
+      <div class="modal">
+        <div class="modal-hdr">
+          <h3>Request a Meeting</h3>
+          <button class="close-btn" @click="() => { modal.show = false; }">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="mfield">
+            <label>With</label>
+            <!-- Custom mode: pick any instructor or TA from enrolled classes -->
+            <select
+              v-if="modal.mode === 'custom'"
+              class="input"
+              :value="modal.userId"
+              @change="onSelectPerson($event.target.value)"
+            >
+              <option value="">Select a person…</option>
+              <option v-for="p in officeHours" :key="p.userId" :value="p.userId">
+                {{ p.firstName }} {{ p.lastName }} ({{ p.role === 'PROFESSOR' ? 'Prof' : 'TA' }})
+              </option>
+            </select>
+            <!-- OH block mode: person already known -->
+            <span v-else class="mval">{{ modal.personName }}</span>
+          </div>
+          <div class="mfield">
+            <label>Date</label>
+            <input v-model="modal.date" type="date" class="input" />
+          </div>
+          <div class="mfield mfield-col">
+            <label>Start</label>
+            <TimePicker v-model="modal.startTime" />
+          </div>
+          <div class="mfield mfield-col">
+            <label>End</label>
+            <TimePicker v-model="modal.endTime" />
+          </div>
+          <div class="mfield mfield-col">
+            <label>Notes</label>
+            <textarea v-model="modal.notes" class="input" rows="3" placeholder="Optional agenda or questions" />
+          </div>
+          <div v-if="modalError" class="req-error">{{ modalError }}</div>
+          <div class="modal-actions">
+            <button class="btn-ghost" @click="() => { modal.show = false; }">Cancel</button>
+            <button
+              class="btn"
+              :disabled="modalLoading || !modal.date || !modal.startTime || !modal.endTime || (modal.mode === 'custom' && !modal.userId)"
+              @click="submitRequest"
+            >{{ modalLoading ? "Sending…" : "Send Request" }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <style scoped>
 .wrap {
-  padding: 16px;
-  color: white;
-}
-
-.user-info {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-  border-radius: 8px;
-  font-size: 14px;
-  color: #93c5fd;
-}
-
-.user-info p {
-  margin: 0;
-}
-
-.user-info strong {
-  color: #60a5fa;
-}
-
-/* Success Toast Styles */
-.success-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95));
-  border: 1px solid rgba(34, 197, 94, 0.5);
-  border-radius: 12px;
-  padding: 16px 20px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  max-width: 400px;
-}
-
-.error-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  max-width: 400px;
-}
-
-.toast-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #dcfce7;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.error-toast .toast-content {
-  color: #fee2e2;
-}
-
-.toast-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  color: #86efac;
-  stroke-width: 3;
-}
-
-.error-toast .toast-icon {
-  color: #fca5a5;
-}
-
-.toast-close {
-  background: none;
-  border: none;
-  color: #86efac;
-  font-size: 24px;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s ease;
-}
-
-.error-toast .toast-close {
-  color: #fca5a5;
-}
-
-.error-toast .toast-close:hover {
-  color: #fee2e2;
-}
-
-.toast-close:hover {
-  color: #dcfce7;
-}
-
-/* Slide-fade transition */
-.slide-fade-enter-active,
-.slide-fade-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-fade-enter-from {
-  transform: translateX(400px);
-  opacity: 0;
-}
-
-.slide-fade-leave-to {
-  transform: translateX(400px);
-  opacity: 0;
-}
-
-.agenda {
-  margin-top: 16px;
-  padding: 16px;
-  background: rgba(255,255,255,0.02);
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.05);
-}
-
-.agenda h3 {
-  margin: 0 0 16px 0;
-  font-size: 16px;
+  flex-direction: column;
+  gap: 18px;
   color: #e5e7eb;
 }
 
-.no-meetings {
-  color: #9ca3af;
-  font-style: italic;
-}
-
-.meetings-list {
+/* ── Header ── */
+.page-header {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.meeting-bubble {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(59, 130, 246, 0.1));
-  border: 1.5px solid rgba(37, 99, 235, 0.4);
-  border-radius: 12px;
-  padding: 12px 16px;
-  transition: all 0.2s ease;
-}
-
-.meeting-bubble:hover {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.25), rgba(59, 130, 246, 0.2));
-  border-color: rgba(37, 99, 235, 0.6);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-}
-
-.meeting-bubble--class {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.08));
-  border-color: rgba(16, 185, 129, 0.35);
-}
-
-.meeting-bubble--class:hover {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.16));
-  border-color: rgba(16, 185, 129, 0.55);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
-}
-
-.meeting-header {
-  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
-.meeting-with {
-  font-size: 15px;
-  color: #60a5fa;
-}
+h1 { margin: 0; font-size: 20px; color: #f3f4f6; }
 
-.meeting-role {
-  font-size: 12px;
-  color: #9ca3af;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 4px 8px;
-  border-radius: 6px;
-}
+.muted { margin: 4px 0 0; font-size: 13px; color: #9ca3af; }
 
-.meeting-details {
+.header-right {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.week-label {
   font-size: 13px;
+  font-weight: 600;
+  color: #e5e7eb;
+  min-width: 160px;
+  text-align: center;
 }
 
-.meeting-time {
-  color: #d1d5db;
-  font-weight: 500;
-}
-
-.meeting-class {
-  color: #9ca3af;
-}
-
-.meeting-notes {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 8px 10px;
+.btn-ghost {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #e5e7eb;
   border-radius: 8px;
-  font-size: 12px;
-  color: #c7d2e0;
-  border-left: 2px solid rgba(37, 99, 235, 0.5);
-  line-height: 1.4;
+  padding: 5px 12px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
 }
+.btn-ghost:hover { background: rgba(255,255,255,0.12); }
 
+.today-btn { font-size: 12px; font-weight: 700; }
+
+/* ── Card ── */
 .card {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 18px;
   padding: 18px;
-  color: #e5e7eb;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.25);
-  margin-top: 24px;
-}
-
-.card-header {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.muted {
-  margin: 6px 0 0;
-  color: #9ca3af;
-  font-size: 13px;
-}
-
-.content {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
-.row {
+/* ── Empty / loading ── */
+.empty-card {
+  padding: 24px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.08);
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Week calendar ── */
+.cal-wrap {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  overflow-x: auto;
 }
 
-.field { display:block; margin-top:8px; }
+.cal-time-col {
+  flex-shrink: 0;
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-hdr-spacer { height: 36px; flex-shrink: 0; }
+
+.cal-hour-label {
+  height: 64px;
+  font-size: 11px;
+  color: #6b7280;
+  text-align: right;
+  padding-right: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  transform: translateY(-7px);
+}
+
+.cal-days {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  min-width: 420px;
+}
+
+.cal-day-col {
+  border-left: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.cal-day-col.today .cal-day-hdr {
+  color: #60a5fa;
+  font-weight: 800;
+}
+
+.cal-day-hdr {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+.cal-day-body { position: relative; }
+
+.cal-hour-line {
+  height: 64px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* ── Events ── */
+.cal-event {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 6px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  z-index: 1;
+  border: none;
+  text-align: left;
+}
+
+.cal-event-oh {
+  background: rgba(74,222,128,0.18);
+  border: 1px solid rgba(74,222,128,0.45) !important;
+  color: #4ade80;
+  cursor: pointer;
+}
+.cal-event-oh:hover { background: rgba(74,222,128,0.30); }
+
+.cal-event-oh-unavailable {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.35) !important;
+  color: #f87171;
+  cursor: default;
+  opacity: 0.75;
+}
+
+.cal-ev-unavail-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
+.cal-event-class {
+  background: rgba(37,99,235,0.22);
+  border: 1px solid rgba(37,99,235,0.45) !important;
+  color: #93c5fd;
+  cursor: default;
+}
+
+.cal-event-personal {
+  background: rgba(139,92,246,0.18);
+  border: 1px solid rgba(139,92,246,0.4) !important;
+  color: #c4b5fd;
+  cursor: default;
+}
+
+.cal-ev-time  { font-size: 10px; opacity: 0.75; }
+.cal-ev-name  { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev-role  { font-size: 10px; opacity: 0.65; }
+
+.cal-ev-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  align-self: flex-start;
+}
+.status-confirmed { background: rgba(74,222,128,0.2); color: #4ade80; }
+.status-pending   { background: rgba(251,191,36,0.2);  color: #fbbf24; }
+.status-cancelled { background: rgba(248,113,113,0.2); color: #f87171; }
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+.leg::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.leg-oh::before             { background: rgba(74,222,128,0.35); border: 1px solid rgba(74,222,128,0.6); }
+.leg-oh-unavailable::before { background: rgba(239,68,68,0.2);   border: 1px solid rgba(239,68,68,0.5);  }
+.leg-class::before          { background: rgba(37,99,235,0.35);  border: 1px solid rgba(37,99,235,0.6);  }
+.leg-personal::before       { background: rgba(139,92,246,0.3);  border: 1px solid rgba(139,92,246,0.5); }
+
+/* ── Request modal ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: #1a1d2e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.modal-hdr h3 { margin: 0; font-size: 15px; color: #f3f4f6; }
+
+.close-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+.close-btn:hover { color: #e5e7eb; }
+
+.modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mfield { display: flex; align-items: center; gap: 12px; }
+.mfield label { width: 48px; font-size: 12px; font-weight: 600; color: #9ca3af; flex-shrink: 0; }
+
+.mfield-col { flex-direction: column; align-items: flex-start; }
+.mfield-col label { width: auto; }
+
+.mval { font-size: 13px; font-weight: 600; color: #e5e7eb; }
+
 .input {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(15,23,42,0.6);
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
   color: #e5e7eb;
+  font-size: 13px;
+  padding: 7px 10px;
   outline: none;
-  margin-top:6px;
+  width: 100%;
   box-sizing: border-box;
 }
+.input:focus { border-color: rgba(37,99,235,0.5); }
 
-.input:focus {
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.5);
-  border-color: rgba(37,99,235,0.6);
+.req-error {
+  font-size: 12px;
+  color: #f87171;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .btn {
   border: none;
   background: #2563eb;
   color: white;
-  font-weight: 800;
-  padding: 10px 12px;
-  border-radius: 14px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 12px;
   cursor: pointer;
+  font-size: 13px;
 }
-
-.btn:hover {
-  background: #1d4ed8;
-}
-
-.btn:disabled {
-  background: #6b7280;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-@media (max-width: 980px) {
-  .row { flex-direction: column; align-items: stretch; }
-
-  .success-toast,
-  .error-toast {
-    top: auto;
-    bottom: 20px;
-    right: 20px;
-    left: 20px;
-    max-width: none;
-  }
-}
+.btn:hover { background: #1d4ed8; }
+.btn:disabled { background: #6b7280; cursor: not-allowed; opacity: 0.6; }
 </style>
