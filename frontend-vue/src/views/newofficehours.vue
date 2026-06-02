@@ -1,8 +1,10 @@
 <script setup>
-import { ref, computed, watch, inject, onMounted } from "vue";
+import { ref, reactive, computed, watch, inject, onMounted } from "vue";
+import TimePicker from "../components/TimePicker.vue";
 
 // ── Shared state from layout ──────────────────────────────────────────────
 const classes = inject("classes", ref([]));
+const me      = inject("me", null);
 
 // ── Data ──────────────────────────────────────────────────────────────────
 // officeHours: [{ userId, firstName, lastName, role, schedule:[{dayOfWeek,startTime,endTime}] }]
@@ -154,7 +156,11 @@ async function fetchOHAndMeetings(courseList) {
       ]);
       if (ohRes.ok) {
         for (const p of await ohRes.json()) {
-          if (!seen.has(p.userId)) { seen.add(p.userId); allOH.push(p); }
+          // Store classCode/quarter/year so we know which class each person belongs to
+          if (!seen.has(p.userId)) {
+            seen.add(p.userId);
+            allOH.push({ ...p, classCode: c.classCode, quarter: c.quarter, year: c.year });
+          }
         }
       }
       if (mtgRes.ok) allMtg.push(...await mtgRes.json());
@@ -177,30 +183,74 @@ async function fetchMyMeetings() {
 watch(classes, val => { if (val.length) fetchOHAndMeetings(val); }, { immediate: true });
 
 // ── Request meeting modal ─────────────────────────────────────────────────
-const modal        = ref({ show: false, personName: "", userId: "", date: "", startTime: "", endTime: "", notes: "" });
+// Using reactive (not ref) so property mutations always trigger cleanly
+const modal = reactive({ show: false, mode: "oh", personName: "", userId: "", classCode: "", quarter: "", year: "", date: "", startTime: "", endTime: "", notes: "" });
 const modalLoading = ref(false);
 const modalError   = ref("");
 const emailCache   = {};
 
+// Open from an office-hours block click (pre-filled)
 function openModal(ev) {
+  const person = officeHours.value.find(p => p.userId === ev.userId);
   modalError.value = "";
-  modal.value = { show: true, personName: ev.personName, userId: ev.userId, date: ev.date, startTime: ev.startTime, endTime: ev.endTime, notes: "" };
+  Object.assign(modal, {
+    show: true, mode: "oh",
+    personName: ev.personName, userId: ev.userId,
+    classCode: person?.classCode || classes.value[0]?.classCode || "",
+    quarter:   person?.quarter   || classes.value[0]?.quarter   || "",
+    year:      person?.year      || classes.value[0]?.year      || "",
+    date: ev.date, startTime: ev.startTime, endTime: ev.endTime, notes: "",
+  });
+}
+
+// Open free-form (header button)
+function openCustomModal() {
+  modalError.value = "";
+  Object.assign(modal, { show: true, mode: "custom", personName: "", userId: "", classCode: "", quarter: "", year: "", date: "", startTime: "12:00", endTime: "13:00", notes: "" });
+}
+
+// Called when the person dropdown changes in custom mode
+function onSelectPerson(userId) {
+  const person = officeHours.value.find(p => p.userId === userId);
+  if (!person) return;
+  modal.userId     = person.userId;
+  modal.personName = `${person.firstName} ${person.lastName}`;
+  modal.classCode  = person.classCode || "";
+  modal.quarter    = person.quarter   || "";
+  modal.year       = person.year      || "";
+}
+
+// Returns true if the given time window overlaps any class meeting on that date
+function hasInstructionConflict(date, startTime, endTime) {
+  return classMeetings.value.some(m =>
+    m.meetingDate === date &&
+    startTime < m.endTime &&
+    endTime   > m.startTime
+  );
 }
 
 async function submitRequest() {
   modalLoading.value = true;
   modalError.value   = "";
   try {
-    // Find which class this OH person belongs to
-    const cls = classes.value[0]; // default to first class; could be refined
+    // ── Instruction-time guard ───────────────────────────────────────────
+    if (hasInstructionConflict(modal.date, modal.startTime, modal.endTime)) {
+      modalError.value = "The professor is in instruction time during this slot. Please choose a different time.";
+      return;
+    }
+
+    const requesterId = me?.value?.email || currentUserEmail.value;
+
+    // Resolve the class for this meeting
+    const cls = classes.value.find(c => c.classCode === modal.classCode) || classes.value[0];
     if (!cls) throw new Error("No class found");
 
-    let recipientEmail = emailCache[modal.value.userId];
+    let recipientEmail = emailCache[modal.userId];
     if (!recipientEmail) {
-      const r = await fetch(`/api/users/${modal.value.userId}`, { credentials: "include" });
+      const r = await fetch(`/api/users/${modal.userId}`, { credentials: "include" });
       if (!r.ok) throw new Error("Could not find recipient");
       recipientEmail = (await r.json()).email;
-      emailCache[modal.value.userId] = recipientEmail;
+      emailCache[modal.userId] = recipientEmail;
     }
 
     const res = await fetch("/api/meetings/create-meeting", {
@@ -211,17 +261,17 @@ async function submitRequest() {
         classCode:   cls.classCode,
         quarter:     cls.quarter,
         year:        cls.year,
-        requesterId: currentUserEmail.value,
+        requesterId: requesterId,
         recipientId: recipientEmail,
-        meetingDate: modal.value.date,
-        startTime:   modal.value.startTime,
-        endTime:     modal.value.endTime,
+        meetingDate: modal.date,
+        startTime:   modal.startTime,
+        endTime:     modal.endTime,
         status:      "PENDING",
-        notes:       modal.value.notes,
+        notes:       modal.notes,
       }),
     });
     if (!res.ok) throw new Error((await res.text()) || "Failed to create meeting");
-    modal.value.show = false;
+    modal.show = false;
     fetchMyMeetings();
   } catch (e) {
     modalError.value = e.message || "Failed to send request";
@@ -265,13 +315,16 @@ function fmtTime(t) {
     <div class="page-header">
       <div>
         <h1>Office Hours</h1>
-        <p class="muted">Click a green block to request a meeting during office hours.</p>
+        <p class="muted">Click a green block to request during office hours, or use the button to request at any time.</p>
       </div>
-      <div class="week-nav">
-        <button class="btn-ghost" @click="prevWeek">‹</button>
-        <button class="btn-ghost today-btn" @click="goThisWeek">This week</button>
-        <span class="week-label">{{ weekLabel }}</span>
-        <button class="btn-ghost" @click="nextWeek">›</button>
+      <div class="header-right">
+        <button class="btn" @click="openCustomModal">+ Request Meeting</button>
+        <div class="week-nav">
+          <button class="btn-ghost" @click="prevWeek">‹</button>
+          <button class="btn-ghost today-btn" @click="goThisWeek">This week</button>
+          <span class="week-label">{{ weekLabel }}</span>
+          <button class="btn-ghost" @click="nextWeek">›</button>
+        </div>
       </div>
     </div>
 
@@ -356,28 +409,41 @@ function fmtTime(t) {
 
   <!-- Request meeting modal -->
   <teleport to="body">
-    <div v-if="modal.show" class="overlay" @click.self="modal.show = false">
+    <div v-if="modal.show" class="overlay" @click.self="() => { modal.show = false; }">
       <div class="modal">
         <div class="modal-hdr">
           <h3>Request a Meeting</h3>
-          <button class="close-btn" @click="modal.show = false">✕</button>
+          <button class="close-btn" @click="() => { modal.show = false; }">✕</button>
         </div>
         <div class="modal-body">
           <div class="mfield">
             <label>With</label>
-            <span class="mval">{{ modal.personName }}</span>
+            <!-- Custom mode: pick any instructor or TA from enrolled classes -->
+            <select
+              v-if="modal.mode === 'custom'"
+              class="input"
+              :value="modal.userId"
+              @change="onSelectPerson($event.target.value)"
+            >
+              <option value="">Select a person…</option>
+              <option v-for="p in officeHours" :key="p.userId" :value="p.userId">
+                {{ p.firstName }} {{ p.lastName }} ({{ p.role === 'PROFESSOR' ? 'Prof' : 'TA' }})
+              </option>
+            </select>
+            <!-- OH block mode: person already known -->
+            <span v-else class="mval">{{ modal.personName }}</span>
           </div>
           <div class="mfield">
             <label>Date</label>
             <input v-model="modal.date" type="date" class="input" />
           </div>
-          <div class="mfield">
+          <div class="mfield mfield-col">
             <label>Start</label>
-            <input v-model="modal.startTime" type="time" class="input" />
+            <TimePicker v-model="modal.startTime" />
           </div>
-          <div class="mfield">
+          <div class="mfield mfield-col">
             <label>End</label>
-            <input v-model="modal.endTime" type="time" class="input" />
+            <TimePicker v-model="modal.endTime" />
           </div>
           <div class="mfield mfield-col">
             <label>Notes</label>
@@ -385,10 +451,10 @@ function fmtTime(t) {
           </div>
           <div v-if="modalError" class="req-error">{{ modalError }}</div>
           <div class="modal-actions">
-            <button class="btn-ghost" @click="modal.show = false">Cancel</button>
+            <button class="btn-ghost" @click="() => { modal.show = false; }">Cancel</button>
             <button
               class="btn"
-              :disabled="modalLoading || !modal.date || !modal.startTime || !modal.endTime"
+              :disabled="modalLoading || !modal.date || !modal.startTime || !modal.endTime || (modal.mode === 'custom' && !modal.userId)"
               @click="submitRequest"
             >{{ modalLoading ? "Sending…" : "Send Request" }}</button>
           </div>
@@ -418,6 +484,13 @@ function fmtTime(t) {
 h1 { margin: 0; font-size: 20px; color: #f3f4f6; }
 
 .muted { margin: 4px 0 0; font-size: 13px; color: #9ca3af; }
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
 
 .week-nav {
   display: flex;
