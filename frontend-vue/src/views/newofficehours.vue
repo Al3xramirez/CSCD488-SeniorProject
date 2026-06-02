@@ -116,17 +116,29 @@ function eventsForDay(dateStr) {
 
   // Office hours blocks (recurring, matched by day of week)
   for (const person of officeHours.value) {
+    const dayExceptions = (person.exceptions ?? []).filter(e => e.exceptionDate === dateStr);
     for (const b of person.schedule ?? []) {
-      if (b.dayOfWeek === key)
-        out.push({
-          type:       "oh",
-          startTime:  b.startTime,
-          endTime:    b.endTime,
-          personName: `${person.firstName} ${person.lastName}`,
-          userId:     person.userId,
-          role:       person.role,
-          date:       dateStr,
-        });
+      if (b.dayOfWeek !== key) continue;
+      const base = {
+        type:       "oh",
+        personName: `${person.firstName} ${person.lastName}`,
+        userId:     person.userId,
+        role:       person.role,
+        date:       dateStr,
+      };
+      const unavailEx = dayExceptions.find(e =>
+        e.unavailable && (!e.startTime || (b.startTime < e.endTime && b.endTime > e.startTime))
+      );
+      const modifiedEx = !unavailEx && dayExceptions.find(e =>
+        !e.unavailable && e.startTime && (b.startTime < e.endTime && b.endTime > e.startTime)
+      );
+      if (unavailEx) {
+        out.push({ ...base, startTime: b.startTime, endTime: b.endTime, unavailable: true, unavailableNote: unavailEx.note });
+      } else if (modifiedEx) {
+        out.push({ ...base, startTime: modifiedEx.startTime, endTime: modifiedEx.endTime });
+      } else {
+        out.push({ ...base, startTime: b.startTime, endTime: b.endTime });
+      }
     }
   }
 
@@ -366,9 +378,21 @@ function fmtTime(t) {
               <div class="cal-day-body">
                 <div v-for="h in calHours" :key="h" class="cal-hour-line"></div>
                 <template v-for="ev in layoutEvents(eventsForDay(day.dateStr))" :key="`${day.dateStr}-${ev.type}-${ev.startTime}-${ev.lane}`">
+                  <!-- Office hours: unavailable -->
+                  <div
+                    v-if="ev.type === 'oh' && ev.unavailable"
+                    class="cal-event cal-event-oh-unavailable"
+                    :style="calEventStyle(ev)"
+                    :title="ev.unavailableNote || 'Unavailable'"
+                  >
+                    <span class="cal-ev-time">{{ fmtTime(ev.startTime) }}</span>
+                    <span class="cal-ev-name">{{ ev.personName }}</span>
+                    <span class="cal-ev-unavail-label">Unavailable</span>
+                  </div>
+
                   <!-- Office hours: clickable -->
                   <button
-                    v-if="ev.type === 'oh'"
+                    v-else-if="ev.type === 'oh'"
                     class="cal-event cal-event-oh"
                     :style="calEventStyle(ev)"
                     @click="openModal(ev)"
@@ -400,6 +424,7 @@ function fmtTime(t) {
         <!-- Legend -->
         <div class="legend">
           <span class="leg leg-oh">Office Hours — click to request</span>
+          <span class="leg leg-oh-unavailable">Unavailable</span>
           <span class="leg leg-class">Class</span>
           <span class="leg leg-personal">My Meetings</span>
         </div>
@@ -631,6 +656,22 @@ h1 { margin: 0; font-size: 20px; color: #f3f4f6; }
 }
 .cal-event-oh:hover { background: rgba(74,222,128,0.30); }
 
+.cal-event-oh-unavailable {
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.35) !important;
+  color: #f87171;
+  cursor: default;
+  opacity: 0.75;
+}
+
+.cal-ev-unavail-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.85;
+}
+
 .cal-event-class {
   background: rgba(37,99,235,0.22);
   border: 1px solid rgba(37,99,235,0.45) !important;
@@ -683,9 +724,10 @@ h1 { margin: 0; font-size: 20px; color: #f3f4f6; }
   border-radius: 3px;
   flex-shrink: 0;
 }
-.leg-oh::before       { background: rgba(74,222,128,0.35); border: 1px solid rgba(74,222,128,0.6); }
-.leg-class::before    { background: rgba(37,99,235,0.35);  border: 1px solid rgba(37,99,235,0.6);  }
-.leg-personal::before { background: rgba(139,92,246,0.3);  border: 1px solid rgba(139,92,246,0.5); }
+.leg-oh::before             { background: rgba(74,222,128,0.35); border: 1px solid rgba(74,222,128,0.6); }
+.leg-oh-unavailable::before { background: rgba(239,68,68,0.2);   border: 1px solid rgba(239,68,68,0.5);  }
+.leg-class::before          { background: rgba(37,99,235,0.35);  border: 1px solid rgba(37,99,235,0.6);  }
+.leg-personal::before       { background: rgba(139,92,246,0.3);  border: 1px solid rgba(139,92,246,0.5); }
 
 /* ── Request modal ── */
 .overlay {
