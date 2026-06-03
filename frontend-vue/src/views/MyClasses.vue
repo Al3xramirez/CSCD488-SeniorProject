@@ -193,7 +193,7 @@ function openClassDetails(c) {
     const jc = (c?.joinCode || "").toString().trim();
     if (!jc) return;
     router.push({ name: "class-details", params: { joinCode: jc } });
-  } else if (role.value === "STUDENT") {
+  } else if (role.value === "STUDENT" || role.value === "TA") {
     const jc = (c?.joinCode || "").toString().trim();
     if (!jc) return;
     router.push({ name: "class-details", params: { joinCode: jc } });

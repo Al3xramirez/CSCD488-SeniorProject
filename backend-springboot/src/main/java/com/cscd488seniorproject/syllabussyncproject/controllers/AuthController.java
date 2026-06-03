@@ -12,10 +12,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.cscd488seniorproject.syllabussyncproject.dto.SignupRequestDTO;
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
+import com.cscd488seniorproject.syllabussyncproject.service.AccountDeletionService;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 
 // This class is used to handle authentication requests from the frontend, such as signup and check-auth
@@ -25,10 +27,12 @@ public class AuthController {
 
     private final UserAccountRepository userAccountRepo;
     private final PasswordEncoder passwordEncoder;
+    private final AccountDeletionService accountDeletionService;
 
-    public AuthController(UserAccountRepository userAccountRepo, PasswordEncoder passwordEncoder) {
+    public AuthController(UserAccountRepository userAccountRepo, PasswordEncoder passwordEncoder, AccountDeletionService accountDeletionService) {
         this.userAccountRepo = userAccountRepo;
         this.passwordEncoder = passwordEncoder;
+        this.accountDeletionService = accountDeletionService;
     }
 
     // This endpoint is used by the frontend to create new user accounts
@@ -117,12 +121,20 @@ public class AuthController {
             role,
             user == null ? null : user.getFirstName(),
             user == null ? null : user.getLastName(),
-            user == null ? null : user.getAvailabilityStatus()
+            user == null ? null : user.getAvailabilityStatus(),
+            user == null ? null : user.getDepartment()
         ));
+    }
+
+    // Deletes the currently authenticated user's account and related rows.
+    @DeleteMapping("/me")
+    public ResponseEntity<?> deleteMe(Authentication auth) {
+        accountDeletionService.deleteMyAccount(auth);
+        return ResponseEntity.noContent().build();
     }
     // This record class is used to represent the response from the /me endpoint, which includes the user's email, role, first name, and last name. 
     // Inline suggestions suggested making this a record.
-    public record MeResponse(String email, String role, String firstName, String lastName, String availabilityStatus) {}
+    public record MeResponse(String email, String role, String firstName, String lastName, String availabilityStatus, String department) {}
 
 }
 

@@ -2,13 +2,13 @@
 import { computed } from "vue"; // computed is used to create reactive computed properties that automatically update when their dependencies change.
 import { useRoute } from "vue-router";
 import pureLogoUrl from '../assets/SyllabusSyncPureLogo.png'
-import dashboardIconUrl from "../assets/Dashboard.png";
-import myClassesIconUrl from "../assets/My Classes.png";
-import scheduleIconUrl from "../assets/Schedule.png";
-import calendarIconUrl from "../assets/Calandar.png";
-import syllabusUploadIconUrl from "../assets/Syllabus Upload.png";
-import workloadIconUrl from "../assets/Workload.png";
-import officeHoursIconUrl from "../assets/Office Hours.png";
+import dashboardIconUrl from "../assets/Dashboard.svg";
+import myClassesIconUrl from "../assets/My Classes.svg";
+import scheduleIconUrl from "../assets/Schedule.svg";
+import calendarIconUrl from "../assets/Calandar.svg";
+import syllabusUploadIconUrl from "../assets/Syllabus Upload.svg";
+import workloadIconUrl from "../assets/Workload.svg";
+import officeHoursIconUrl from "../assets/Office Hours.svg";
 
 /* props is an object containing role, firstName, and lastName, 
 which have been passed down from the parent component (DashboardLayout) */
@@ -51,7 +51,7 @@ const links = computed(() => {
     ];
 
     if (syllabusImportEnabled) {
-      base.splice(3, 0, { to: "/app/syllabus-upload", label: "Syllabus Upload" });
+      base.push({ to: "/app/syllabus-upload", label: "Syllabus Upload" });
     }
 
     return withIcons(base);
@@ -95,7 +95,7 @@ const isActive = (to) => route.path === to;
         :key="l.to"
         :to="l.to"
         class="link"
-        :class="{ active: isActive(l.to) }"
+        :class="{ active: isActive(l.to), 'link--syllabus': l.to === '/app/syllabus-upload' }"
       >
         <img
           v-if="l.icon"
@@ -191,8 +191,8 @@ const isActive = (to) => route.path === to;
 }
 
 .icon {
-  width: 50px;
-  height: 50px;
+  width: 35px;
+  height: 35px;
   object-fit: contain;
   flex-shrink: 0;
   opacity: 0.9;
@@ -210,5 +210,22 @@ const isActive = (to) => route.path === to;
 
 .active .icon {
   opacity: 1;
+}
+
+/* Make Syllabus Upload stand out */
+.link--syllabus {
+  color: white;
+  background: #2563eb;
+  border: 1px solid transparent;
+}
+
+.link--syllabus:hover {
+  background: #1d4ed8;
+}
+
+.link--syllabus.active {
+  color: white;
+  background: #1d4ed8;
+  border: 1px solid transparent;
 }
 </style>

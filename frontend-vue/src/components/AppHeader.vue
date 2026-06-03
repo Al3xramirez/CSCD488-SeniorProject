@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import notificationIconUrl from "../assets/Notifications.svg";
 
 const router = useRouter();
 
@@ -112,8 +113,6 @@ function relativeTime(iso) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-const roleViewLabel = computed(() => `${roleLabel.value} View`);
-
 function goProfile() {
   router.push("/app/profile");
 }
@@ -182,11 +181,7 @@ onBeforeUnmount(() => {
 
 <template>
   <header class="header">
-    <div class="left">
-      <div class="title-wrap">
-        <div class="role">{{ roleViewLabel }}</div>
-      </div>
-    </div>
+    <div class="left" aria-hidden="true"></div>
 
     <div class="center" aria-hidden="true">
       <div class="brand-text">
@@ -198,8 +193,8 @@ onBeforeUnmount(() => {
     <div class="right">
       <!-- Notification bell -->
       <div class="notif-wrap" ref="bellRef">
-        <button class="icon-btn" title="Notifications" @click="toggleDropdown">
-          🔔
+        <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications" @click="toggleDropdown">
+          <img class="notif-icon" :src="notificationIconUrl" alt="" aria-hidden="true" />
           <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
         </button>
 
@@ -244,7 +239,10 @@ onBeforeUnmount(() => {
           />
         </div>
         <div class="meta">
-          <div class="name">{{ displayName }}</div>
+          <div class="name-row">
+            <div class="name">{{ displayName }}</div>
+            <span class="role-pill">{{ roleLabel }}</span>
+          </div>
           <div class="sub">Profile</div>
         </div>
 
@@ -383,10 +381,6 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
-.title-wrap { display: flex; flex-direction: column; line-height: 1.1; }
-
-.role { margin-top: 4px; font-size: 12px; color: #9ca3af; }
-
 .center {
   position: absolute;
   left: 50%;
@@ -430,7 +424,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+}
+
+.notif-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  opacity: 0.95;
 }
 
 .icon-btn:hover { background: rgba(255,255,255,0.07); }
@@ -582,6 +582,31 @@ onBeforeUnmount(() => {
 .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .avatar-fallback { font-weight: 900; color: #e5e7eb; font-size: 12px; }
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.role-pill {
+  flex: none;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  line-height: 1.1;
+}
 
 .name { font-weight: 800; font-size: 13px; color: #e5e7eb; }
 
