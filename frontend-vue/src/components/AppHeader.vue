@@ -113,8 +113,6 @@ function relativeTime(iso) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-const roleViewLabel = computed(() => `${roleLabel.value} View`);
-
 function goProfile() {
   router.push("/app/profile");
 }
@@ -183,11 +181,7 @@ onBeforeUnmount(() => {
 
 <template>
   <header class="header">
-    <div class="left">
-      <div class="title-wrap">
-        <div class="role">{{ roleViewLabel }}</div>
-      </div>
-    </div>
+    <div class="left" aria-hidden="true"></div>
 
     <div class="center" aria-hidden="true">
       <div class="brand-text">
@@ -245,7 +239,10 @@ onBeforeUnmount(() => {
           />
         </div>
         <div class="meta">
-          <div class="name">{{ displayName }}</div>
+          <div class="name-row">
+            <div class="name">{{ displayName }}</div>
+            <span class="role-pill">{{ roleLabel }}</span>
+          </div>
           <div class="sub">Profile</div>
         </div>
 
@@ -383,10 +380,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
 }
-
-.title-wrap { display: flex; flex-direction: column; line-height: 1.1; }
-
-.role { margin-top: 4px; font-size: 12px; color: #9ca3af; }
 
 .center {
   position: absolute;
@@ -589,6 +582,31 @@ onBeforeUnmount(() => {
 .avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .avatar-fallback { font-weight: 900; color: #e5e7eb; font-size: 12px; }
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.role-pill {
+  flex: none;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  line-height: 1.1;
+}
 
 .name { font-weight: 800; font-size: 13px; color: #e5e7eb; }
 
