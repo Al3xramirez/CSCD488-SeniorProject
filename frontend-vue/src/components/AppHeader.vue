@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import notificationIconUrl from "../assets/Notifications.svg";
 
 const router = useRouter();
 
@@ -198,8 +199,8 @@ onBeforeUnmount(() => {
     <div class="right">
       <!-- Notification bell -->
       <div class="notif-wrap" ref="bellRef">
-        <button class="icon-btn" title="Notifications" @click="toggleDropdown">
-          🔔
+        <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications" @click="toggleDropdown">
+          <img class="notif-icon" :src="notificationIconUrl" alt="" aria-hidden="true" />
           <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
         </button>
 
@@ -430,7 +431,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+}
+
+.notif-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+  opacity: 0.95;
 }
 
 .icon-btn:hover { background: rgba(255,255,255,0.07); }

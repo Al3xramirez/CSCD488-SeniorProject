@@ -1,6 +1,8 @@
 <script setup>
 import { useRouter } from "vue-router";
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import notificationIconUrl from "../assets/Notifications.svg";
+import availabilityIconUrl from "../assets/Availability.svg";
 const router = useRouter();
 
 // --------- Student profile retrieval ----------
@@ -308,7 +310,10 @@ async function logout() {
       </section>
 
       <section class="card card-compact">
-        <h2>Availability</h2>
+        <h2 class="h2-with-icon">
+          <img class="h2-icon" :src="availabilityIconUrl" alt="" aria-hidden="true" />
+          <span>Availability</span>
+        </h2>
         <div class="field">
           <div class="label">Status</div>
           <div class="value availability-value">
@@ -356,7 +361,10 @@ async function logout() {
       </section>
 
       <section class="card">
-        <h2>Notification Preferences</h2>
+        <h2 class="h2-with-icon">
+          <img class="h2-icon" :src="notificationIconUrl" alt="" aria-hidden="true" />
+          <span>Notification Preferences</span>
+        </h2>
 
         <label class="check">
           <input v-model="prefEmailMeetingRequests" type="checkbox" />
@@ -371,7 +379,7 @@ async function logout() {
         <div v-if="prefSaved" class="muted">{{ prefSaved }}</div>
       </section>
 
-      <section class="card wide">
+      <section class="card">
         <h2>Joined Classes</h2>
         <p v-if="classesLoading?.value" class="muted">Loading…</p>
         <p v-else-if="classesError?.value" class="muted">{{ classesError.value }}</p>
@@ -442,6 +450,19 @@ async function logout() {
 h1 {
   margin: 0;
   font-size: 22px;
+}
+
+.h2-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.h2-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  opacity: 0.95;
 }
 
 .grid {
