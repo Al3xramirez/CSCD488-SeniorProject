@@ -26,7 +26,7 @@ jobs:
       - name: Install and build Vue
         working-directory: frontend-vue
         env:
-          VITE_SYLLABUS_IMPORT_ENABLED: "false"
+          VITE_SYLLABUS_IMPORT_ENABLED: "true"
         run: |
           npm ci
           npm run build
@@ -113,7 +113,7 @@ jobs:
             echo "Resolved resource group: $RG"
             az webapp config appsettings set --name "$APP_NAME" --resource-group "$RG" --settings SYLLABUS_IMPORT_ENABLED="$SYLLABUS_IMPORT_ENABLED"
         env:
-          SYLLABUS_IMPORT_ENABLED: "false"
+          SYLLABUS_IMPORT_ENABLED: "true"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
