@@ -2,6 +2,13 @@
 import { computed } from "vue"; // computed is used to create reactive computed properties that automatically update when their dependencies change.
 import { useRoute } from "vue-router";
 import pureLogoUrl from '../assets/SyllabusSyncPureLogo.png'
+import dashboardIconUrl from "../assets/Dashboard.svg";
+import myClassesIconUrl from "../assets/My Classes.svg";
+import scheduleIconUrl from "../assets/Schedule.svg";
+import calendarIconUrl from "../assets/Calandar.svg";
+import syllabusUploadIconUrl from "../assets/Syllabus Upload.svg";
+import workloadIconUrl from "../assets/Workload.svg";
+import officeHoursIconUrl from "../assets/Office Hours.svg";
 
 /* props is an object containing role, firstName, and lastName, 
 which have been passed down from the parent component (DashboardLayout) */
@@ -18,44 +25,55 @@ const normalizedRole = computed(() => (props.role || "STUDENT").trim().toUpperCa
 
 const syllabusImportEnabled = (import.meta.env.VITE_SYLLABUS_IMPORT_ENABLED || "true").toString().toLowerCase() !== "false";
 
+const iconByRoute = {
+  "/app": dashboardIconUrl,
+  "/app/classes": myClassesIconUrl,
+  "/app/meetings": scheduleIconUrl,
+  "/app/calendar": calendarIconUrl,
+  "/app/syllabus-upload": syllabusUploadIconUrl,
+  "/app/workload-projections": workloadIconUrl,
+  "/app/office-hours": officeHoursIconUrl,
+};
+
+const withIcons = (items) =>
+  items.map((item) => ({
+    ...item,
+    icon: iconByRoute[item.to] || null,
+  }));
+
 const links = computed(() => {
   if (normalizedRole.value === 'PROFESSOR') {
     const base = [
       { to: "/app", label: "Dashboard" },
       { to: "/app/classes", label: "My Classes" },
-      { to: "/app/meetings", label: "Meeting Times" },
+      { to: "/app/meetings", label: "Schedule" },
       { to: "/app/calendar", label: "Calendar" },
-      { to: "/app/workload-projections", label: "Workload Projections" },
-      { to: "/app/my-office-hours", label: "My Office Hours" },
     ];
 
     if (syllabusImportEnabled) {
-      base.splice(4, 0, { to: "/app/syllabus-upload", label: "Syllabus Upload" });
+      base.push({ to: "/app/syllabus-upload", label: "Syllabus Upload" });
     }
 
-    return base;
+    return withIcons(base);
   }
 
   if (normalizedRole.value === 'TA') {
-    return [
+    return withIcons([
       { to: "/app", label: "Dashboard" },
       { to: "/app/classes", label: "My Classes" },
-      { to: "/app/meetings", label: "Meeting Times" },
+      { to: "/app/meetings", label: "Schedule" },
       { to: "/app/calendar", label: "Calendar" },
-      { to: "/app/workload-projections", label: "Workload Projections" },
-      { to: "/app/my-office-hours", label: "My Office Hours" },
-    ];
+    ]);
   }
 
   // STUDENT (default)
-  return [
+  return withIcons([
     { to: "/app", label: "Dashboard" },
     { to: "/app/classes", label: "My Classes" },
-    { to: "/app/meetings", label: "Meeting Times" },
     { to: "/app/calendar", label: "Calendar" },
     { to: "/app/workload-projections", label: "Workload Projections" },
     { to: "/app/office-hours", label: "Office Hours" },
-  ];
+  ]);
 });
 
 const isActive = (to) => route.path === to;
@@ -77,9 +95,16 @@ const isActive = (to) => route.path === to;
         :key="l.to"
         :to="l.to"
         class="link"
-        :class="{ active: isActive(l.to) }"
+        :class="{ active: isActive(l.to), 'link--syllabus': l.to === '/app/syllabus-upload' }"
       >
-        <span class="dot" />
+        <img
+          v-if="l.icon"
+          class="icon"
+          :src="l.icon"
+          alt=""
+          aria-hidden="true"
+        />
+        <span v-else class="dot" />
         <span class="label">{{ l.label }}</span>
       </router-link>
     </nav>
@@ -165,6 +190,14 @@ const isActive = (to) => route.path === to;
   flex-shrink: 0;
 }
 
+.icon {
+  width: 35px;
+  height: 35px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
 .active {
   color: white;
   background: rgba(37, 99, 235, 0.22);
@@ -173,5 +206,26 @@ const isActive = (to) => route.path === to;
 
 .active .dot {
   background: #60a5fa;
+}
+
+.active .icon {
+  opacity: 1;
+}
+
+/* Make Syllabus Upload stand out */
+.link--syllabus {
+  color: white;
+  background: #2563eb;
+  border: 1px solid transparent;
+}
+
+.link--syllabus:hover {
+  background: #1d4ed8;
+}
+
+.link--syllabus.active {
+  color: white;
+  background: #1d4ed8;
+  border: 1px solid transparent;
 }
 </style>

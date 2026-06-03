@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useMe } from "../composables/useMe.js";
+import TimePicker from "../components/TimePicker.vue";
 
 const { isTA, isProfessor } = useMe();
 
@@ -13,15 +14,24 @@ const WEEK_DAYS = [
 ];
 
 const showModal = ref(false);
-const weekTemplate = ref(WEEK_DAYS.map(d => ({ ...d, enabled: true, start: "", end: "" })));
+const weekTemplate = ref(WEEK_DAYS.map(d => ({ ...d, enabled: true, start: "09:00", end: "10:00" })));
 const templateQuarter = ref("Fall");
 const templateYear = ref(new Date().getFullYear());
 const saveLoading = ref(false);
 const saveError = ref("");
 
+const SCHED_DAY_ORDER = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
 const schedule = ref([]);
 const scheduleLoading = ref(false);
 const scheduleError = ref("");
+const sortedSchedule = computed(() =>
+  [...schedule.value].sort((a, b) => {
+    const di = SCHED_DAY_ORDER.indexOf(a.dayOfWeek) - SCHED_DAY_ORDER.indexOf(b.dayOfWeek);
+    if (di !== 0) return di;
+    return (a.startTime ?? '').localeCompare(b.startTime ?? '');
+  })
+);
 
 const exceptions = ref([]);
 const exceptionsLoading = ref(false);
@@ -344,7 +354,7 @@ async function selectImportQuarter(qGroup) {
       enabled: hasParsed ? parsedDays.includes(d.day) : true,
       slots: hasParsed && parsedDays.includes(d.day)
         ? parsedTimes.map(t => ({ start: t.start, end: t.end }))
-        : [{ start: "", end: "" }],
+        : [{ start: "09:00", end: "10:00" }],
     }));
 
     importStep.value = "review";
@@ -435,7 +445,7 @@ onMounted(() => Promise.all([loadSchedule(), loadExceptions()]));
         <div v-else-if="scheduleLoading" class="muted">Loading…</div>
         <div v-else-if="!schedule.length" class="muted">No schedule posted yet. Use "Add Schedule" to get started.</div>
         <div v-else class="block-list">
-          <div v-for="b in schedule" :key="b.id" class="block-row">
+          <div v-for="b in sortedSchedule" :key="b.id" class="block-row">
             <div class="block-day">{{ DAY_LABELS[b.dayOfWeek] ?? b.dayOfWeek }}</div>
             <div class="block-time">{{ fmtTime(b.startTime) }} – {{ fmtTime(b.endTime) }}</div>
             <div class="block-meta">{{ b.quarter }} {{ b.year }}</div>
@@ -579,9 +589,9 @@ onMounted(() => Promise.all([loadSchedule(), loadExceptions()]));
 
               <template v-if="row.enabled">
                 <div v-for="(slot, i) in row.slots" :key="i" class="slot-row">
-                  <input v-model="slot.start" class="input time-input" type="time" />
+                  <TimePicker v-model="slot.start" />
                   <span class="to-sep">to</span>
-                  <input v-model="slot.end" class="input time-input" type="time" />
+                  <TimePicker v-model="slot.end" />
                 </div>
               </template>
               <span v-else class="unavailable-label">Not available</span>
@@ -627,24 +637,24 @@ onMounted(() => Promise.all([loadSchedule(), loadExceptions()]));
             class="day-row"
             :class="{ disabled: !row.enabled }"
           >
-            <button
-              class="day-toggle"
-              :class="{ active: row.enabled }"
-              type="button"
-              :aria-label="row.enabled ? `Disable ${row.label}` : `Enable ${row.label}`"
-              @click="row.enabled = !row.enabled"
-            >
-              <span class="toggle-dot" />
-            </button>
-
-            <span class="day-label">{{ row.label }}</span>
-
-            <template v-if="row.enabled">
-              <input v-model="row.start" class="input time-input" type="time" />
+            <div class="day-row-header">
+              <button
+                class="day-toggle"
+                :class="{ active: row.enabled }"
+                type="button"
+                :aria-label="row.enabled ? `Disable ${row.label}` : `Enable ${row.label}`"
+                @click="row.enabled = !row.enabled"
+              >
+                <span class="toggle-dot" />
+              </button>
+              <span class="day-label">{{ row.label }}</span>
+              <span v-if="!row.enabled" class="unavailable-label">Not available</span>
+            </div>
+            <div v-if="row.enabled" class="time-range">
+              <TimePicker v-model="row.start" />
               <span class="to-sep">to</span>
-              <input v-model="row.end" class="input time-input" type="time" />
-            </template>
-            <span v-else class="unavailable-label">Not available</span>
+              <TimePicker v-model="row.end" />
+            </div>
           </div>
         </div>
 
@@ -921,15 +931,27 @@ h3 { margin: 0; font-size: 16px; }
 }
 
 .day-row {
-  display: grid;
-  grid-template-columns: 38px 110px 1fr auto 1fr;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 14px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.day-row-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.time-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 42px;
 }
 
 .day-row.disabled {

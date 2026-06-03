@@ -11,7 +11,10 @@ const role = computed(() => {
   return (r || "STUDENT").toString().trim().toUpperCase();
 });
 const isProfessor = computed(() => role.value === "PROFESSOR");
-const isStudentView = computed(() => !isProfessor.value);
+const isTA = computed(() => role.value === "TA");
+const isStudent = computed(() => role.value === "STUDENT");
+const canViewStaff = computed(() => !isProfessor.value); // students + TAs
+const canViewRoster = computed(() => isProfessor.value || isTA.value);
 
 const route = useRoute();
 const router = useRouter();
@@ -129,7 +132,7 @@ function statusDotClass(u) {
 // including their availability status and profile photos.
 
 async function loadStaff() {
-  if (!joinCode.value || !isStudentView.value) return;
+  if (!joinCode.value || !canViewStaff.value) return;
 
   staffUsers.value = [];
   staffError.value = "";
@@ -170,7 +173,7 @@ async function loadStaff() {
 }
 
 async function loadRoster() {
-  if (!isProfessor.value || !joinCode.value) return;
+  if (!canViewRoster.value || !joinCode.value) return;
 
   rosterUsers.value = [];
   rosterError.value = "";
@@ -291,7 +294,7 @@ watch(joinCode, async () => {
 
     <div v-if="error" class="alert">{{ error }}</div>
 
-    <template v-if="isStudentView">
+    <template v-if="!isProfessor">
       <div class="section">
         <div class="section-title">Professor &amp; TAs</div>
 
@@ -316,6 +319,37 @@ watch(joinCode, async () => {
               <div>
                 <div class="roster-row__name">{{ u.firstName }} {{ u.lastName }}</div>
                 <div class="roster-row__role">{{ (u.role || '').toString().toUpperCase() }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="isTA" class="section">
+        <div class="section-title">Enrolled Students</div>
+
+        <div v-if="rosterError" class="alert">{{ rosterError }}</div>
+        <div v-else-if="rosterLoading" class="muted">Loading roster…</div>
+
+        <div v-else class="roster">
+          <div v-if="!rosterStudents.length" class="muted">No students enrolled yet.</div>
+
+          <div v-else class="roster-section">
+            <div class="roster-section__title">Students</div>
+            <div class="roster-list">
+              <div v-for="u in rosterStudents" :key="u.userId" class="roster-row">
+                <div class="avatar">
+                  <img
+                    v-if="!photoFailed[u.userId]"
+                    class="avatar__img"
+                    :src="rosterPhotoUrl(u.userId)"
+                    alt=""
+                    @error="markPhotoFailed(u.userId)"
+                  />
+                  <div v-else class="avatar__fallback" aria-hidden="true">{{ initials(u) }}</div>
+                </div>
+                <div class="roster-row__name">{{ u.firstName }} {{ u.lastName }}</div>
+                <div class="roster-row__role">Student</div>
               </div>
             </div>
           </div>

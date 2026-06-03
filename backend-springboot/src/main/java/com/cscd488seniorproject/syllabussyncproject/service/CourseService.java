@@ -72,10 +72,25 @@ public class CourseService {
         } else {
             courses = courseRepo.findCoursesEnrolledBy(me.getUserId());
         }
-        //returns a list of ClassSummaryDTOs 
-        return courses.stream()
-                .map(c -> new ClassSummaryDTO(c.getClassCode(), c.getQuarter(), c.getYear(), c.getTitle(), c.getJoinCode()))
-                .toList();
+
+        // For professors, they are the instructor; for students/TAs, look up the instructor per course
+        String myFullName = me.getFirstName() + " " + me.getLastName();
+        return courses.stream().map(c -> {
+            String instructorName;
+            if (role.equals("PROFESSOR")) {
+                instructorName = myFullName;
+            } else {
+                instructorName = teachesRepo
+                        .findAllByClassCodeAndQuarterAndYear(c.getClassCode(), c.getQuarter(), c.getYear())
+                        .stream()
+                        .map(t -> userRepo.findById(t.getUserId()).orElse(null))
+                        .filter(u -> u != null)
+                        .map(u -> u.getFirstName() + " " + u.getLastName())
+                        .findFirst()
+                        .orElse(null);
+            }
+            return new ClassSummaryDTO(c.getClassCode(), c.getQuarter(), c.getYear(), c.getTitle(), c.getJoinCode(), instructorName);
+        }).toList();
     }
 
     /* createClass allows a professor to create a new class with the specified details. 
@@ -161,15 +176,16 @@ public class CourseService {
     // It checks if the user is a professor for that class and then returns a list of StudentSummaryDTOs representing the enrolled students.
     public List<StudentSummaryDTO> getRosterByJoinCode(String email, String joinCodeRaw) {
         UserAccountEntity me = requireUserByEmail(email);
-        requireRole(me, Set.of("PROFESSOR"));
 
         String joinCode = normalizeRequired(joinCodeRaw, "joinCode");
         CourseEntity course = courseRepo.findByJoinCode(joinCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
 
         boolean teaches = teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
-                me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
-        if (!teaches) {
+            me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        boolean isTa = taRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+            me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!teaches && !isTa) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to view roster for this class");
         }
 
@@ -260,7 +276,6 @@ public class CourseService {
     @Transactional(readOnly = true)
     public PhotoPayload getRosterUserPhoto(String email, String joinCodeRaw, String userIdRaw) {
         UserAccountEntity me = requireUserByEmail(email);
-        requireRole(me, Set.of("PROFESSOR"));
 
         String joinCode = normalizeRequired(joinCodeRaw, "joinCode");
         String userId = normalizeRequired(userIdRaw, "userId");
@@ -269,8 +284,10 @@ public class CourseService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid join code"));
 
         boolean teaches = teachesRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
-                me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
-        if (!teaches) {
+            me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        boolean isTaForClass = taRepo.existsByUserIdAndClassCodeAndQuarterAndYear(
+            me.getUserId(), course.getClassCode(), course.getQuarter(), course.getYear());
+        if (!teaches && !isTaForClass) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed to view roster for this class");
         }
 

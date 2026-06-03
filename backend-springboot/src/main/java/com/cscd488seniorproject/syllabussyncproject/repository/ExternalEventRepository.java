@@ -19,6 +19,8 @@ public interface ExternalEventRepository extends JpaRepository<ExternalEventEnti
 
     List<ExternalEventEntity> findBySubscription_SubscriptionIdAndIsCancelledFalse(Long subscriptionId);
 
+    void deleteBySubscription_SubscriptionId(Long subscriptionId);
+
     @Query("""
     select e
     from ExternalEventEntity e

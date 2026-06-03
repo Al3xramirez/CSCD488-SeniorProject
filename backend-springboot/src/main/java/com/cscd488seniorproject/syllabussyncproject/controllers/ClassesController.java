@@ -52,14 +52,14 @@ public class ClassesController {
         return ResponseEntity.ok(courseService.joinClassByCode(email, joinCode));
     }
     
-    // Get the roster of a class by its join code (professors only). This gets the names of students
+    // Get the roster of a class by its join code (professors + assigned TAs).
     @GetMapping("/{joinCode}/students")
     public ResponseEntity<List<StudentSummaryDTO>> students(Authentication auth, @PathVariable String joinCode) {
         String email = auth == null ? null : auth.getName();
         return ResponseEntity.ok(courseService.getRosterByJoinCode(email, joinCode));
     }
 
-    // Get an enrolled user's profile photo for a class (professors only). This gets the profile photo of students
+    // Get an enrolled user's profile photo for a class (professors + assigned TAs).
     @GetMapping("/{joinCode}/users/{userId}/photo")
     public ResponseEntity<byte[]> rosterUserPhoto(Authentication auth, @PathVariable String joinCode, @PathVariable String userId) {
         String email = auth == null ? null : auth.getName();

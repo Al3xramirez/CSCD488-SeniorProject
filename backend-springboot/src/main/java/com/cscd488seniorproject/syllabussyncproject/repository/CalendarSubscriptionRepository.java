@@ -10,6 +10,8 @@ public interface CalendarSubscriptionRepository extends JpaRepository<CalendarSu
 
     Optional<CalendarSubscriptionEntity> findByUserIdAndProvider(String userId, String provider);
 
+    List<CalendarSubscriptionEntity> findByUserId(String userId);
+
     List<CalendarSubscriptionEntity> findByUserIdAndIsEnabledTrue(String userId);
 
     List<CalendarSubscriptionEntity> findByIsEnabledTrue();

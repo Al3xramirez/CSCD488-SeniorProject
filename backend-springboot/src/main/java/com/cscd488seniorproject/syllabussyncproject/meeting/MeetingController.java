@@ -3,6 +3,8 @@ package com.cscd488seniorproject.syllabussyncproject.meeting;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.cscd488seniorproject.syllabussyncproject.emailMeetingNotifications.EmailService;
+import com.cscd488seniorproject.syllabussyncproject.notification.NotificationService;
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
 import com.cscd488seniorproject.syllabussyncproject.entity.CourseEntity;
 import com.cscd488seniorproject.syllabussyncproject.entity.CourseId;
@@ -25,6 +27,12 @@ public class MeetingController {
 
     @Autowired
     private MeetingService meetingService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Autowired
     private UserAccountRepository userAccountRepository;
@@ -54,6 +62,8 @@ public class MeetingController {
         meeting.setNotes(request.getNotes());
         
         MeetingEntity createdMeeting = meetingService.createMeeting(meeting);
+        try { notificationService.saveMeetingRequestNotification(createdMeeting); }
+        catch (Exception e) { System.err.println("Notification failed on create: " + e.getMessage()); }
         return ResponseEntity.ok(createdMeeting);
     }
 
@@ -116,7 +126,15 @@ public class MeetingController {
     }
 
     @DeleteMapping("/meetings/{meetingId}")
-    public ResponseEntity<Void> deleteMeeting(@PathVariable Long meetingId) {
+    public ResponseEntity<Void> deleteMeeting(@PathVariable Long meetingId, Authentication auth) {
+        MeetingEntity toDelete = meetingService.getMeetingById(meetingId).orElse(null);
+        if (toDelete == null) return ResponseEntity.notFound().build();
+        if (auth == null || !auth.getName().equals(toDelete.getRecipientId()))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        meetingService.getMeetingById(meetingId).ifPresent(meeting -> {
+            try { emailService.sendMeetingStatusNotification(meeting, "DECLINED"); } catch (Exception e) { System.err.println("Email failed on decline: " + e.getMessage()); }
+            try { notificationService.saveMeetingDeclinedNotification(meeting); } catch (Exception e) { System.err.println("Notification failed on decline: " + e.getMessage()); }
+        });
         meetingService.deleteMeeting(meetingId);
         return ResponseEntity.noContent().build();
     }
@@ -124,10 +142,19 @@ public class MeetingController {
     @PatchMapping("/meetings/{meetingId}/status")
     public ResponseEntity<MeetingEntity> updateMeetingStatus(
             @PathVariable Long meetingId,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            Authentication auth) {
         String status = body.get("status");
         if (status == null) return ResponseEntity.badRequest().build();
+        MeetingEntity existing = meetingService.getMeetingById(meetingId).orElse(null);
+        if (existing == null) return ResponseEntity.notFound().build();
+        if (auth == null || !auth.getName().equals(existing.getRecipientId()))
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         MeetingEntity updated = meetingService.updateMeetingStatus(meetingId, status);
+        if (updated != null) {
+            try { emailService.sendMeetingStatusNotification(updated, status); } catch (Exception e) { System.err.println("Email failed on status update: " + e.getMessage()); }
+            try { notificationService.saveMeetingConfirmedNotification(updated); } catch (Exception e) { System.err.println("Notification failed on confirm: " + e.getMessage()); }
+        }
         return updated != null ? ResponseEntity.ok(updated) : ResponseEntity.notFound().build();
     }
 
