@@ -101,6 +101,7 @@ const TYPE_SYNONYMS = {
   quiz: ["quiz", "quizzes"],
   exam: ["exam", "midterm", "final", "test"],
   project: ["project", "milestone"],
+  presentation: ["presentation", "presentations", "powerpoint", "ppt", "slides"],
   lab: ["lab", "labs"],
   discussion: ["discussion", "discussion post"],
   reading: ["reading", "read"],
