@@ -83,6 +83,32 @@ const selectedDayHasAnything = computed(() =>
   selectedDatedEvents.value.length > 0 || selectedOH.value.length > 0
 );
 
+const agendaHeader = computed(() => {
+  const todayYmd = toYmd(new Date());
+  if (selectedDay.value === todayYmd) return "Today's Schedule";
+
+  const d = new Date(selectedDay.value + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return "Schedule";
+  const pretty = d.toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  return `Schedule for ${pretty}`;
+});
+
+function ohCountForDate(d) {
+  const dow = DOW[d.getDay()];
+  let count = 0;
+  for (const person of officeHours.value) {
+    for (const block of person.schedule ?? []) {
+      if (block.dayOfWeek === dow) count++;
+    }
+  }
+  return count;
+}
+
 // ── Data fetching ─────────────────────────────────────────────────────────
 async function fetchCanvasEvents() {
   error.value = "";
@@ -285,15 +311,16 @@ const OH_DAY_LABEL = { MON:"Monday", TUE:"Tuesday", WED:"Wednesday", THU:"Thursd
               @click="selectedDay = toYmd(d)"
             >
               <div class="num">{{ d.getDate() }}</div>
-              <div class="dots" v-if="eventsByDay.get(toYmd(d))">
+              <div class="dots" v-if="eventsByDay.get(toYmd(d)) || ohCountForDate(d)">
                 <span
-                  v-for="(e, i) in eventsByDay.get(toYmd(d)).slice(0,3)"
+                  v-for="(e, i) in (eventsByDay.get(toYmd(d)) || []).slice(0,3)"
                   :key="i"
                   class="dot"
                   :class="`dot-${e.eventType}`"
                 />
-                <span v-if="eventsByDay.get(toYmd(d)).length > 3" class="dot-more">
-                  +{{ eventsByDay.get(toYmd(d)).length - 3 }}
+                <span v-if="ohCountForDate(d)" class="dot dot-oh" title="Office hours" />
+                <span v-if="(eventsByDay.get(toYmd(d)) || []).length > 3" class="dot-more">
+                  +{{ (eventsByDay.get(toYmd(d)) || []).length - 3 }}
                 </span>
               </div>
             </button>
@@ -311,7 +338,7 @@ const OH_DAY_LABEL = { MON:"Monday", TUE:"Tuesday", WED:"Wednesday", THU:"Thursd
         <!-- Day agenda (right) -->
         <div class="right">
           <div class="agenda-head">
-            <div class="agenda-title">{{ selectedDay }}</div>
+            <div class="agenda-title">{{ agendaHeader }}</div>
             <div class="agenda-sub muted">
               {{ selectedDatedEvents.length }} event{{ selectedDatedEvents.length === 1 ? '' : 's' }}
               <template v-if="selectedOH.length"> · {{ selectedOH.length }} office hour{{ selectedOH.length === 1 ? '' : 's' }}</template>
@@ -485,6 +512,7 @@ input:focus { border-color: rgba(96,165,250,0.7); box-shadow: 0 0 0 3px rgba(37,
 .dot-canvas  { background: #34d399; }
 .dot-class   { background: #60a5fa; }
 .dot-meeting { background: #a78bfa; }
+.dot-oh      { background: #2dd4bf; }
 
 .dot-more {
   font-size: 10px;

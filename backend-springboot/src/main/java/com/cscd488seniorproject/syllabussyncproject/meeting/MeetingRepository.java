@@ -25,6 +25,8 @@ public interface MeetingRepository extends JpaRepository<MeetingEntity, Long> {
     List<MeetingEntity> findByRecipientIdAndMeetingDate(String recipientId, LocalDate meetingDate);
     List<MeetingEntity> findAllByOrderByMeetingDateAscStartTimeAsc();
 
+    long deleteByRequesterIdOrRecipientId(String requesterId, String recipientId);
+
     @Query("SELECT m FROM MeetingEntity m WHERE m.classCode = :classCode AND (m.recipientId IS NULL OR m.recipientId = '') ORDER BY m.meetingDate ASC, m.startTime ASC")
     List<MeetingEntity> findClassWideMeetingsByClassCode(@Param("classCode") String classCode);
 }

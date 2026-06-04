@@ -9,4 +9,6 @@ public interface EmailNotificationRepository extends JpaRepository<EmailNotifica
     List<EmailNotificationEntity> findByStatus(EmailNotificationEntity.NotificationStatus status);
     List<EmailNotificationEntity> findByMeetingId(Long meetingId);
     List<EmailNotificationEntity> findByRecipientEmail(String recipientEmail);
+
+    long deleteByRecipientEmail(String recipientEmail);
 }

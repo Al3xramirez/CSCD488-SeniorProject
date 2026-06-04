@@ -2,6 +2,8 @@ package com.cscd488seniorproject.syllabussyncproject.service;
 
 import com.cscd488seniorproject.syllabussyncproject.entity.CalendarSubscriptionEntity;
 import com.cscd488seniorproject.syllabussyncproject.entity.UserAccountEntity;
+import com.cscd488seniorproject.syllabussyncproject.emailMeetingNotifications.EmailNotificationRepository;
+import com.cscd488seniorproject.syllabussyncproject.meeting.MeetingRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.AssistsRelationRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.CalendarSubscriptionRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.ClassEnrollmentRepository;
@@ -12,6 +14,7 @@ import com.cscd488seniorproject.syllabussyncproject.repository.OfficeHoursSchedu
 import com.cscd488seniorproject.syllabussyncproject.repository.TARelationRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.TeachesRelationRepository;
 import com.cscd488seniorproject.syllabussyncproject.repository.UserAccountRepository;
+import com.cscd488seniorproject.syllabussyncproject.notification.NotificationRepository;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.http.HttpStatus;
@@ -33,6 +36,9 @@ public class AccountDeletionService {
     private final OfficeHoursExceptionRepository officeHoursExceptionRepo;
     private final CalendarSubscriptionRepository calendarSubscriptionRepo;
     private final ExternalEventRepository externalEventRepo;
+    private final MeetingRepository meetingRepo;
+    private final NotificationRepository notificationRepo;
+    private final EmailNotificationRepository emailNotificationRepo;
 
     public AccountDeletionService(
         UserAccountRepository userRepo,
@@ -44,7 +50,10 @@ public class AccountDeletionService {
         OfficeHoursScheduleRepository officeHoursScheduleRepo,
         OfficeHoursExceptionRepository officeHoursExceptionRepo,
         CalendarSubscriptionRepository calendarSubscriptionRepo,
-        ExternalEventRepository externalEventRepo
+        ExternalEventRepository externalEventRepo,
+        MeetingRepository meetingRepo,
+        NotificationRepository notificationRepo,
+        EmailNotificationRepository emailNotificationRepo
     ) {
         this.userRepo = userRepo;
         this.classEnrollmentRepo = classEnrollmentRepo;
@@ -56,12 +65,16 @@ public class AccountDeletionService {
         this.officeHoursExceptionRepo = officeHoursExceptionRepo;
         this.calendarSubscriptionRepo = calendarSubscriptionRepo;
         this.externalEventRepo = externalEventRepo;
+        this.meetingRepo = meetingRepo;
+        this.notificationRepo = notificationRepo;
+        this.emailNotificationRepo = emailNotificationRepo;
     }
 
     @Transactional
     public void deleteMyAccount(Authentication auth) {
         UserAccountEntity me = requireUser(auth);
         String userId = me.getUserId();
+        String email = me.getEmail() == null ? "" : me.getEmail().trim().toLowerCase(Locale.ROOT);
 
         // External calendar data
         List<CalendarSubscriptionEntity> subs = calendarSubscriptionRepo.findByUserId(userId);
@@ -86,6 +99,13 @@ public class AccountDeletionService {
         taRelationRepo.deleteAll(taRelationRepo.findAllByUserId(userId));
         teachesRelationRepo.deleteAll(teachesRelationRepo.findAllByUserId(userId));
         assistsRelationRepo.deleteAll(assistsRelationRepo.findByUserId(userId));
+
+        // Email-keyed rows (so recreating the same email starts clean)
+        if (!email.isBlank()) {
+            meetingRepo.deleteByRequesterIdOrRecipientId(email, email);
+            notificationRepo.deleteByRecipientEmail(email);
+            emailNotificationRepo.deleteByRecipientEmail(email);
+        }
 
         userRepo.delete(me);
     }
