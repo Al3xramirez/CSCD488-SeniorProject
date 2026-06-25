@@ -1,9 +1,9 @@
 <script setup>
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import AlejandroPFP from "../assets/Alejandro PFP.png";
 import BenPFP from "../assets/Ben PFP.png";
 import RaulPFP from "../assets/Raul PFP.jpg";
+import AlejandroPFP from "../assets/alePFP.jpg";
 
 import wordmarkUrl from "../assets/SyllabusSyncLogoLettering.png";
 
@@ -55,8 +55,8 @@ const teamMembers = [
   },
   {
     name: "Alejandro Ramirez",
-    role: "Role / Focus",
-    summary: "Short summary",
+    role: "Role: Cloud/DevOps & Workload Projections",
+    summary: "Hello Everyone. My name is Alejandro, I'm a recent CS graduate at Eastern Washington University. I've dabbled in a lot of things during my studies at EWU, but some of the things that have stuck with me the most were Java, working with Unity and VR implementation, Vue website building, OpenGL with C++, and most recently, DevOps using Web App deployment, DB configuration, and CI/CD with Azure Services. I'm always willing to try and learn about the next piece of technology that comes my way, and I hope to continue to grow as a developer in the future.",
     photo: AlejandroPFP,
   },
 ];
