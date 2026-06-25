@@ -408,4 +408,40 @@ public class MeetingController {
         }
         return ResponseEntity.notFound().build();
     }
+
+    /*
+     * DELETE /api/classes/{classCode}/class-meetings/{meetingId}
+     * Deletes a class-wide meeting. Only a professor of the class may delete class-wide meetings.
+     */
+    @DeleteMapping("/classes/{classCode}/class-meetings/{meetingId}")
+    public ResponseEntity<Void> deleteClassMeeting(@PathVariable String classCode, @PathVariable Long meetingId, Authentication auth) {
+        // Check if the user is authenticated
+        if (auth == null || !auth.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        // Check if the meeting exists
+        Optional<MeetingEntity> opt = meetingService.getMeetingById(meetingId);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        MeetingEntity toDelete = opt.get();
+
+        // verify that meeting belongs to the classCode
+        if (toDelete.getClassCode() == null || !toDelete.getClassCode().equals(classCode)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        // Get the authenticated user's email and find their UserID
+        String userEmail = auth.getName();
+        Optional<UserAccountEntity> userOpt = userAccountRepository.findByEmail(userEmail);
+        if (userOpt.isEmpty()) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        String userId = userOpt.get().getUserId();
+
+        // Only a professor/teacher of the class may delete class-wide meetings
+        boolean isTeacher = teachesRelationRepository.existsByUserIdAndClassCodeAndQuarterAndYear(
+            userId, toDelete.getClassCode(), toDelete.getQuarter(), toDelete.getYear());
+        if (!isTeacher) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
+        meetingService.deleteMeeting(meetingId);
+        return ResponseEntity.noContent().build();
+    }
+
 }

@@ -122,11 +122,11 @@ public class MeetingEntity {
         this.endTime = endTime;
     }
 
-    public String getStatus() {  // ✅ ADD THIS
+    public String getStatus() {  
         return status;
     }
 
-    public void setStatus(String status) {  // ✅ ADD THIS
+    public void setStatus(String status) { 
         this.status = status;
     }
 

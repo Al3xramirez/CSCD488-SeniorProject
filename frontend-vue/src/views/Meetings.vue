@@ -6,6 +6,7 @@ import MyOfficeHours from './MyOfficeHours.vue';
 const me = inject('me', null);
 const role = computed(() => (me?.value?.role || 'STUDENT').toString().trim().toUpperCase());
 const isProfessor = computed(() => role.value === 'PROFESSOR');
+const isTA = computed(() => role.value === 'TA');
 
 // ── Class selection ────────────────────────────────────────────────────────
 const myClasses = ref([]);
@@ -147,6 +148,27 @@ function onMeetingsCreated() {
   if (selectedClass.value) fetchClassMeetings(selectedClass.value.classCode);
   fetchMyMeetings();
 }
+async function deleteClassMeeting(m) {
+  if (!selectedClass.value) return;
+  if (!confirm('Delete this class meeting?')) return;
+  try {
+    const res = await fetch(`/api/classes/${selectedClass.value.classCode}/class-meetings/${m.meetingId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (res.ok) {
+      fetchClassMeetings(selectedClass.value.classCode);
+      fetchMyMeetings();
+    } else {
+      const txt = await res.text();
+      console.error('Delete class meeting failed:', txt);
+      alert('Failed to delete meeting: ' + txt);
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Failed to delete meeting');
+  }
+}
 
 // ── Watchers & mount ───────────────────────────────────────────────────────
 watch(selectedJoinCode, () => {
@@ -154,7 +176,9 @@ watch(selectedJoinCode, () => {
   const cls = selectedClass.value;
   if (!cls) return;
   fetchClassMeetings(cls.classCode);
-  fetchOfficeHours(cls.classCode);
+  if (!isProfessor.value && !isTA.value) {
+    fetchOfficeHours(cls.classCode);
+  }
 });
 
 onMounted(async () => {
@@ -450,6 +474,9 @@ async function submitMeetingRequest() {
               <span class="upcoming-date">{{ fmtDate(m.meetingDate) }}</span>
               <span class="upcoming-time">{{ fmtTime(m.startTime) }} – {{ fmtTime(m.endTime) }}</span>
               <span v-if="m.notes" class="upcoming-notes">{{ m.notes }}</span>
+              <div style="margin-left:auto; display:flex; gap:8px;">
+                <button v-if="isProfessor" class="btn-ghost" @click="deleteClassMeeting(m)">Delete</button>
+              </div>
             </div>
           </div>
         </template>
@@ -459,8 +486,8 @@ async function submitMeetingRequest() {
         </div>
       </section>
 
-      <!-- ── Office Hours ── -->
-      <section class="card">
+      <!-- ── Office Hours (students) OR Office Hours Management (staff) ── -->
+      <section v-if="!isProfessor && !isTA" class="card">
         <div class="section-header">
           <h2>Office Hours</h2>
         </div>
@@ -490,8 +517,10 @@ async function submitMeetingRequest() {
         </div>
       </section>
 
+      <MyOfficeHours v-else />
+
       <!-- ── Request a Meeting: week view (students only) ── -->
-      <section v-if="!isProfessor" class="card">
+      <section v-if="!isProfessor && !isTA" class="card">
         <div class="section-header">
           <h2>Request a Meeting</h2>
           <div class="week-nav">
@@ -566,12 +595,9 @@ async function submitMeetingRequest() {
 
     </template>
 
-    <!-- ── My Office Hours (prof / TA only) ── -->
-    <MyOfficeHours v-if="isProfessor || role === 'TA'" />
-
   </div>
 
-  <!-- Request Meeting Modal -->
+  <!-- Request Meeting -->
   <teleport to="body">
     <div v-if="requestModal.show" class="overlay" @click.self="requestModal.show = false">
       <div class="modal">
@@ -608,6 +634,40 @@ async function submitMeetingRequest() {
               :disabled="requestLoading || !requestModal.date || !requestModal.startTime || !requestModal.endTime"
               @click="submitMeetingRequest"
             >{{ requestLoading ? 'Sending…' : 'Send Request' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
+
+  <!-- Add Class Meeting Popup (professor) -->
+  <teleport to="body">
+    <div v-if="showAddMeeting" class="overlay" @click.self="showAddMeeting = false">
+      <div class="modal">
+        <div class="modal-hdr">
+          <h3>Add Class Meeting</h3>
+          <button class="close-btn" @click="showAddMeeting = false">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="mfield">
+            <label>Date</label>
+            <input v-model="addMeetingForm.date" type="date" class="input" />
+          </div>
+          <div class="mfield">
+            <label>Start</label>
+            <input v-model="addMeetingForm.startTime" type="time" class="input" />
+          </div>
+          <div class="mfield">
+            <label>End</label>
+            <input v-model="addMeetingForm.endTime" type="time" class="input" />
+          </div>
+          <div class="mfield mfield-col">
+            <label>Notes</label>
+            <textarea v-model="addMeetingForm.notes" class="input" rows="3" placeholder="Optional notes" />
+          </div>
+          <div class="modal-actions">
+            <button class="btn-ghost" @click="showAddMeeting = false">Cancel</button>
+            <button class="btn" :disabled="!addMeetingForm.date || !addMeetingForm.startTime || !addMeetingForm.endTime" @click="createClassMeeting">Create</button>
           </div>
         </div>
       </div>
@@ -973,6 +1033,7 @@ h2 {
   background: rgba(248,113,113,0.25);
 }
 
+
 /* ── Empty states ── */
 .empty-card {
   padding: 24px;
@@ -1009,14 +1070,16 @@ h2 {
 }
 
 .btn-ghost {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255, 0, 0, 0.301);
+  border: 1px solid rgba(255, 0, 0, 0.37);
   color: #e5e7eb;
   border-radius: 8px;
   padding: 4px 11px;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+  font-weight: 700;
+
 }
 
 .btn-ghost:hover { background: rgba(255,255,255,0.12); }
