@@ -2,6 +2,9 @@
 
 A full-stack web application that helps students organize their academic workload by parsing syllabus PDFs and matching student availability with instructor office hours.
 
+## DEPLOYMENT STATUS
+SyllabusSync is currently not hosted publicly anymore. The original Azure credits used to deploy the application have been exhausted, so the Azure-hosted version is no longer available. The project is still fully runnable through local development, read below on instructions, if you don't get more confused by our readme after that is.
+
 ---
 
 ## Table of Contents
@@ -18,6 +21,7 @@ A full-stack web application that helps students organize their academic workloa
 - [Deployment (Azure)](#deployment-azure)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Architecture Overview](#architecture-overview)
+- [How it Looks](#how-it-looks)
 - [Key Features](#key-features)
 - [User Roles](#user-roles)
 - [API Overview](#api-overview)
@@ -381,6 +385,30 @@ Browser
 **Authentication:** Session cookie (`JSESSIONID`). Spring Security form login at `/api/login`. All routes except `/`, `/login`, `/signup`, `/api/health` require authentication.
 
 **Frontend routing:** Vue Router handles client-side navigation. The `SpaController` in Spring Boot forwards all non-API, non-static requests to `index.html` so that page refreshes work correctly.
+
+---
+
+## How It Looks
+
+### General View
+---
+<img width="1892" height="642" alt="Screenshot 2026-10-15 173621" src="https://github.com/user-attachments/assets/0893c66e-7581-4641-ab1f-ba065fbdae01" />
+<img width="1502" height="812" alt="Screenshot 2026-10-15 173757" src="https://github.com/user-attachments/assets/9bd3a255-dd60-4e77-bff8-553466a17483" />
+
+### Student and TA View (TA view has a few more additional features but for the sake of the amount of photos its more or less the same)
+---
+<img width="1892" height="855" alt="Screenshot 2026-10-15 173838" src="https://github.com/user-attachments/assets/8116eb0b-a41d-4276-8459-71c94913d5c9" />
+<img width="1910" height="742" alt="Screenshot 2026-10-15 173915" src="https://github.com/user-attachments/assets/7472354c-b400-40b0-a83c-602fb9b1a5d0" />
+<img width="1886" height="781" alt="Screenshot 2026-10-15 174348" src="https://github.com/user-attachments/assets/45467308-fa5f-44b1-940f-212cbc52dba4" />
+<img width="1892" height="832" alt="Screenshot 2026-10-15 174251" src="https://github.com/user-attachments/assets/50f6c088-865c-423e-abc7-c404e017c2bf" />
+
+### Professor View
+---
+<img width="1911" height="832" alt="Screenshot 2026-10-15 174523" src="https://github.com/user-attachments/assets/07c7007e-75da-4d4f-8c92-109a6fa942ad" />
+<img width="652" height="617" alt="Screenshot 2026-10-15 174620" src="https://github.com/user-attachments/assets/82fa711b-9a45-417d-9385-851751123655" />
+<img width="1880" height="856" alt="Screenshot 2026-10-15 175020" src="https://github.com/user-attachments/assets/2e2b15db-648a-4d11-84dd-fc3c9dac059c" />
+<img width="687" height="492" alt="Screenshot 2026-10-15 175046" src="https://github.com/user-attachments/assets/f6762fb1-8037-437b-947a-7c3eaf456c6e" />
+<img width="652" height="617" alt="Screenshot 2026-10-15 174620" src="https://github.com/user-attachments/assets/a4550901-8369-47b3-a625-c61cfe8e28f6" />
 
 ---
 
